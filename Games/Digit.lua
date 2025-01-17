@@ -36,6 +36,7 @@ local Window = Fluent:CreateWindow({
 local Tabs = {
     Main = Window:CreateTab({ Title = "Main", Icon = "house" }),
     Teleport = Window:CreateTab({ Title = "Teleport", Icon = "earth" }),
+    Walking = Window:CreateTab({ Title = "Auto Walk", Icon = "fast-forward" }),
     Enchant = Window:CreateTab({ Title = "Enchant", Icon = "shovel" }),
     Pinneds = Window:CreateTab({ Title = "Pin", Icon = "pin" }),
     Settingss = Window:CreateTab({ Title = "Misc", Icon = "info" })
@@ -289,6 +290,10 @@ local function isWaterPosition(position)
     return false
 end
 
+local savedPosition = nil
+local radius = 20 -- Default radius for random walking
+
+-- Modified getRandomTargetPosition function to use saved position
 local function getRandomTargetPosition()
     local character = player.Character
     if not character then return nil end
@@ -296,13 +301,16 @@ local function getRandomTargetPosition()
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return nil end
     
+    -- Use saved position if available, otherwise use current position
+    local basePosition = savedPosition or rootPart.Position
+    
     -- Try up to 10 times to find a non-water position
     for i = 1, 10 do
         local randomAngle = math.random() * 2 * math.pi
         local randomDistance = math.random() * radius
         local offsetX = math.cos(randomAngle) * randomDistance
         local offsetZ = math.sin(randomAngle) * randomDistance
-        local newTargetPos = rootPart.Position + Vector3.new(offsetX, 0, offsetZ)
+        local newTargetPos = basePosition + Vector3.new(offsetX, 0, offsetZ)
         
         -- Check if the position is not in water
         if not isWaterPosition(newTargetPos) then
@@ -310,7 +318,6 @@ local function getRandomTargetPosition()
         end
     end
     
-    -- If we couldn't find a non-water position, return nil
     return nil
 end
 
@@ -581,24 +588,45 @@ local function processNewAutoSell()
         local Max = tonumber(Capacity.Text:split(")")[1]:split("/")[2])
 
         if Current and Max and Current >= Max then
-            local wasInMinigame = isMinigameActive
-            local wasWalking = autoWalkEnabled
+            -- Store the current states
+            local wasAutoWalking = autoWalkEnabled
             
-            if wasWalking then
-                autoWalkEnabled = false
-            end
+            -- Store current position
+            local currentPosition = player.Character and player.Character:GetPivot()
             
+            -- Temporarily pause auto walk
+            autoWalkEnabled = false
+            
+            -- Perform selling
             SellInventory()
             
-            if wasWalking then
-                task.wait(0.5)
-                autoWalkEnabled = true
+            -- Wait for character to fully load after teleport
+            task.wait(1)
+            
+            -- Make sure character exists
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                -- Restore auto walk if it was enabled
+                if wasAutoWalking then
+                    task.wait(0.5) -- Additional wait to ensure character is ready
+                    autoWalkEnabled = true
+                    
+                    -- Force restart the auto walk loop
+                    task.spawn(function()
+                        while autoWalkEnabled do
+                            if not isMinigameActive then
+                                Goto()
+                            end
+                            task.wait(0.1)
+                        end
+                    end)
+                end
             end
         end
         
         task.wait(1)
     end
 end
+
 
 -- Add New Auto Sell toggle to UI
 local NewAutoSellToggle = Tabs.Main:CreateToggle("NewAutoSellToggle", {
@@ -614,23 +642,19 @@ local NewAutoSellToggle = Tabs.Main:CreateToggle("NewAutoSellToggle", {
 
 local autoRedeemContainersEnabled = false
 
--- Add this function before the Settings Tab
 local function processContainers()
     while autoRedeemContainersEnabled do
         local player = game:GetService("Players").LocalPlayer
-        
-        -- Check backpack for any containers/boxes
         for _, Tool in pairs(player.Backpack:GetChildren()) do
             if Tool.Name:find("Box") or Tool.Name:find("Container") or Tool.Name:find("Chest") or Tool.Name:find("Pack") or Tool.Name:find("Present") or Tool.Name:find("Safe") or Tool.Name:find("Crate") then
                 ReplicatedStorage.Source.Network.RemoteEvents.Treasure:FireServer({
                     Command = "RedeemContainer",
                     Container = Tool
                 })
-                task.wait(0.1) -- Small delay between redemptions
+                task.wait(0.1)
             end
         end
         
-        -- Also check equipped tools
         if player.Character then
             for _, Tool in pairs(player.Character:GetChildren()) do
                 if Tool:IsA("Tool") and (Tool.Name:find("Box") or Tool.Name:find("Container") or Tool.Name:find("Chest") or Tool.Name:find("Pack") or Tool.Name:find("Present") or Tool.Name:find("Safe") or Tool.Name:find("Crate")) then
@@ -643,11 +667,9 @@ local function processContainers()
             end
         end
         
-        task.wait(1) -- Wait before next check
+        task.wait(1)
     end
 end
-
--- Add the new Auto Redeem Containers toggle before the Settings Tab
 local AutoRedeemContainersToggle = Tabs.Main:CreateToggle("AutoRedeemContainersToggle",{
     Title = "📦 • Auto Open All Boxes",
     Default = false,
@@ -660,7 +682,59 @@ local AutoRedeemContainersToggle = Tabs.Main:CreateToggle("AutoRedeemContainersT
 })
 
 
-local AutoWalkToggle = Tabs.Main:CreateToggle("AutoWalkToggle",{
+local PositionSection = Tabs.Walking:CreateSection("Position Controls")
+
+-- Save Position Button
+local SavePositionButton = Tabs.Walking:CreateButton({
+    Title = "📍 Save Current Position",
+    Description = "Save current position for auto walk area",
+    Callback = function()
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            savedPosition = character.HumanoidRootPart.Position
+            Fluent:Notify({
+                Title = "Position Saved",
+                Content = "Auto walk will now center around this position",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Error",
+                Content = "Could not save position. Character not found.",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Reset Position Button
+local ResetPositionButton = Tabs.Walking:CreateButton({
+    Title = "🔄 Reset Saved Position",
+    Description = "Reset to random walking mode",
+    Callback = function()
+        savedPosition = nil
+        Fluent:Notify({
+            Title = "Position Reset",
+            Content = "Auto walk will now use random positions",
+            Duration = 3
+        })
+    end
+})
+
+-- Radius Slider
+local RadiusSlider = Tabs.Walking:CreateSlider("RadiusSlider",{
+    Title = "Walk Radius",
+    Description = "Set the radius for auto walk area",
+    Default = 20,
+    Min = 5,
+    Max = 50,
+    Rounding = 0,
+    Callback = function(Value)
+        radius = Value
+    end
+})
+
+local AutoWalkToggle = Tabs.Walking:CreateToggle("AutoWalkToggle",{
     Title = "🚶 • Auto Walk",
     Default = false,
     Callback = function(Value)
@@ -668,10 +742,10 @@ local AutoWalkToggle = Tabs.Main:CreateToggle("AutoWalkToggle",{
         if Value then
             task.spawn(function()
                 while autoWalkEnabled do
-                    if not isMinigameActive then
+                    if not isMinigameActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                         Goto()
                     end
-                    task.wait(0.1) -- Small delay between path calculations
+                    task.wait(0.1)
                 end
             end)
         end
@@ -705,7 +779,7 @@ local inputValue = ""
 local customPinItems = {}
 local paragraphs = {}
 local pinnedItemParagraphs = {}
-local pinnedItemCounts = {} -- New table to track pin counts
+local pinnedItemCounts = {}
 
 -- Create a section for the Auto Pin feature
 local PinSection = Tabs.Pinneds:CreateSection("Custom Auto Pin")
@@ -850,16 +924,13 @@ local AutoPinToggle = Tabs.Pinneds:CreateToggle("AutoPinToggle", {
     end
 })
 
--- Using HandleConnection with PinItem
 HandleConnection(LocalPlayer.Backpack.ChildAdded:Connect(PinItem), "PinItem")
 
 
 local selectedMole = nil
 
--- Create section for enchanting
 local EnchantSection = Tabs.Enchant:CreateSection("Mole Enchanting")
 
--- Manual list of moles
 local moleList = {
     "Royal Mole",
     "Mole",
