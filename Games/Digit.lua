@@ -24,8 +24,8 @@ local function HandleConnection(Connection, Name)
 end
 
 local Window = Fluent:CreateWindow({
-    Title = "a 1.3",
-    SubTitle = "by XenonHUB",
+    Title = game:GetService("MarketplaceService"):GetProductInfo(76455837887178).Name .." | Xenon",
+    SubTitle = "https://discord.gg/3ZQBHpfQ5X",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 400),
     Acrylic = true,
@@ -590,12 +590,16 @@ local function processNewAutoSell()
         if Current and Max and Current >= Max then
             -- Store the current states
             local wasAutoWalking = autoWalkEnabled
+            local wasAutoDigging = autoClickAndDigEnabled -- Store auto dig legit state
             
             -- Store current position
             local currentPosition = player.Character and player.Character:GetPivot()
             
-            -- Temporarily pause auto walk
+            -- Temporarily pause auto walk and auto dig
             autoWalkEnabled = false
+            if wasAutoDigging then
+                autoClickAndDigEnabled = false -- Pause auto dig legit
+            end
             
             -- Perform selling
             SellInventory()
@@ -619,6 +623,10 @@ local function processNewAutoSell()
                             task.wait(0.1)
                         end
                     end)
+                end
+                if wasAutoDigging then
+                    task.wait(0.5)
+                    autoClickAndDigEnabled = true
                 end
             end
         end
@@ -1151,4 +1159,3 @@ player.CharacterAdded:Connect(function(newCharacter)
 end)
 
 setupMinigameMonitoring()
-
