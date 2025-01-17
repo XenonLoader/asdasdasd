@@ -9,7 +9,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-
+local Player = game:GetService("Players").LocalPlayer
+local Network = ReplicatedStorage:WaitForChild("Source"):WaitForChild("Network")
+local RemoteFunctions: {[string]: RemoteFunction} = Network:WaitForChild("RemoteFunctions")
+local RemoteEvents: {[string]: RemoteEvent} = Network:WaitForChild("RemoteEvents")
 
 local Connections = {}
 
@@ -33,6 +36,7 @@ local Window = Fluent:CreateWindow({
 local Tabs = {
     Main = Window:CreateTab({ Title = "Main", Icon = "house" }),
     Teleport = Window:CreateTab({ Title = "Teleport", Icon = "earth" }),
+    Enchant = Window:CreateTab({ Title = "Enchant", Icon = "shovel" }),
     Pinneds = Window:CreateTab({ Title = "Pin", Icon = "pin" }),
     Settingss = Window:CreateTab({ Title = "Misc", Icon = "info" })
 }
@@ -850,6 +854,98 @@ local AutoPinToggle = Tabs.Pinneds:CreateToggle("AutoPinToggle", {
 HandleConnection(LocalPlayer.Backpack.ChildAdded:Connect(PinItem), "PinItem")
 
 
+local selectedMole = nil
+
+-- Create section for enchanting
+local EnchantSection = Tabs.Enchant:CreateSection("Mole Enchanting")
+
+-- Manual list of moles
+local moleList = {
+    "Royal Mole",
+    "Mole",
+}
+
+-- Dropdown for mole selection
+local MoleDropdown = EnchantSection:CreateDropdown("MoleDropdown",{
+    Title = "Select Mole",
+    Description = "Choose which mole to use for enchanting",
+    Values = moleList,
+    Multi = false,
+    Default = 1,
+})
+
+MoleDropdown:OnChanged(function(Value)
+    selectedMole = Value
+end)
+
+local EnchantButton = EnchantSection:CreateButton({
+    Title = "🔮 • Quick Enchant Shovel",
+    Callback = function()
+        if not selectedMole then
+            Fluent:Notify({
+                Title = "Missing Item",
+                Content = "Please select a mole first!",
+                Duration = 5
+            })
+            return
+        end
+
+        local Backpack = Player.Backpack
+        local Mole = Backpack:FindFirstChild(selectedMole)
+
+        if not Mole then
+            Fluent:Notify({
+                Title = "Missing Item",
+                Content = "You don't have a " .. selectedMole .. " in your backpack!",
+                Duration = 5
+            })
+            return
+        end
+
+        for _, Item in pairs(Backpack:GetChildren()) do
+            if Item:GetAttribute("Type") ~= "Shovel" then
+                continue
+            end
+
+            local Result = RemoteFunctions.MolePit:InvokeServer({
+                Command = "OfferEnchant",
+                ID = Mole:GetAttribute("ID")
+            })
+
+            if Result ~= true then
+                Fluent:Notify({
+                    Title = "Error",
+                    Content = "Failed to offer the mole",
+                    Duration = 5
+                })
+                return
+            end
+
+            Result = RemoteFunctions.MolePit:InvokeServer({
+                Command = "OfferShovel",
+                ID = Item:GetAttribute("ID")
+            })
+
+            if Result ~= true then
+                Fluent:Notify({
+                    Title = "Error",
+                    Content = "Failed to offer the shovel",
+                    Duration = 5
+                })
+                return
+            end
+
+            Fluent:Notify({
+                Title = "Success",
+                Content = "Successfully enchanted your shovel!",
+                Duration = 5
+            })
+            return
+        end
+    end,
+})
+
+
 -----------------end ----------------------
 
 local teleportSpots = {
@@ -881,17 +977,7 @@ DropdownPlace:OnChanged(function(Value)
 end)
 
 local PreviousLocation
-local Connections = {}
 
--- Function to handle connections
-local function HandleConnection(connection, flag)
-    if Connections[flag] then
-        Connections[flag]:Disconnect()
-    end
-    Connections[flag] = connection
-end
-
--- Meteor Island Implementation
 local function MeteorIslandTeleport(Meteor)
     if not Meteor or Meteor.Name ~= "Meteor Island" or not toggleStateAutoMeteor then
         return
@@ -960,6 +1046,9 @@ HandleConnection(workspace.Map.Islands.ChildRemoved:Connect(function(Child)
         LocalPlayer.Character:PivotTo(PreviousLocation)
     end
 end), "LunarCloudsRemoved")
+
+
+-------------------end teleport ----------------
 
 Tabs.Settingss:CreateButton({
     Title = "Copy Link Discord",
