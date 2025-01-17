@@ -10,6 +10,16 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
+
+local Connections = {}
+
+local function HandleConnection(Connection, Name)
+    if Connections[Name] then
+        Connections[Name]:Disconnect()
+    end
+    Connections[Name] = Connection
+end
+
 local Window = Fluent:CreateWindow({
     Title = "a 1.3",
     SubTitle = "by XenonHUB",
@@ -21,8 +31,8 @@ local Window = Fluent:CreateWindow({
 })
 
 local Tabs = {
-    Main = Window:CreateTab({ Title = "Main", Icon = "home" }),
-    Settings = Window:CreateTab({ Title = "Credits", Icon = "info" })
+    Main = Window:CreateTab({ Title = "Main", Icon = "house" }),
+    Settingss = Window:CreateTab({ Title = "Credits", Icon = "info" })
 }
 
 -- Anti-AFK System
@@ -333,7 +343,7 @@ local function Goto()
         local waypoints = path:GetWaypoints()
         
         for _, waypoint in ipairs(waypoints) do
-            if not autoWalkEnabled or isMinigameActive then break end
+            if not autoWalkEnabled then break end
             
             -- Check if waypoint is in water
             if not isWaterPosition(waypoint.Position) then
@@ -343,7 +353,27 @@ local function Goto()
                     humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                 end
                 
-                local reachedWaypoint = humanoid.MoveToFinished:Wait()
+                -- Wait for movement with timeout
+                local startTime = tick()
+                local timeout = 5 -- 5 seconds timeout
+                local reachedWaypoint = false
+                
+                local connection
+                connection = humanoid.MoveToFinished:Connect(function()
+                    reachedWaypoint = true
+                    if connection then
+                        connection:Disconnect()
+                    end
+                end)
+                
+                -- Wait until reached or timeout
+                while not reachedWaypoint and (tick() - startTime) < timeout and autoWalkEnabled do
+                    task.wait()
+                end
+                
+                if connection then
+                    connection:Disconnect()
+                end
                 
                 -- If we reached the final waypoint and it was a model
                 if reachedWaypoint and nearestModel and _ == #waypoints then
@@ -585,7 +615,7 @@ local function processContainers()
         
         -- Check backpack for any containers/boxes
         for _, Tool in pairs(player.Backpack:GetChildren()) do
-            if Tool.Name:find("Box") or Tool.Name:find("Container") or Tool.Name:find("Chest") or Tool.Name:find("Pack") then
+            if Tool.Name:find("Box") or Tool.Name:find("Container") or Tool.Name:find("Chest") or Tool.Name:find("Pack") or Tool.Name:find("Present") or Tool.Name:find("Safe") or Tool.Name:find("Crate") then
                 ReplicatedStorage.Source.Network.RemoteEvents.Treasure:FireServer({
                     Command = "RedeemContainer",
                     Container = Tool
@@ -597,7 +627,7 @@ local function processContainers()
         -- Also check equipped tools
         if player.Character then
             for _, Tool in pairs(player.Character:GetChildren()) do
-                if Tool:IsA("Tool") and (Tool.Name:find("Box") or Tool.Name:find("Container") or Tool.Name:find("Chest") or Tool.Name:find("Pack")) then
+                if Tool:IsA("Tool") and (Tool.Name:find("Box") or Tool.Name:find("Container") or Tool.Name:find("Chest") or Tool.Name:find("Pack") or Tool.Name:find("Present") or Tool.Name:find("Safe") or Tool.Name:find("Crate")) then
                     ReplicatedStorage.Source.Network.RemoteEvents.Treasure:FireServer({
                         Command = "RedeemContainer",
                         Container = Tool
@@ -623,9 +653,45 @@ local AutoRedeemContainersToggle = Tabs.Main:CreateToggle("AutoRedeemContainersT
     end
 })
 
+local autoPinMolesEnabled = false
+
+local function PinMoles(Tool)
+    if not autoPinMolesEnabled then
+        return
+    end
+    
+    if not Tool.Name:find("Mole") then
+        return
+    end
+    
+    if Tool:GetAttribute("Pinned") then
+        return
+    end
+
+    ReplicatedStorage.Source.Network.RemoteFunctions.Inventory:InvokeServer({
+        Command = "ToggleSlotPin",
+        UID = Tool:GetAttribute("ID")
+    })
+end
+
+local AutoPinMolesToggle = Tabs.Main:CreateToggle("AutoPinMolesToggle", {
+    Title = "📌 • Auto Pin Moles",
+    Default = false,
+    Callback = function(Value)
+        autoPinMolesEnabled = Value
+        if Value then
+            for _, Tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+                PinMoles(Tool)
+            end
+        end
+    end
+})
+
+HandleConnection(LocalPlayer.Backpack.ChildAdded:Connect(PinMoles), "PinMoles")
+
 
 local AutoWalkToggle = Tabs.Main:CreateToggle("AutoWalkToggle",{
-    Title = "Auto Walk",
+    Title = "🚶 • Auto Walk",
     Default = false,
     Callback = function(Value)
         autoWalkEnabled = Value
@@ -634,10 +700,8 @@ local AutoWalkToggle = Tabs.Main:CreateToggle("AutoWalkToggle",{
                 while autoWalkEnabled do
                     if not isMinigameActive then
                         Goto()
-                        task.wait(1)
-                    else
-                        task.wait(0.1)
                     end
+                    task.wait(0.1) -- Small delay between path calculations
                 end
             end)
         end
@@ -696,6 +760,110 @@ DropdownPlace:OnChanged(function(Value)
     end
 end)
 
+local PreviousLocation
+local Connections = {}
+
+-- Function to handle connections
+local function HandleConnection(connection, flag)
+    if Connections[flag] then
+        Connections[flag]:Disconnect()
+    end
+    Connections[flag] = connection
+end
+
+-- Meteor Island Implementation
+local function MeteorIslandTeleport(Meteor)
+    if not Meteor or Meteor.Name ~= "Meteor Island" or not toggleStateAutoMeteor then
+        return
+    end
+    
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    
+    PreviousLocation = Character:GetPivot()
+    Character:PivotTo(Meteor:GetPivot() + Vector3.new(0, Meteor:GetExtentsSize().Y / 2, 0))
+end
+
+local AutoMeteorToggle = Tabs.Main:CreateToggle("AutoMeteorToggle",{
+    Title = "🌠 • Auto Teleport to Meteor Islands",
+    Default = false,
+    Callback = function(Value)
+        toggleStateAutoMeteor = Value
+        if Value then
+            for _, v in pairs(workspace.Map.Temporary:GetChildren()) do
+                MeteorIslandTeleport(v)
+            end
+        elseif PreviousLocation then
+            LocalPlayer.Character:PivotTo(PreviousLocation)
+        end
+    end
+})
+
+HandleConnection(workspace.Map.Temporary.ChildAdded:Connect(MeteorIslandTeleport), "Meteor")
+HandleConnection(workspace.Map.Temporary.ChildRemoved:Connect(function(Child)
+    if Child.Name == "Meteor Island" and PreviousLocation and toggleStateAutoMeteor then
+        LocalPlayer.Character:PivotTo(PreviousLocation)
+    end
+end), "MeteorRemoved")
+
+-- Lunar Clouds Implementation
+local function LunarCloudsTeleport(Lunar)
+    if not Lunar or Lunar.Name ~= "Lunar Clouds" or not toggleStateAutoLunar then
+        return
+    end
+
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    
+    PreviousLocation = Character:GetPivot()
+    Character:PivotTo(Lunar:GetPivot() + Vector3.new(0, Lunar:GetExtentsSize().Y / 2, 0))
+end
+
+local AutoLunarToggle = Tabs.Main:CreateToggle("AutoLunarToggle",{
+    Title = "✨ • Auto Teleport to Lunar Clouds",
+    Default = false,
+    Callback = function(Value)
+        toggleStateAutoLunar = Value
+        if Value then
+            for _, v in pairs(workspace.Map.Islands:GetChildren()) do
+                LunarCloudsTeleport(v)
+            end
+        elseif PreviousLocation then
+            LocalPlayer.Character:PivotTo(PreviousLocation)
+        end
+    end
+})
+
+HandleConnection(workspace.Map.Islands.ChildAdded:Connect(LunarCloudsTeleport), "LunarClouds")
+HandleConnection(workspace.Map.Islands.ChildRemoved:Connect(function(Child)
+    if Child.Name == "Lunar Clouds" and PreviousLocation and toggleStateAutoLunar then
+        LocalPlayer.Character:PivotTo(PreviousLocation)
+    end
+end), "LunarCloudsRemoved")
+
+Tabs.Settingss:CreateButton({
+    Title = "Copy Link Discord",
+    Callback = function()
+        setclipboard("https://discord.gg/3ZQBHpfQ5X")
+    end
+})
+
+-- Add connections for Meteor Islands
+Workspace.Map.Temporary.ChildAdded:Connect(MeteorIslandTeleport)
+Workspace.Map.Temporary.ChildRemoved:Connect(function(Child)
+    if Child.Name == "Meteor Island" and PreviousLocation and meteorTeleportEnabled then
+        LocalPlayer.Character:PivotTo(PreviousLocation)
+    end
+end)
+
+-- Add connections for Lunar Clouds
+Workspace.Map.Islands.ChildAdded:Connect(LunarCloudsTeleport)
+Workspace.Map.Islands.ChildRemoved:Connect(function(Child)
+    if Child.Name == "Lunar Clouds" and PreviousLocation and lunarCloudsTeleportEnabled then
+        LocalPlayer.Character:PivotTo(PreviousLocation)
+    end
+end)
+
 -- Character respawn handling
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
@@ -703,16 +871,3 @@ player.CharacterAdded:Connect(function(newCharacter)
 end)
 
 setupMinigameMonitoring()
-
--- Settings Tab
-Tabs.Settings:CreateParagraph({
-    Title = "Discord",
-    Content = "https://discord.gg/3ZQBHpfQ5X"
-})
-
-Tabs.Settings:CreateButton({
-    Title = "Copy Link Discord",
-    Callback = function()
-        setclipboard("https://discord.gg/3ZQBHpfQ5X")
-    end
-})
