@@ -32,7 +32,9 @@ local Window = Fluent:CreateWindow({
 
 local Tabs = {
     Main = Window:CreateTab({ Title = "Main", Icon = "house" }),
-    Settingss = Window:CreateTab({ Title = "Credits", Icon = "info" })
+    Teleport = Window:CreateTab({ Title = "Teleport", Icon = "earth" }),
+    Pinneds = Window:CreateTab({ Title = "Pin", Icon = "pin" }),
+    Settingss = Window:CreateTab({ Title = "Misc", Icon = "info" })
 }
 
 -- Anti-AFK System
@@ -653,42 +655,6 @@ local AutoRedeemContainersToggle = Tabs.Main:CreateToggle("AutoRedeemContainersT
     end
 })
 
-local autoPinMolesEnabled = false
-
-local function PinMoles(Tool)
-    if not autoPinMolesEnabled then
-        return
-    end
-    
-    if not Tool.Name:find("Mole") then
-        return
-    end
-    
-    if Tool:GetAttribute("Pinned") then
-        return
-    end
-
-    ReplicatedStorage.Source.Network.RemoteFunctions.Inventory:InvokeServer({
-        Command = "ToggleSlotPin",
-        UID = Tool:GetAttribute("ID")
-    })
-end
-
-local AutoPinMolesToggle = Tabs.Main:CreateToggle("AutoPinMolesToggle", {
-    Title = "📌 • Auto Pin Moles",
-    Default = false,
-    Callback = function(Value)
-        autoPinMolesEnabled = Value
-        if Value then
-            for _, Tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-                PinMoles(Tool)
-            end
-        end
-    end
-})
-
-HandleConnection(LocalPlayer.Backpack.ChildAdded:Connect(PinMoles), "PinMoles")
-
 
 local AutoWalkToggle = Tabs.Main:CreateToggle("AutoWalkToggle",{
     Title = "🚶 • Auto Walk",
@@ -708,7 +674,7 @@ local AutoWalkToggle = Tabs.Main:CreateToggle("AutoWalkToggle",{
     end
 })
 
-local Toggle = Tabs.Main:CreateToggle("Toggle",{
+local Toggle = Tabs.Settingss:CreateToggle("Toggle",{
     Title = "Anti AFK",
     Default = false,
     Callback = function(Value)
@@ -730,7 +696,161 @@ local Toggle = Tabs.Main:CreateToggle("Toggle",{
     end
 })
 
---["Badlands"] = CFrame.new(),
+-------------------pin tab --------------------------------
+local inputValue = ""
+local customPinItems = {}
+local paragraphs = {}
+local pinnedItemParagraphs = {}
+local pinnedItemCounts = {} -- New table to track pin counts
+
+-- Create a section for the Auto Pin feature
+local PinSection = Tabs.Pinneds:CreateSection("Custom Auto Pin")
+local PinnedSection = Tabs.Pinneds:CreateSection("Currently Pinned Items")
+
+-- Input field for item names
+local ItemInput = Tabs.Pinneds:CreateInput("ItemInput", {
+    Title = "Item Name to Auto Pin",
+    Placeholder = "Enter item name (e.g., Mole)",
+    Numeric = false,
+    Finished = false,
+    Callback = function(Value)
+        inputValue = Value
+    end
+})
+
+-- Button to add items to the list
+local AddButton = Tabs.Pinneds:CreateButton({
+    Title = "Add Item to Pin List",
+    Description = "Add new item to auto-pin list",
+    Callback = function()
+        if not inputValue or inputValue == "" then
+            paragraphs[#paragraphs + 1] = PinSection:CreateParagraph("ErrorParagraph", {
+                Title = "Error",
+                Content = "Please enter an item name first!"
+            })
+            return
+        end
+
+        -- Check if item is already in the list
+        for _, existingItem in ipairs(customPinItems) do
+            if existingItem:lower() == inputValue:lower() then
+                paragraphs[#paragraphs + 1] = PinSection:CreateParagraph("ErrorParagraph", {
+                    Title = "Error",
+                    Content = "This item is already in the pin list!"
+                })
+                return
+            end
+        end
+
+        table.insert(customPinItems, inputValue)
+        
+        -- Create new paragraph for this item
+        paragraphs[#paragraphs + 1] = PinSection:CreateParagraph("ItemParagraph_" .. #customPinItems, {
+            Title = "Auto Pin Item #" .. #customPinItems,
+            Content = inputValue
+        })
+        
+        -- If auto pin is enabled, check existing items to pin
+        if autoPinEnabled then
+            for _, Tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+                PinItem(Tool)
+            end
+        end
+        
+        -- Clear the input value after adding
+        inputValue = ""
+    end
+})
+
+-- Reset button to clear the list
+local ResetButton = Tabs.Pinneds:CreateButton({
+    Title = "Reset Pin List",
+    Description = "Clear all items from auto-pin list",
+    Callback = function()
+        customPinItems = {}
+        pinnedItemCounts = {} -- Reset the counts
+        -- Remove all paragraphs
+        for _, paragraph in pairs(paragraphs) do
+            if paragraph then
+                paragraph:Destroy()
+            end
+        end
+        table.clear(paragraphs)
+        
+        -- Clear pinned items paragraphs
+        for _, paragraph in pairs(pinnedItemParagraphs) do
+            if paragraph then
+                paragraph:Destroy()
+            end
+        end
+        table.clear(pinnedItemParagraphs)
+    end
+})
+
+-- Modified PinItem function to work with custom items and create paragraphs with counter
+local function PinItem(Tool)
+    if not autoPinEnabled then
+        return
+    end
+    
+    if Tool:GetAttribute("Pinned") then
+        return
+    end
+
+    -- Check if the tool name contains any of our custom items
+    local shouldPin = false
+    local matchedItem = ""
+    for _, itemName in ipairs(customPinItems) do
+        if Tool.Name:lower():find(itemName:lower()) then
+            shouldPin = true
+            matchedItem = itemName
+            break
+        end
+    end
+
+    if shouldPin then
+        -- Pin the item
+        ReplicatedStorage.Source.Network.RemoteFunctions.Inventory:InvokeServer({
+            Command = "ToggleSlotPin",
+            UID = Tool:GetAttribute("ID")
+        })
+        
+        -- Update the counter for this item
+        pinnedItemCounts[matchedItem] = (pinnedItemCounts[matchedItem] or 0) + 1
+        
+        -- Remove existing paragraph for this item if it exists
+        if pinnedItemParagraphs[matchedItem] then
+            pinnedItemParagraphs[matchedItem]:Destroy()
+        end
+        
+        -- Create a new paragraph for the pinned item with counter
+        local counterText = pinnedItemCounts[matchedItem] > 1 and string.format(" x%d", pinnedItemCounts[matchedItem]) or ""
+        pinnedItemParagraphs[matchedItem] = PinnedSection:CreateParagraph("PinnedItem_" .. matchedItem, {
+            Title = "📌 Auto Pinned" .. counterText,
+            Content = string.format("Item: %s (Matched: %s)", Tool.Name, matchedItem)
+        })
+    end
+end
+
+-- Toggle for enabling/disabling the auto pin system
+local AutoPinToggle = Tabs.Pinneds:CreateToggle("AutoPinToggle", {
+    Title = "📌 • Auto Pin Items",
+    Default = false,
+    Callback = function(Value)
+        autoPinEnabled = Value
+        if Value and #customPinItems > 0 then
+            for _, Tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+                PinItem(Tool)
+            end
+        end
+    end
+})
+
+-- Using HandleConnection with PinItem
+HandleConnection(LocalPlayer.Backpack.ChildAdded:Connect(PinItem), "PinItem")
+
+
+-----------------end ----------------------
 
 local teleportSpots = {
     ["Badlands"] = CFrame.new(1193.10315, 11.0881357, 374.344391, -0.927843273, 2.78985346e-09, 0.372970313, -5.50288481e-10, 1, -8.84905482e-09, -0.372970313, -8.41577741e-09, -0.927843273),
@@ -742,9 +862,9 @@ local teleportSpots = {
     ["Mole Island"] = CFrame.new(559.143127, 5.76374149, 839.091858, 0.887409687, -3.80517911e-08, 0.460981578, 6.62563124e-08, 1, -4.50011619e-08, -0.460981578, 7.04774124e-08, 0.887409687),
 }
 
-local TeleportSection = Tabs.Main:CreateSection("Teleport")
+local TeleportSection = Tabs.Teleport:CreateSection("Teleport")
 
-local DropdownPlace = Tabs.Main:CreateDropdown("DropdownPlace", {
+local DropdownPlace = Tabs.Teleport:CreateDropdown("DropdownPlace", {
     Title = "Place teleport",
     Values = {"Badlands", "Greek Temple", "Lunar New Year", "Nookville", "Permafrost", "Piratesburg", "Mole Island"},
     Multi = false,
@@ -784,7 +904,7 @@ local function MeteorIslandTeleport(Meteor)
     Character:PivotTo(Meteor:GetPivot() + Vector3.new(0, Meteor:GetExtentsSize().Y / 2, 0))
 end
 
-local AutoMeteorToggle = Tabs.Main:CreateToggle("AutoMeteorToggle",{
+local AutoMeteorToggle = Tabs.Teleport:CreateToggle("AutoMeteorToggle",{
     Title = "🌠 • Auto Teleport to Meteor Islands",
     Default = false,
     Callback = function(Value)
@@ -819,7 +939,7 @@ local function LunarCloudsTeleport(Lunar)
     Character:PivotTo(Lunar:GetPivot() + Vector3.new(0, Lunar:GetExtentsSize().Y / 2, 0))
 end
 
-local AutoLunarToggle = Tabs.Main:CreateToggle("AutoLunarToggle",{
+local AutoLunarToggle = Tabs.Teleport:CreateToggle("AutoLunarToggle",{
     Title = "✨ • Auto Teleport to Lunar Clouds",
     Default = false,
     Callback = function(Value)
@@ -871,3 +991,4 @@ player.CharacterAdded:Connect(function(newCharacter)
 end)
 
 setupMinigameMonitoring()
+
