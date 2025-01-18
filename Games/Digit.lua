@@ -158,7 +158,7 @@ local function processTreasurePiles()
     processing = false
 end
 
--- Minigame Auto System
+
 local isDigMinigameLocked = false
 local activeConnections = {}
 
@@ -174,11 +174,11 @@ local function handleMinigame(digMinigame)
         activeConnections[digMinigame]:Disconnect()
         activeConnections[digMinigame] = nil
     end
-
-    if isDigMinigameLocked then
+    if isDigMinigameLocked or autoClickAndDigEnabled then
         activeConnections[digMinigame] = RunService.Heartbeat:Connect(function()
             if cursor and cursor.Parent and area and area.Parent then
                 cursor.Position = area.Position
+                area.Size = UDim2.new(1, 0, 0.56400001, 0)
                 
                 local pileIndex = digMinigame:GetAttribute("TargetPileIndex")
                 if pileIndex then
@@ -222,6 +222,10 @@ local function setupMinigameMonitoring()
     mainGui.ChildRemoved:Connect(function(child)
         if child.Name == "DigMinigame" then
             isMinigameActive = false
+            if activeConnections[child] then
+                activeConnections[child]:Disconnect()
+                activeConnections[child] = nil
+            end
         end
     end)
     
