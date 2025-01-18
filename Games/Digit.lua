@@ -464,6 +464,7 @@ local function LegitDig()
             return
         end
 
+        DigMinigame.Area.Size = UDim2.new(1, 0, 0.56400001, 0)
         DigMinigame.Cursor.Position = DigMinigame.Area.Position
     end)
 end
@@ -487,10 +488,7 @@ local function handleAutoClickAndDig()
                 ReplicatedStorage.Source.Network.RemoteFunctions.Digging:InvokeServer(unpack(createArgs))
             end
         else
-            -- Handle minigame digging
             LegitDig()
-            
-            -- Auto dig when in minigame
             local digMinigame = LocalPlayer.PlayerGui.Main:FindFirstChild("DigMinigame")
             if digMinigame then
                 local pileIndex = digMinigame:GetAttribute("TargetPileIndex")
@@ -590,7 +588,7 @@ local function processNewAutoSell()
         if Current and Max and Current >= Max then
             -- Store the current states
             local wasAutoWalking = autoWalkEnabled
-            local wasAutoDigging = autoClickAndDigEnabled -- Store auto dig legit state
+            local wasAutoDigging = autoClickAndDigEnabled
             
             -- Store current position
             local currentPosition = player.Character and player.Character:GetPivot()
@@ -598,7 +596,7 @@ local function processNewAutoSell()
             -- Temporarily pause auto walk and auto dig
             autoWalkEnabled = false
             if wasAutoDigging then
-                autoClickAndDigEnabled = false -- Pause auto dig legit
+                autoClickAndDigEnabled = false
             end
             
             -- Perform selling
@@ -611,7 +609,7 @@ local function processNewAutoSell()
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 -- Restore auto walk if it was enabled
                 if wasAutoWalking then
-                    task.wait(0.5) -- Additional wait to ensure character is ready
+                    task.wait(0.5)
                     autoWalkEnabled = true
                     
                     -- Force restart the auto walk loop
@@ -624,9 +622,16 @@ local function processNewAutoSell()
                         end
                     end)
                 end
+                
+                -- Restore auto dig if it was enabled
                 if wasAutoDigging then
                     task.wait(0.5)
                     autoClickAndDigEnabled = true
+                    
+                    -- Force restart the auto dig loop
+                    task.spawn(function()
+                        handleAutoClickAndDig() -- Restart the dig loop
+                    end)
                 end
             end
         end
