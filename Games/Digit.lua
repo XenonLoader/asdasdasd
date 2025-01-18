@@ -24,7 +24,7 @@ local function HandleConnection(Connection, Name)
 end
 
 local Window = Fluent:CreateWindow({
-    Title = game:GetService("MarketplaceService"):GetProductInfo(76455837887178).Name .." | Xenon",
+    Title = `Xenon | {PlaceName}`,
     SubTitle = "https://discord.gg/3ZQBHpfQ5X",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 400),
