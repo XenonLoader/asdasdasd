@@ -295,26 +295,6 @@ local function stopTimer()
     end
 end
 
--- Function untuk memulai timer baru
-local function startTimer(duration)
-    -- Hentikan timer yang sedang berjalan (jika ada)
-    stopTimer()
-
-    -- Mulai timer baru
-    timerCoroutine = coroutine.create(function()
-        local timeLeft = duration
-        while timeLeft > 0 do
-            updateTimeDisplay(timeLeft)
-            wait(1)
-            timeLeft = timeLeft - 1
-        end
-        -- Waktu habis
-        TimeLabel.Text = "Time Expired!"
-        TimeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    end)
-    coroutine.resume(timerCoroutine)
-end
-
 -- Close button functionality
 CloseButton.MouseButton1Click:Connect(function()
     stopTimer() -- Hentikan timer sebelum menutup GUI
@@ -338,9 +318,125 @@ CloseButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Key validation logic
 local http_request = syn and syn.request or request
 local keyValid = false
+
+local function kickPlayer(reason, isDisabled)
+    local notification = Instance.new("ScreenGui")
+    notification.Name = "KickNotification"
+    notification.Parent = game.CoreGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0.3, 0, 0.15, 0)
+    frame.Position = UDim2.new(0.35, 0, 0.4, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    frame.BackgroundTransparency = 0.1
+    frame.Parent = notification
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 45)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 35))
+    })
+    gradient.Rotation = 45
+    gradient.Parent = frame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    -- Title of notification
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(0.9, 0, 0.3, 0)
+    title.Position = UDim2.new(0.05, 0, 0.1, 0)
+    title.BackgroundTransparency = 1
+    title.TextColor3 = isDisabled and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(255, 150, 0)
+    title.TextSize = 20
+    title.Font = Enum.Font.GothamBold
+    title.Text = isDisabled and "KEY DISABLED BY ADMIN" or "KEY EXPIRED"
+    title.Parent = frame
+
+    -- Message
+    local message = Instance.new("TextLabel")
+    message.Size = UDim2.new(0.9, 0, 0.5, 0)
+    message.Position = UDim2.new(0.05, 0, 0.4, 0)
+    message.BackgroundTransparency = 1
+    message.TextColor3 = Color3.fromRGB(255, 255, 255)
+    message.TextSize = 16
+    message.Font = Enum.Font.Gotham
+    message.Text = reason
+    message.TextWrapped = true
+    message.Parent = frame
+
+    -- Add glow effect
+    local glow = Instance.new("ImageLabel")
+    glow.BackgroundTransparency = 1
+    glow.Position = UDim2.new(0, -15, 0, -15)
+    glow.Size = UDim2.new(1, 30, 1, 30)
+    glow.Image = "rbxassetid://5028857084"
+    glow.ImageColor3 = isDisabled and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(255, 150, 0)
+    glow.ImageTransparency = 0.8
+    glow.Parent = frame
+
+    -- Wait for 3 seconds before kicking
+    wait(3)
+    LocalPlayer:Kick(reason)
+end
+
+local function startTimer(duration)
+    -- Hentikan timer yang sedang berjalan (jika ada)
+    stopTimer()
+
+    local currentKey = TextBox.Text -- Store the current key
+
+    -- Mulai timer baru
+    timerCoroutine = coroutine.create(function()
+        local timeLeft = duration
+        while timeLeft > 0 do
+            -- Check key status every 30 seconds
+            if timeLeft % 30 == 0 then
+                local url = "https://tlfsfctfofjgppfrdcpm.supabase.co/functions/v1/validate-key"
+                local success, response = pcall(function()
+                    return http_request({
+                        Url = url,
+                        Method = "POST",
+                        Headers = {
+                            ["Content-Type"] = "application/json",
+                            ["Authorization"] = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsZnNmY3Rmb2ZqZ3BwZnJkY3BtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczMTkxNjgsImV4cCI6MjA1Mjg5NTE2OH0.yv_fnGPcP2TWB19V7TtY1IfLlyBMRofx_8kDk1fb6GY"
+                        },
+                        Body = HttpService:JSONEncode({ key = currentKey })
+                    })
+                end)
+
+                if success then
+                    local data = HttpService:JSONDecode(response.Body)
+                    if not data.valid then
+                        if data.message == "Key is disabled" then
+                            TimeLabel.Text = "Key Disabled!"
+                            TimeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                            kickPlayer("Your key has been disabled by an administrator.\nPlease contact support for assistance.", true)
+                            return
+                        else
+                            TimeLabel.Text = "Invalid Key!"
+                            TimeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                            kickPlayer("Your key is invalid.\nPlease get a new key at xenonhub.xyz", false)
+                            return
+                        end
+                    end
+                end
+            end
+
+            updateTimeDisplay(timeLeft)
+            wait(1)
+            timeLeft = timeLeft - 1
+        end
+        -- Waktu habis
+        TimeLabel.Text = "Time Expired!"
+        TimeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        kickPlayer("Your key has expired.\nPlease get a new key at xenonhub.xyz", false)
+    end)
+    coroutine.resume(timerCoroutine)
+end
 
 local function validateKey(key)
     local url = "https://tlfsfctfofjgppfrdcpm.supabase.co/functions/v1/validate-key"
@@ -359,7 +455,6 @@ local function validateKey(key)
     end)
 
     if not success then
-        print("Request failed:", response)
         showStatus("Failed to connect to server", true)
         return
     end
@@ -371,7 +466,6 @@ local function validateKey(key)
         end)
 
         if not success then
-            print("JSON Parse Error:", response.Body)
             showStatus("Server response error", true)
             return
         end
@@ -412,9 +506,7 @@ local function validateKey(key)
                 BlurEffect:Destroy()
                 BackgroundFrame:Destroy()
             end)
--------------------MAIN KEY --------------------------------
-
-
+--------------MAIN KEY UPDATE --------------------------------
 local Fluent = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 
 local OriginalPlaceName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
@@ -956,18 +1048,25 @@ local Copy = Tabs.Settings:CreateButton({
 })
 
 
-------------------END KEY---------------------------------
+
+--------------EXPIRED KEY UPDATE --------------------------------
+
             return
-        elseif data.expired then
-            TimeLabel.Text = "Key Expired!"
-            TimeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-            showStatus("KEY EXPIRED", true)
         else
-            showStatus(data.message or "Invalid Key", true)
+            -- Check for specific message types
+            if data.message == "Key is disabled" then
+                TimeLabel.Text = "Key Disabled!"
+                TimeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                showStatus("KEY DISABLED", true)
+                kickPlayer("Your key has been disabled by an administrator.\nPlease contact support for assistance.", true)
+            else
+                TimeLabel.Text = "Invalid Key!"
+                TimeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                showStatus("INVALID KEY", true)
+                kickPlayer("Your key is invalid.\nPlease get a new key at xenonhub.xyz", false)
+            end
         end
     else
-        print("Server returned status:", response.StatusCode)
-        print("Response body:", response.Body)
         showStatus("Server error: " .. tostring(response.StatusCode), true)
     end
 end
@@ -975,7 +1074,6 @@ end
 -- Button functionality
 VerifyButton.MouseButton1Click:Connect(function()
     local key = TextBox.Text
-    print("Key entered:", key) -- Debugging
 
     if key == "" then
         showStatus("Please enter a key", true)
