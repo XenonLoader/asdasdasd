@@ -9,6 +9,8 @@ KeyGuardLibrary.Set({
 	falseData = falseData,
 })
 
+local key = ""
+
 local getkey = KeyGuardLibrary.getLink()
 
 local response = KeyGuardLibrary.validateDefaultKey(key)
@@ -24,18 +26,16 @@ local RunService = game:GetService("RunService")
 
 local OriginalPlaceName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
 local PlaceName = OriginalPlaceName
-	
--- Create Window
-local Window = Library:CreateWindow({
- Title = `Xenon | {OriginalPlaceName}`,
-  SubTitle = "https://discord.gg/3ZQBHpfQ5X",
+
+local Window = Fluent:CreateWindow({
+    Title = `Xenon | {PlaceName}`,
+    SubTitle = "https://discord.gg/3ZQBHpfQ5X",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 400),
     Acrylic = true,
     Theme = "Viow Mars",
     MinimizeKey = Enum.KeyCode.RightControl
 })
-
 -- Create Tabs
 local Tabs = {
     Main = Window:CreateTab({ Title = "Main", Icon = "house" }),
