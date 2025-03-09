@@ -9,27 +9,24 @@ KeyGuardLibrary.Set({
     falseData = falseData,
 })
 
-local OriginalPlaceName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
-local PlaceName = OriginalPlaceName
-
-local Fluent = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local key = ""
 
-local Window = Fluent:CreateWindow({
-    Title = `key system | {PlaceName}`,
+local Windows = Fluent:CreateWindow({
+    Title = "Key System",
     SubTitle = "Xenon",
     TabWidth = 160,
-    Size = UDim2.fromOffset(580, 400),
-    Acrylic = true,
-    Theme = "Viow Mars",
-    MinimizeKey = Enum.KeyCode.RightControl
+    Size = UDim2.fromOffset(580, 340),
+    Acrylic = false,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
 local Tabs = {
-    KeySys = Window:CreateTab({ Title = "Key System", Icon = "key" }),
+    KeySys = Windows:AddTab({ Title = "Key System", Icon = "key" }),
 }
 
-local Entkey = Tabs.KeySys:CreateInput("Input", {
+local Entkey = Tabs.KeySys:AddInput("Input", {
     Title = "Enter Key",
     Description = "Enter Key Here",
     Default = "",
@@ -41,20 +38,25 @@ local Entkey = Tabs.KeySys:CreateInput("Input", {
     end
 })
 
-local Checkkey = Tabs.KeySys:CreateButton({
+local Checkkey = Tabs.KeySys:AddButton({
     Title = "Check Key",
     Description = "Enter Key before pressing this button",
     Callback = function()
         local response = KeyGuardLibrary.validateDefaultKey(key)
         if response == trueData then
             print("Key is valid")
+            -- Show success notification before destroying
             Fluent:Notify({
                 Title = "Success",
                 Content = "Key is valid! Loading script...",
                 Duration = 2
             })
+
+            -- Wait for notification to show before destroying
             task.wait(2)
-            Window:Destroy()
+
+            -- Destroy the Windows
+            Windows:Destroy()
             -- Load Fluent UI Library
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
@@ -66,7 +68,7 @@ local RunService = game:GetService("RunService")
 local OriginalPlaceName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
 local PlaceName = OriginalPlaceName
 
-local Window = Fluent:CreateWindow({
+local Window = Library:CreateWindow({
     Title = `Xenon | {PlaceName}`,
     SubTitle = "https://discord.gg/3ZQBHpfQ5X",
     TabWidth = 160,
@@ -320,7 +322,8 @@ Library:Notify{
 }
 SaveManager:LoadAutoloadConfig()
 
-            -- Your code here after window is destroyed
+
+            -- Your code here after Windows is destroyed
 
         else
             print("Key is invalid")
@@ -334,7 +337,7 @@ SaveManager:LoadAutoloadConfig()
     end
 })
 
-local Getkey = Tabs.KeySys:CreateButton({
+local Getkey = Tabs.KeySys:AddButton({
     Title = "Get Key",
     Description = "Get Key here",
     Callback = function()
@@ -348,4 +351,4 @@ local Getkey = Tabs.KeySys:CreateButton({
     end
 })
 
-Window:SelectTab(1)
+Windows:SelectTab(1)
