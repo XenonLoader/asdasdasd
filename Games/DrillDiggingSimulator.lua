@@ -9,7 +9,7 @@ KeyGuardLibrary.Set({
 	falseData = falseData,
 })
 
-local key = ""
+local key = "test"
 
 local getkey = KeyGuardLibrary.getLink()
 
