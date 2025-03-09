@@ -22,9 +22,12 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
+local OriginalPlaceName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+local PlaceName = OriginalPlaceName
+	
 -- Create Window
 local Window = Library:CreateWindow({
-  Title = `Xenon | {game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name}`,
+ Title = `Xenon | {OriginalPlaceName}`,
   SubTitle = "https://discord.gg/3ZQBHpfQ5X",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 400),
