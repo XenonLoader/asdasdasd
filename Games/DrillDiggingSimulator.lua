@@ -1,22 +1,58 @@
 local KeyGuardLibrary = loadstring(game:HttpGet("https://cdn.keyguardian.org/library/v1.0.0.lua"))()
-local trueData = "a8050edd50e1430b884557f56977a29c"
-local falseData = "0083b643703646f6a778c56f29940105"
+local trueData = "50386c8e6db647e989e8287884ed4643"
+local falseData = "3dd2a83058884b4794854e49eabe047c"
 
 KeyGuardLibrary.Set({
-	publicToken = "b9810f845ef34630a8a039a0ed4b0c7b",
-	privateToken = "f4bf8dc58f45478497af32dadc405cbf",
-	trueData = trueData,
-	falseData = falseData,
+    publicToken = "b9810f845ef34630a8a039a0ed4b0c7b",
+    privateToken = "f4bf8dc58f45478497af32dadc405cbf",
+    trueData = trueData,
+    falseData = falseData,
 })
 
-local key = "test"
+local Fluent = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
+local key = ""
 
-local getkey = KeyGuardLibrary.getLink()
+local Window = Fluent:CreateWindow({
+    Title = "Key System",
+    SubTitle = "Xenon",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 400),
+    Acrylic = true,
+    Theme = "Viow Mars",
+    MinimizeKey = Enum.KeyCode.RightControl
+})
 
-local response = KeyGuardLibrary.validateDefaultKey(key)
+local Tabs = {
+    KeySys = Window:CreateTab({ Title = "Key System", Icon = "key" }),
+}
 
-if response == trueData then
-    -- Load Fluent UI Library
+local Entkey = Tabs.KeySys:CreateInput("Input", {
+    Title = "Enter Key",
+    Description = "Enter Key Here",
+    Default = "",
+    Placeholder = "Enter key…",
+    Numeric = false,
+    Finished = false,
+    Callback = function(Value)
+        key = Value
+    end
+})
+
+local Checkkey = Tabs.KeySys:CreateButton({
+    Title = "Check Key",
+    Description = "Enter Key before pressing this button",
+    Callback = function()
+        local response = KeyGuardLibrary.validateDefaultKey(key)
+        if response == trueData then
+            print("Key is valid")
+            Fluent:Notify({
+                Title = "Success",
+                Content = "Key is valid! Loading script...",
+                Duration = 2
+            })
+            task.wait(2)
+            Window:Destroy()
+            -- Load Fluent UI Library
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
 local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
@@ -36,6 +72,7 @@ local Window = Fluent:CreateWindow({
     Theme = "Viow Mars",
     MinimizeKey = Enum.KeyCode.RightControl
 })
+
 -- Create Tabs
 local Tabs = {
     Main = Window:CreateTab({ Title = "Main", Icon = "house" }),
@@ -280,14 +317,32 @@ Library:Notify{
 }
 SaveManager:LoadAutoloadConfig()
 
-	print("Key is valid") -- Paste Code Here
-else
-	print("Key is invalid")
-end
+            -- Your code here after window is destroyed
 
---[[
-	KeyGuardLibrary.validateDefaultKey(key) - Validate key
-	KeyGuardLibrary.validatePremiumKey(key) - Validate premium key
-	KeyGuardLibrary.getService() - Get service
-	KeyGuardLibrary.getLink() - Get link
-]]
+        else
+            print("Key is invalid")
+            -- Show error notification
+            Fluent:Notify({
+                Title = "Error",
+                Content = "Invalid key! Please try again.",
+                Duration = 2
+            })
+        end
+    end
+})
+
+local Getkey = Tabs.KeySys:CreateButton({
+    Title = "Get Key",
+    Description = "Get Key here",
+    Callback = function()
+        setclipboard(KeyGuardLibrary.getLink())
+        -- Show notification that link was copied
+        Fluent:Notify({
+            Title = "Success",
+            Content = "Key link copied to clipboard!",
+            Duration = 2
+        })
+    end
+})
+
+Window:SelectTab(1)
