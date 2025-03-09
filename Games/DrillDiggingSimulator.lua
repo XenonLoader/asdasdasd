@@ -9,11 +9,14 @@ KeyGuardLibrary.Set({
     falseData = falseData,
 })
 
+local OriginalPlaceName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+local PlaceName = OriginalPlaceName
+
 local Fluent = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 local key = ""
 
 local Window = Fluent:CreateWindow({
-    Title = "Key System",
+    Title = `key system | {PlaceName}`,
     SubTitle = "Xenon",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 400),
