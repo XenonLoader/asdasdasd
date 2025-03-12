@@ -1,6 +1,9 @@
 local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 
 getgenv().ScriptVersion = "v1.0.6"
+getgenv().Changelog = [[
+• Wait for update
+]]
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/XenonLoader/NewRepo/refs/heads/main/Cr.lua"))()
 
