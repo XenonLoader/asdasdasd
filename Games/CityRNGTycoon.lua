@@ -1,6 +1,6 @@
 local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 
-getgenv().ScriptVersion = "v1.0.7"
+getgenv().ScriptVersion = "v1.0.8"
 getgenv().Changelog = [[
 • Wait for update
 ]]
