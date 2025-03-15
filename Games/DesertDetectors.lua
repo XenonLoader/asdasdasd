@@ -495,7 +495,7 @@ ESPTab:CreateToggle({
 -- ESP Distance Control
 ESPTab:CreateSlider({
     Name = "🔭 ESP Distance",
-    Range = {100, 10000},
+    Range = {100, 1000},
     Increment = 100,
     Suffix = "studs",
     CurrentValue = 1000,
