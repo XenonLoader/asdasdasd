@@ -1,82 +1,13 @@
 local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 
-getgenv().ScriptVersion = "v1.0.5"
+getgenv().ScriptVersion = "v1.0.4"
 getgenv().Changelog = [[
-🚀 Version 1.0.5
-• Added secure bypass system
-• Implemented safe hook methods
-• Enhanced anti-detection measures
-• Improved memory management
-• Added thread protection
-• Optimized performance monitoring
-• Added secure environment checks
+🚀 Version 1.0.4
+• Added Infinite Power feature with customizable power level
 ]]
 
--- Secure environment check
-local function createSecureEnvironment()
-    local env = {
-        _secure = true,
-        _version = "1.0.5",
-        _created = os.time()
-    }
-    
-    local mt = {
-        __index = function(_, k)
-            if type(k) ~= "string" then return nil end
-            return env[k]
-        end,
-        __newindex = function(_, k, v)
-            if type(k) ~= "string" then return end
-            env[k] = v
-        end,
-        __metatable = "Locked"
-    }
-    
-    return setmetatable({}, mt)
-end
-
-local secureEnv = createSecureEnvironment()
-
--- Create secure hook system
-local function createSecureHook(target, callback)
-    local success, hook = pcall(function()
-        local closure = newcclosure(function(...)
-            return callback(...)
-        end)
-        
-        local protected = protect_function(closure)
-        return hookfunction(target, protected)
-    end)
-    
-    return success and hook or nil
-end
-
--- Memory protection
-local function protectMemory()
-    local success = pcall(function()
-        -- Clear debug info
-        debug.setupvalue = function() end
-        debug.getupvalue = function() end
-        debug.getupvalues = function() end
-        
-        -- Protect strings
-        string.dump = function() return "" end
-        
-        -- Secure environment
-        getfenv().script = nil
-        getfenv().game = nil
-    end)
-    
-    return success
-end
-
--- Load script initialization with protection
-local success = pcall(function()
-    protectMemory()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/XenonLoader/NewRepo/refs/heads/main/Cr.lua"))()
-end)
-
-if not success then return end
+-- Load script initialization
+loadstring(game:HttpGet("https://raw.githubusercontent.com/XenonLoader/NewRepo/refs/heads/main/Cr.lua"))()
 
 -- Services
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -84,28 +15,9 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 
--- Secure remote events
-local function createSecureRemote(name)
-    local remote = ReplicatedStorage:WaitForChild(name, 10)
-    if not remote then return nil end
-    
-    return setmetatable({}, {
-        __index = function(_, k)
-            if k == "FireServer" then
-                return function(...)
-                    local args = {...}
-                    if type(args[1]) ~= "table" then return end
-                    return remote:FireServer(...)
-                end
-            end
-            return remote[k]
-        end,
-        __metatable = "Locked"
-    })
-end
-
-local GiveQuest = createSecureRemote("Give_Quest")
-local WinQuest = createSecureRemote("Win_Quest")
+-- Remote Events
+local GiveQuest = ReplicatedStorage:WaitForChild("Give_Quest", 10)
+local WinQuest = ReplicatedStorage:WaitForChild("Win_Quest", 10)
 
 -- Item Information
 local ItemInfo = {
@@ -157,86 +69,83 @@ local ItemInfo = {
     { "Key of Kufu", Color3.new(1, 0.843137, 0.0588235), "Epic" }
 }
 
--- Secure lookup tables
-local ItemColorMap = setmetatable({}, {
-    __index = function(_, k)
-        for _, itemData in ipairs(ItemInfo) do
-            if itemData[1] == k then
-                return itemData[2]
-            end
-        end
-        return Color3.new(1, 1, 1)
-    end,
-    __metatable = "Locked"
-})
-
-local ItemRarityMap = setmetatable({}, {
-    __index = function(_, k)
-        for _, itemData in ipairs(ItemInfo) do
-            if itemData[1] == k then
-                return itemData[3]
-            end
-        end
-        return "Unknown"
-    end,
-    __metatable = "Locked"
-})
+-- Create lookup table for faster access
+local ItemColorMap = {}
+local ItemRarityMap = {}
+for _, itemData in ipairs(ItemInfo) do
+    local name, color, rarity = itemData[1], itemData[2], itemData[3]
+    ItemColorMap[name] = color
+    ItemRarityMap[name] = rarity
+end
 
 -- Window Setup
 local Window = getgenv().Window
 if not Window then return end
 
--- Secure connection management
-local Connections = setmetatable({}, {
-    __newindex = function(t, k, v)
-        if type(v) ~= "userdata" then return end
-        rawset(t, k, v)
-    end,
-    __metatable = "Locked"
-})
+-- Connection Management
+local Connections = {}
 
 local function HandleConnection(name, connection)
-    if Connections[name] and Connections[name].Connected then
+    if Connections[name] then
         Connections[name]:Disconnect()
     end
     Connections[name] = connection
 end
 
--- Create tabs
+local function CleanupConnections()
+    for name, connection in pairs(Connections) do
+        if connection.Connected then
+            connection:Disconnect()
+        end
+    end
+    table.clear(Connections)
+end
+
+-- Create Tabs
 local MainTab = Window:CreateTab("Automatics", "repeat")
 local ESPTab = Window:CreateTab("ESP", "eye")
 
+-- Main Section
+MainTab:CreateSection("Main Features")
+
 -- Power System
-local PowerConfig = setmetatable({
+local PowerConfig = {
     enabled = false,
     alwaysMax = false,
     power = 5
-}, {
-    __newindex = function(t, k, v)
-        if type(k) ~= "string" then return end
-        rawset(t, k, v)
-    end,
-    __metatable = "Locked"
-})
+}
 
 -- Infinite Power System
-do
-    local env = getgenv()
-    
-    local old; old = hookmetamethod(game, "__namecall", function(self, ...)
-        if self.Name == "Change_Power" and string.lower(getnamecallmethod()) == "fireserver" then
-            local v1 = ...
-            if type(v1) == "number" and v1 > 0 then
-                return old(self, math.clamp(env.digging_power or 5, 0, 5))
+MainTab:CreateToggle({
+    Name = "💪 Custom Power Level",
+    CurrentValue = false,
+    Flag = "InfinitePower",
+    Callback = function(Value)
+        PowerConfig.enabled = Value
+
+        if Value then
+            local success, err = pcall(function()
+                local env = getgenv()
+                local old
+                old = hookmetamethod(game, "__namecall", function(self, ...)
+                    if self.Name == "Change_Power" and string.lower(getnamecallmethod()) == "fireserver" then
+                        local v1 = ...
+                        if type(v1) == "number" and v1 > 0 then
+                            return old(self, math.clamp(env.digging_power or PowerConfig.power, 1, 7))
+                        end
+                    end
+                    return old(self, ...)
+                end)
+                getgenv().digging_power = PowerConfig.power
+            end)
+
+            if not success then
+                warn("Infinite Power Error:", err)
             end
         end
-        return old(self, ...)
-    end)
-    
-    getgenv().digging_power = 7
-end
+    end,
+})
 
--- Power Level Slider
 MainTab:CreateSlider({
     Name = "🔋 Power Level",
     Range = {1, 7},
@@ -263,14 +172,16 @@ MainTab:CreateToggle({
     Flag = "InfiniteMoney",
     Callback = function(Value)
         InfiniteMoneyConfig.enabled = Value
-        
+
         if Value then
+            -- Create heartbeat connection for money farming
             HandleConnection("InfiniteMoney", RunService.Heartbeat:Connect(function()
                 local currentTime = tick()
                 if currentTime - InfiniteMoneyConfig.lastUpdate >= InfiniteMoneyConfig.cooldown then
                     InfiniteMoneyConfig.lastUpdate = currentTime
-                    
-                    local success = pcall(function()
+
+                    local success, err = pcall(function()
+                        -- Give Quest
                         GiveQuest:FireServer({
                             "Getting Settled",
                             {
@@ -278,16 +189,17 @@ MainTab:CreateToggle({
                                 "Any"
                             },
                             {
-                                9e9
+                                10000
                             },
                             "Return to Diddy"
                         })
-                        
+
+                        -- Complete Quest
                         WinQuest:FireServer("Getting Settled")
                     end)
-                    
+
                     if not success then
-                        warn("Infinite Money Error")
+                        warn("Infinite Money Error:", err)
                     end
                 end
             end))
@@ -319,13 +231,15 @@ local ESPConfig = {
     itemColors = {}
 }
 
--- ESP Helper Functions
+-- Helper Functions
 local function getItemColor(item)
-    return ItemColorMap[item.Name]
+    local itemName = item.Name
+    return ItemColorMap[itemName] or Color3.new(1, 1, 1)
 end
 
 local function getItemRarity(item)
-    return ItemRarityMap[item.Name]
+    local itemName = item.Name
+    return ItemRarityMap[itemName] or "Unknown"
 end
 
 local function updateItemColor(item)
@@ -334,7 +248,8 @@ local function updateItemColor(item)
         local color = getItemColor(item)
         highlight.FillColor = color
         highlight.OutlineColor = color
-        
+
+        -- Update text colors
         if ESPConfig.nameLabels[item] then
             ESPConfig.nameLabels[item].TextColor3 = color
         end
@@ -346,7 +261,8 @@ end
 
 local function createESPForItem(item)
     if not item:FindFirstChild("Handle") then return end
-    
+
+    -- Create highlight
     local highlight = Instance.new("Highlight")
     local itemColor = getItemColor(item)
     highlight.FillColor = itemColor
@@ -355,14 +271,16 @@ local function createESPForItem(item)
     highlight.OutlineTransparency = ESPConfig.outlineTransparency
     highlight.Parent = item
     ESPConfig.highlights[item] = highlight
-    
+
+    -- Create BillboardGui
     local billboardGui = Instance.new("BillboardGui")
     billboardGui.Size = UDim2.new(0, 200, 0, 50)
     billboardGui.StudsOffset = Vector3.new(0, 2, 0)
     billboardGui.AlwaysOnTop = true
     billboardGui.Parent = item
     ESPConfig.billboardGuis[item] = billboardGui
-    
+
+    -- Create name label with rarity
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
     nameLabel.BackgroundTransparency = 1
@@ -374,7 +292,8 @@ local function createESPForItem(item)
     nameLabel.Text = string.format("%s [%s]", item.Name, getItemRarity(item))
     nameLabel.Parent = billboardGui
     ESPConfig.nameLabels[item] = nameLabel
-    
+
+    -- Create distance label
     local distanceLabel = Instance.new("TextLabel")
     distanceLabel.Size = UDim2.new(1, 0, 0.5, 0)
     distanceLabel.Position = UDim2.new(0, 0, 0.5, 0)
@@ -391,30 +310,34 @@ end
 local function updateESP()
     local character = Player.Character
     if not character then return end
-    
+
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     if not humanoidRootPart then return end
-    
+
     local playerPos = humanoidRootPart.Position
     local currentTime = tick()
-    
+
     for item, highlight in pairs(ESPConfig.highlights) do
         if item:IsDescendantOf(game) then
             local distance = (item:GetPivot().Position - playerPos).Magnitude
             local isVisible = distance <= ESPConfig.maxDistance
-            
+
+            -- Update highlight
             highlight.Enabled = isVisible
-            
+
+            -- Update BillboardGui
             if ESPConfig.billboardGuis[item] then
                 ESPConfig.billboardGuis[item].Enabled = isVisible
-                
+
+                -- Update name label
                 if ESPConfig.nameLabels[item] then
                     ESPConfig.nameLabels[item].Visible = isVisible and ESPConfig.showNames
                     if isVisible and ESPConfig.showNames then
                         ESPConfig.nameLabels[item].Text = string.format("%s [%s]", item.Name, getItemRarity(item))
                     end
                 end
-                
+
+                -- Update distance label
                 if ESPConfig.distanceLabels[item] then
                     ESPConfig.distanceLabels[item].Visible = isVisible and ESPConfig.showDistance
                     if isVisible and ESPConfig.showDistance then
@@ -422,13 +345,14 @@ local function updateESP()
                     end
                 end
             end
-            
+
+            -- Update rainbow colors
             if ESPConfig.rainbow and isVisible then
                 local hue = (currentTime * ESPConfig.rainbowSpeed) % 1
                 local color = Color3.fromHSV(hue, 1, 1)
                 highlight.FillColor = color
                 highlight.OutlineColor = color
-                
+
                 if ESPConfig.nameLabels[item] then
                     ESPConfig.nameLabels[item].TextColor3 = color
                 end
@@ -437,14 +361,15 @@ local function updateESP()
                 end
             end
         else
+            -- Cleanup removed items
             highlight:Destroy()
             ESPConfig.highlights[item] = nil
-            
+
             if ESPConfig.billboardGuis[item] then
                 ESPConfig.billboardGuis[item]:Destroy()
                 ESPConfig.billboardGuis[item] = nil
             end
-            
+
             ESPConfig.nameLabels[item] = nil
             ESPConfig.distanceLabels[item] = nil
             ESPConfig.itemColors[item] = nil
@@ -455,12 +380,12 @@ end
 local function cleanupESP()
     for item, highlight in pairs(ESPConfig.highlights) do
         highlight:Destroy()
-        
+
         if ESPConfig.billboardGuis[item] then
             ESPConfig.billboardGuis[item]:Destroy()
         end
     end
-    
+
     table.clear(ESPConfig.highlights)
     table.clear(ESPConfig.billboardGuis)
     table.clear(ESPConfig.nameLabels)
@@ -468,19 +393,26 @@ local function cleanupESP()
     table.clear(ESPConfig.itemColors)
 end
 
+local function updateESPTransparency()
+    for _, highlight in pairs(ESPConfig.highlights) do
+        highlight.FillTransparency = ESPConfig.fillTransparency
+        highlight.OutlineTransparency = ESPConfig.outlineTransparency
+    end
+end
+
 local function initializeESP()
     local lootFolder = workspace:FindFirstChild("Loot")
     if not lootFolder then
         lootFolder = workspace:WaitForChild("Loot", 5)
     end
-    
+
     if lootFolder then
         for _, item in ipairs(lootFolder:GetChildren()) do
             if item:FindFirstChild("Handle") then
                 createESPForItem(item)
             end
         end
-        
+
         HandleConnection("LootItems", lootFolder.ChildAdded:Connect(function(item)
             if ESPConfig.enabled then
                 task.spawn(function()
@@ -491,7 +423,7 @@ local function initializeESP()
             end
         end))
     end
-    
+
     HandleConnection("LootFolder", workspace.ChildAdded:Connect(function(child)
         if child.Name == "Loot" and ESPConfig.enabled then
             HandleConnection("LootItems", child.ChildAdded:Connect(function(item)
@@ -514,20 +446,23 @@ ESPTab:CreateToggle({
     Flag = "LootESP",
     Callback = function(Value)
         ESPConfig.enabled = Value
-        
+
         if Value then
             task.spawn(function()
-                local success = pcall(initializeESP)
+                local success, err = pcall(initializeESP)
                 if not success then
-                    warn("ESP Initialization Error")
+                    warn("ESP Initialization Error:", err)
                 end
             end)
-            
+
             HandleConnection("ESP", RunService.RenderStepped:Connect(function()
                 local currentTime = tick()
                 if currentTime - ESPConfig.lastUpdate >= ESPConfig.updateRate then
                     ESPConfig.lastUpdate = currentTime
-                    pcall(updateESP)
+                    local success, err = pcall(updateESP)
+                    if not success then
+                        warn("ESP Update Error:", err)
+                    end
                 end
             end))
         else
@@ -542,6 +477,7 @@ ESPTab:CreateToggle({
     end,
 })
 
+-- Show Names Toggle
 ESPTab:CreateToggle({
     Name = "📝 Show Item Names",
     CurrentValue = true,
@@ -556,6 +492,7 @@ ESPTab:CreateToggle({
     end,
 })
 
+-- ESP Distance Control
 ESPTab:CreateSlider({
     Name = "🔭 ESP Distance",
     Range = {100, 10000},
@@ -568,6 +505,7 @@ ESPTab:CreateSlider({
     end,
 })
 
+-- ESP Update Rate
 ESPTab:CreateSlider({
     Name = "🔄 Update Rate",
     Range = {0.1, 1},
@@ -580,6 +518,7 @@ ESPTab:CreateSlider({
     end,
 })
 
+-- ESP Transparency Settings
 ESPTab:CreateSlider({
     Name = "👁️ Fill Transparency",
     Range = {0, 1},
@@ -589,12 +528,11 @@ ESPTab:CreateSlider({
     Flag = "ESPFillTransparency",
     Callback = function(Value)
         ESPConfig.fillTransparency = Value
-        for _, highlight in pairs(ESPConfig.highlights) do
-            highlight.FillTransparency = Value
-        end
+        updateESPTransparency()
     end,
 })
 
+-- Rainbow ESP Toggle
 ESPTab:CreateToggle({
     Name = "🌈 Rainbow ESP",
     CurrentValue = false,
@@ -602,22 +540,15 @@ ESPTab:CreateToggle({
     Callback = function(Value)
         ESPConfig.rainbow = Value
         if not Value then
-            for item in pairs(ESPConfig.highlights) do
+            for item, highlight in pairs(ESPConfig.highlights) do
                 updateItemColor(item)
             end
         end
     end,
 })
 
--- Cleanup
-Player.CharacterRemoving:Connect(function()
-    for name, connection in pairs(Connections) do
-        if connection.Connected then
-            connection:Disconnect()
-        end
-    end
-    table.clear(Connections)
-end)
+-- Cleanup on script stop
+Player.CharacterRemoving:Connect(CleanupConnections)
 
 -- Initialize Universal Tabs
 getgenv().CreateUniversalTabs()
