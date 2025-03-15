@@ -148,10 +148,10 @@ MainTab:CreateToggle({
 
 MainTab:CreateSlider({
     Name = "🔋 Power Level",
-    Range = {1, 7},
+    Range = {1, 5},
     Increment = 0.1,
     Suffix = "power",
-    CurrentValue = 5,
+    CurrentValue = 1,
     Flag = "PowerLevel",
     Callback = function(Value)
         PowerConfig.power = Value
