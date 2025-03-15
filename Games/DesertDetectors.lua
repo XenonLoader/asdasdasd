@@ -1,8 +1,8 @@
 local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 
-getgenv().ScriptVersion = "v1.0.3"
+getgenv().ScriptVersion = "v1.0.4"
 getgenv().Changelog = [[
-🚀 Version 1.0.3
+🚀 Version 1.0.4
 • Fixed ESP system initialization
 • Improved ESP item detection
 • Enhanced ESP reliability
@@ -10,6 +10,7 @@ getgenv().Changelog = [[
 • Added item name display toggle
 • Added automatic color detection from handles
 • Fixed ESP visibility issues
+• Added Infinite Power feature with customizable power level
 ]]
 
 -- Load script initialization
@@ -54,6 +55,55 @@ local ESPTab = Window:CreateTab("ESP", "eye")
 
 -- Main Section
 MainTab:CreateSection("Main Features")
+
+-- Infinite Power System
+local InfinitePowerConfig = {
+    enabled = false,
+    power = 5
+}
+
+MainTab:CreateToggle({
+    Name = "⚡ Infinite Power",
+    CurrentValue = false,
+    Flag = "InfinitePower",
+    Callback = function(Value)
+        InfinitePowerConfig.enabled = Value
+        
+        if Value then
+            local success, err = pcall(function()
+                local env = getgenv()
+                local old
+                old = hookmetamethod(game, "__namecall", function(self, ...)
+                    if self.Name == "Change_Power" and string.lower(getnamecallmethod()) == "fireserver" then
+                        local v1 = ...
+                        if type(v1) == "number" and v1 > 0 then
+                            return old(self, math.clamp(env.digging_power or InfinitePowerConfig.power, 1, 7))
+                        end
+                    end
+                    return old(self, ...)
+                end)
+                getgenv().digging_power = InfinitePowerConfig.power
+            end)
+            
+            if not success then
+                warn("Infinite Power Error:", err)
+            end
+        end
+    end,
+})
+
+MainTab:CreateSlider({
+    Name = "🔋 Power Level",
+    Range = {1, 7},
+    Increment = 0.1,
+    Suffix = "power",
+    CurrentValue = 5,
+    Flag = "PowerLevel",
+    Callback = function(Value)
+        InfinitePowerConfig.power = Value
+        getgenv().digging_power = Value
+    end,
+})
 
 -- Infinite Money System
 local InfiniteMoneyConfig = {
