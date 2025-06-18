@@ -2,8 +2,8 @@
 -- Features: Better organization, search functionality, multi-select dropdown
 
 if (game:GetService("CoreGui")):FindFirstChild("Xenon") and (game:GetService("CoreGui")):FindFirstChild("ScreenGui") then
-	(game:GetService("CoreGui")).Xenon:Destroy()
-	(game:GetService("CoreGui")).ScreenGui:Destroy()
+	(game:GetService("CoreGui")).Xenon:Destroy();
+	(game:GetService("CoreGui")).ScreenGui:Destroy();
 end
 
 -- Global Configuration
