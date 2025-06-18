@@ -247,8 +247,7 @@ function Update:Notify(desc, notifType)
 	OutlineFrame.AnchorPoint = Vector2.new(0.5, 1);
 	OutlineFrame.BackgroundTransparency = 0.1;
 	OutlineFrame.Position = UDim2.new(1.2, 0, 0.1 + #NotificationList * 0.12, 0);
-	OutlineFrame.Size = UDim2.new(0, IsMobile and 350 : 420, 0, IsMobile and 65 : 75);
-	
+	OutlineFrame.Size = UDim2.new(0, IsMobile and 350 or 420, 0, IsMobile and 65 or 75);
 	-- Add border glow
 	local NotifStroke = Instance.new("UIStroke");
 	NotifStroke.Parent = OutlineFrame;
