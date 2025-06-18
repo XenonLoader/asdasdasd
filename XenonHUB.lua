@@ -516,11 +516,6 @@ function Update:StartLoad()
             running = false
             DescriptionLoader.Text = "Ready to use!"
             wait(0.8)
-            -- Fade out animation
-            TweenService:Create(Loader, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
-                BackgroundTransparency = 1
-            }):Play()
-            wait(0.5)
             Loader:Destroy()
         end)
     end)
@@ -530,7 +525,7 @@ function Update:StartLoad()
         while running do
             dotCount = (dotCount + 1) % 4
             local dots = string.rep(".", dotCount)
-            DescriptionLoader.Text = "Loading Premium UI" .. dots
+            DescriptionLoader.Text = "Loading" .. dots
             wait(0.4)
         end
     end)
