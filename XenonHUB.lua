@@ -18,9 +18,57 @@ local RunService = game:GetService("RunService");
 local Players = game:GetService("Players");
 local LocalPlayer = Players.LocalPlayer;
 
--- Device Detection
-local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled;
-local IsTablet = UserInputService.TouchEnabled and UserInputService.KeyboardEnabled;
+-- Enhanced Device Detection with better PC/Mobile differentiation
+local IsMobile = false;
+local IsTablet = false;
+local IsPC = true;
+
+-- More accurate device detection
+if UserInputService.TouchEnabled then
+	if UserInputService.KeyboardEnabled then
+		-- Has both touch and keyboard - likely tablet or convertible
+		IsTablet = true;
+		IsMobile = false;
+		IsPC = false;
+	else
+		-- Touch only - mobile device
+		IsMobile = true;
+		IsTablet = false;
+		IsPC = false;
+	end
+else
+	-- No touch - desktop PC
+	IsMobile = false;
+	IsTablet = false;
+	IsPC = true;
+end
+
+-- Additional check for screen size to better detect device type
+local ViewportSize = workspace.CurrentCamera.ViewportSize;
+if ViewportSize.X < 768 or ViewportSize.Y < 768 then
+	IsMobile = true;
+	IsPC = false;
+	IsTablet = false;
+elseif ViewportSize.X < 1024 then
+	IsTablet = true;
+	IsMobile = false;
+	IsPC = false;
+else
+	IsPC = true;
+	IsMobile = false;
+	IsTablet = false;
+end
+
+-- Dynamic sizing based on device type
+local function GetDeviceSize(mobileSize, tabletSize, pcSize)
+	if IsMobile then
+		return mobileSize;
+	elseif IsTablet then
+		return tabletSize or pcSize;
+	else
+		return pcSize;
+	end
+end
 
 -- Enhanced Rounded Corner Function
 function CreateRounded(Parent, Size, Gradient)
@@ -36,7 +84,7 @@ function CreateRounded(Parent, Size, Gradient)
 	end
 end;
 
--- Enhanced Dragging with Smooth Animation
+-- Enhanced Dragging with Faster Animation (Fixed slow animation issue)
 function MakeDraggable(topbarobject, object)
 	local Dragging = nil;
 	local DragInput = nil;
@@ -46,7 +94,8 @@ function MakeDraggable(topbarobject, object)
 	local function Update(input)
 		local Delta = input.Position - DragStart;
 		local pos = UDim2.new(StartPosition.X.Scale, StartPosition.X.Offset + Delta.X, StartPosition.Y.Scale, StartPosition.Y.Offset + Delta.Y);
-		local Tween = TweenService:Create(object, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		-- FIXED: Reduced tween time from 0.2 to 0.05 for faster response
+		local Tween = TweenService:Create(object, TweenInfo.new(0.05, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 			Position = pos
 		});
 		Tween:Play();
@@ -58,17 +107,17 @@ function MakeDraggable(topbarobject, object)
 			DragStart = input.Position;
 			StartPosition = object.Position;
 			
-			-- Drag start animation
-			TweenService:Create(object, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Size = UDim2.new(object.Size.X.Scale, object.Size.X.Offset + 4, object.Size.Y.Scale, object.Size.Y.Offset + 4)
+			-- FIXED: Faster drag start animation
+			TweenService:Create(object, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = UDim2.new(object.Size.X.Scale, object.Size.X.Offset + 2, object.Size.Y.Scale, object.Size.Y.Offset + 2)
 			}):Play();
 			
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					Dragging = false;
-					-- Drag end animation
-					TweenService:Create(object, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(object.Size.X.Scale, object.Size.X.Offset - 4, object.Size.Y.Scale, object.Size.Y.Offset - 4)
+					-- FIXED: Faster drag end animation
+					TweenService:Create(object, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Size = UDim2.new(object.Size.X.Scale, object.Size.X.Offset - 2, object.Size.Y.Scale, object.Size.Y.Offset - 2)
 					}):Play();
 				end;
 			end);
@@ -88,34 +137,38 @@ function MakeDraggable(topbarobject, object)
 	end);
 end;
 
--- Enhanced Screen GUI with better mobile support
+-- Enhanced Screen GUI with better device support
 local ScreenGui = Instance.new("ScreenGui");
 ScreenGui.Parent = game.CoreGui;
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling;
 ScreenGui.ResetOnSpawn = false;
 
--- Enhanced Toggle Button with better mobile support
+-- FIXED: Better device-specific sizing for toggle button
+local buttonSize = GetDeviceSize(60, 55, 50);
+local buttonIconSize = GetDeviceSize(45, 40, 35);
+local buttonPosition = GetDeviceSize(15, 12, 10);
+
 local OutlineButton = Instance.new("Frame");
 OutlineButton.Name = "OutlineButton";
 OutlineButton.Parent = ScreenGui;
 OutlineButton.ClipsDescendants = true;
 OutlineButton.BackgroundColor3 = _G.Dark;
 OutlineButton.BackgroundTransparency = 0.1;
-OutlineButton.Position = UDim2.new(0, IsMobile and 15 or 10, 0, IsMobile and 15 or 10);
-OutlineButton.Size = UDim2.new(0, IsMobile and 60 or 50, 0, IsMobile and 60 or 50);
-CreateRounded(OutlineButton, IsMobile and 15 or 12);
+OutlineButton.Position = UDim2.new(0, buttonPosition, 0, buttonPosition);
+OutlineButton.Size = UDim2.new(0, buttonSize, 0, buttonSize);
+CreateRounded(OutlineButton, GetDeviceSize(15, 12, 10));
 
 -- Add glow effect
 local UIStroke = Instance.new("UIStroke");
 UIStroke.Parent = OutlineButton;
 UIStroke.Color = _G.Third;
-UIStroke.Thickness = 2;
+UIStroke.Thickness = GetDeviceSize(3, 2, 2);
 UIStroke.Transparency = 0.7;
 
 local ImageButton = Instance.new("ImageButton");
 ImageButton.Parent = OutlineButton;
 ImageButton.Position = UDim2.new(0.5, 0, 0.5, 0);
-ImageButton.Size = UDim2.new(0, IsMobile and 45 or 40, 0, IsMobile and 45 or 40);
+ImageButton.Size = UDim2.new(0, buttonIconSize, 0, buttonIconSize);
 ImageButton.AnchorPoint = Vector2.new(0.5, 0.5);
 ImageButton.BackgroundColor3 = _G.Dark;
 ImageButton.ImageColor3 = Color3.fromRGB(255, 255, 255);
@@ -124,49 +177,49 @@ ImageButton.BackgroundTransparency = 0;
 ImageButton.Image = "rbxassetid://105059922903197";
 ImageButton.AutoButtonColor = false;
 MakeDraggable(ImageButton, OutlineButton);
-CreateRounded(ImageButton, IsMobile and 12 or 10);
+CreateRounded(ImageButton, GetDeviceSize(12, 10, 8));
 
--- Enhanced button animations
+-- FIXED: Faster button animations
 ImageButton.MouseEnter:Connect(function()
-	if not IsMobile then
-		TweenService:Create(ImageButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, (IsMobile and 45 or 40) + 5, 0, (IsMobile and 45 or 40) + 5),
+	if IsPC then -- Only animate on PC for better performance
+		TweenService:Create(ImageButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, buttonIconSize + 3, 0, buttonIconSize + 3),
 			ImageColor3 = _G.Third
 		}):Play();
-		TweenService:Create(UIStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		TweenService:Create(UIStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			Transparency = 0.3
 		}):Play();
 	end
 end);
 
 ImageButton.MouseLeave:Connect(function()
-	if not IsMobile then
-		TweenService:Create(ImageButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, IsMobile and 45 or 40, 0, IsMobile and 45 or 40),
+	if IsPC then
+		TweenService:Create(ImageButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, buttonIconSize, 0, buttonIconSize),
 			ImageColor3 = Color3.fromRGB(255, 255, 255)
 		}):Play();
-		TweenService:Create(UIStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		TweenService:Create(UIStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			Transparency = 0.7
 		}):Play();
 	end
 end);
 
 ImageButton.MouseButton1Click:connect(function()
-	-- Click animation
-	TweenService:Create(ImageButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, (IsMobile and 45 or 40) - 5, 0, (IsMobile and 45 or 40) - 5)
+	-- FIXED: Faster click animation
+	TweenService:Create(ImageButton, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, buttonIconSize - 3, 0, buttonIconSize - 3)
 	}):Play();
 	
-	wait(0.1);
+	wait(0.05);
 	
-	TweenService:Create(ImageButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, IsMobile and 45 or 40, 0, IsMobile and 45 or 40)
+	TweenService:Create(ImageButton, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, buttonIconSize, 0, buttonIconSize)
 	}):Play();
 	
 	(game.CoreGui:FindFirstChild("Xenon")).Enabled = not (game.CoreGui:FindFirstChild("Xenon")).Enabled;
 end);
 
--- Enhanced Notification System
+-- Enhanced Notification System with faster animations
 local NotificationFrame = Instance.new("ScreenGui");
 NotificationFrame.Name = "NotificationFrame";
 NotificationFrame.Parent = game.CoreGui;
@@ -180,8 +233,8 @@ local function RemoveOldestNotification()
 	if #NotificationList > 0 then
 		local removed = table.remove(NotificationList, 1);
 		
-		-- Enhanced exit animation
-		local exitTween = TweenService:Create(removed[1], TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+		-- FIXED: Faster exit animation
+		local exitTween = TweenService:Create(removed[1], TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
 			Position = UDim2.new(1.2, 0, removed[1].Position.Y.Scale, removed[1].Position.Y.Offset),
 			Size = UDim2.new(0, 0, 0, removed[1].Size.Y.Offset)
 		});
@@ -191,9 +244,9 @@ local function RemoveOldestNotification()
 			removed[1]:Destroy();
 		end);
 		
-		-- Reposition remaining notifications
+		-- Reposition remaining notifications with faster animation
 		for i, notification in ipairs(NotificationList) do
-			TweenService:Create(notification[1], TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(notification[1], TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Position = UDim2.new(0.5, 0, 0.1 + (i-1) * 0.12, 0)
 			}):Play();
 		end
@@ -204,7 +257,7 @@ end;
 spawn(function()
 	while wait() do
 		if #NotificationList > 0 then
-			wait(4); -- Increased display time
+			wait(3); -- Reduced display time for faster cycling
 			RemoveOldestNotification();
 		end;
 	end;
@@ -240,6 +293,10 @@ function Update:Notify(desc, notifType)
 		typeIcon = "rbxassetid://10709769841";
 	end
 	
+	-- FIXED: Better responsive sizing for notifications
+	local notifWidth = GetDeviceSize(350, 400, 420);
+	local notifHeight = GetDeviceSize(65, 70, 75);
+	
 	OutlineFrame.Name = "OutlineFrame";
 	OutlineFrame.Parent = NotificationFrame;
 	OutlineFrame.ClipsDescendants = true;
@@ -247,7 +304,8 @@ function Update:Notify(desc, notifType)
 	OutlineFrame.AnchorPoint = Vector2.new(0.5, 1);
 	OutlineFrame.BackgroundTransparency = 0.1;
 	OutlineFrame.Position = UDim2.new(1.2, 0, 0.1 + #NotificationList * 0.12, 0);
-	OutlineFrame.Size = UDim2.new(0, IsMobile and 350 or 420, 0, IsMobile and 65 or 75);
+	OutlineFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight);
+	
 	-- Add border glow
 	local NotifStroke = Instance.new("UIStroke");
 	NotifStroke.Parent = OutlineFrame;
@@ -264,36 +322,46 @@ function Update:Notify(desc, notifType)
 	Frame.Position = UDim2.new(0.5, 0, 0.5, 0);
 	Frame.Size = UDim2.new(1, -6, 1, -6);
 	
+	local iconSize = GetDeviceSize(35, 38, 40);
+	local iconPos = GetDeviceSize(12, 12, 12);
+	
 	Image.Name = "Icon";
 	Image.Parent = Frame;
 	Image.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 	Image.BackgroundTransparency = 1;
-	Image.Position = UDim2.new(0, 12, 0, 12);
-	Image.Size = UDim2.new(0, IsMobile and 35 or 40, 0, IsMobile and 35 or 40);
+	Image.Position = UDim2.new(0, iconPos, 0, iconPos);
+	Image.Size = UDim2.new(0, iconSize, 0, iconSize);
 	Image.Image = typeIcon;
 	Image.ImageColor3 = typeColor;
+	
+	local titleSize = GetDeviceSize(14, 15, 16);
+	local titlePosX = GetDeviceSize(55, 58, 60);
+	local titlePosY = GetDeviceSize(8, 10, 12);
 	
 	Title.Parent = Frame;
 	Title.BackgroundColor3 = _G.Primary;
 	Title.BackgroundTransparency = 1;
-	Title.Position = UDim2.new(0, IsMobile and 55 or 60, 0, IsMobile and 8 or 12);
-	Title.Size = UDim2.new(1, IsMobile and -85 or -90, 0, 22);
+	Title.Position = UDim2.new(0, titlePosX, 0, titlePosY);
+	Title.Size = UDim2.new(1, -titlePosX - 30, 0, 22);
 	Title.Font = Enum.Font.GothamBold;
 	Title.Text = "Xenon Hub";
 	Title.TextColor3 = Color3.fromRGB(255, 255, 255);
-	Title.TextSize = IsMobile and 14 or 16;
+	Title.TextSize = titleSize;
 	Title.TextXAlignment = Enum.TextXAlignment.Left;
+	
+	local descSize = GetDeviceSize(11, 12, 13);
+	local descPosY = GetDeviceSize(28, 32, 35);
 	
 	Desc.Parent = Frame;
 	Desc.BackgroundColor3 = _G.Primary;
 	Desc.BackgroundTransparency = 1;
-	Desc.Position = UDim2.new(0, IsMobile and 55 or 60, 0, IsMobile and 28 or 35);
-	Desc.Size = UDim2.new(1, IsMobile and -85 or -90, 0, IsMobile and 25 or 28);
+	Desc.Position = UDim2.new(0, titlePosX, 0, descPosY);
+	Desc.Size = UDim2.new(1, -titlePosX - 30, 0, GetDeviceSize(25, 26, 28));
 	Desc.Font = Enum.Font.Gotham;
 	Desc.TextTransparency = 0.2;
 	Desc.Text = desc;
 	Desc.TextColor3 = Color3.fromRGB(200, 200, 200);
-	Desc.TextSize = IsMobile and 11 or 13;
+	Desc.TextSize = descSize;
 	Desc.TextXAlignment = Enum.TextXAlignment.Left;
 	Desc.TextWrapped = true;
 	
@@ -316,20 +384,20 @@ function Update:Notify(desc, notifType)
 			end
 		end
 		
-		TweenService:Create(OutlineFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+		TweenService:Create(OutlineFrame, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
 			Position = UDim2.new(1.2, 0, OutlineFrame.Position.Y.Scale, OutlineFrame.Position.Y.Offset),
 			Size = UDim2.new(0, 0, 0, OutlineFrame.Size.Y.Offset)
 		}):Play();
 		
-		wait(0.3);
+		wait(0.15);
 		OutlineFrame:Destroy();
 	end);
 	
 	CreateRounded(Frame, 12);
 	CreateRounded(OutlineFrame, 15);
 	
-	-- Enhanced entrance animation
-	local entranceTween = TweenService:Create(OutlineFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	-- FIXED: Faster entrance animation
+	local entranceTween = TweenService:Create(OutlineFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		Position = UDim2.new(0.5, 0, 0.1 + #NotificationList * 0.12, 0)
 	});
 	
@@ -338,23 +406,23 @@ function Update:Notify(desc, notifType)
 	-- Add to notification list
 	table.insert(NotificationList, {OutlineFrame, "Xenon"});
 	
-	-- Hover effects for desktop
-	if not IsMobile then
+	-- Hover effects for desktop only
+	if IsPC then
 		OutlineFrame.MouseEnter:Connect(function()
-			TweenService:Create(NotifStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(NotifStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Transparency = 0.2
 			}):Play();
 		end);
 		
 		OutlineFrame.MouseLeave:Connect(function()
-			TweenService:Create(NotifStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(NotifStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Transparency = 0.5
 			}):Play();
 		end);
 	end
 end;
 
--- Enhanced Loading Screen
+-- Enhanced Loading Screen with faster animations
 function Update:StartLoad()
 	local Loader = Instance.new("ScreenGui");
 	Loader.Parent = game.CoreGui;
@@ -383,13 +451,13 @@ function Update:StartLoad()
 	});
 	BackgroundGradient.Rotation = 45;
 	
-	-- Animate background gradient
+	-- FIXED: Faster background gradient animation
 	spawn(function()
 		while LoaderFrame.Parent do
-			TweenService:Create(BackgroundGradient, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+			TweenService:Create(BackgroundGradient, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
 				Rotation = BackgroundGradient.Rotation + 360
 			}):Play();
-			wait(3);
+			wait(1.5);
 		end
 	end);
 	
@@ -435,22 +503,24 @@ function Update:StartLoad()
 	LogoGlow.ZIndex = -1;
 	CreateRounded(LogoGlow, 25);
 	
-	-- Animate logo glow
+	-- FIXED: Faster logo glow animation
 	spawn(function()
 		while LogoGlow.Parent do
-			TweenService:Create(LogoGlow, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+			TweenService:Create(LogoGlow, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
 				Size = UDim2.new(0, 120, 0, 120),
 				ImageTransparency = 0.9
 			}):Play();
-			wait(2);
+			wait(1);
 		end
 	end);
+	
+	local titleSize = GetDeviceSize(35, 40, 45);
 	
 	local TitleLoader = Instance.new("TextLabel");
 	TitleLoader.Parent = MainLoaderFrame;
 	TitleLoader.Text = "XENON HUB";
 	TitleLoader.Font = Enum.Font.GothamBold;
-	TitleLoader.TextSize = IsMobile and 35 or 45;
+	TitleLoader.TextSize = titleSize;
 	TitleLoader.TextColor3 = Color3.fromRGB(255, 255, 255);
 	TitleLoader.BackgroundTransparency = 1;
 	TitleLoader.AnchorPoint = Vector2.new(0.5, 0.5);
@@ -467,22 +537,26 @@ function Update:StartLoad()
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
 	});
 	
+	local versionSize = GetDeviceSize(12, 13, 14);
+	
 	local VersionLoader = Instance.new("TextLabel");
 	VersionLoader.Parent = MainLoaderFrame;
 	VersionLoader.Text = "Enhanced Edition v4.0";
 	VersionLoader.Font = Enum.Font.Gotham;
-	VersionLoader.TextSize = IsMobile and 12 or 14;
+	VersionLoader.TextSize = versionSize;
 	VersionLoader.TextColor3 = Color3.fromRGB(150, 150, 150);
 	VersionLoader.BackgroundTransparency = 1;
 	VersionLoader.AnchorPoint = Vector2.new(0.5, 0.5);
 	VersionLoader.Position = UDim2.new(0.5, 0, 0.55, 0);
 	VersionLoader.Size = UDim2.new(0.8, 0, 0.1, 0);
 	
+	local descSize = GetDeviceSize(13, 15, 16);
+	
 	local DescriptionLoader = Instance.new("TextLabel");
 	DescriptionLoader.Parent = MainLoaderFrame;
 	DescriptionLoader.Text = "Initializing...";
 	DescriptionLoader.Font = Enum.Font.Gotham;
-	DescriptionLoader.TextSize = IsMobile and 13 or 16;
+	DescriptionLoader.TextSize = descSize;
 	DescriptionLoader.TextColor3 = Color3.fromRGB(200, 200, 200);
 	DescriptionLoader.BackgroundTransparency = 1;
 	DescriptionLoader.AnchorPoint = Vector2.new(0.5, 0.5);
@@ -491,12 +565,14 @@ function Update:StartLoad()
 	DescriptionLoader.TextTransparency = 0;
 	
 	-- Enhanced Loading Bar
+	local barHeight = GetDeviceSize(6, 7, 8);
+	
 	local LoadingBarBackground = Instance.new("Frame");
 	LoadingBarBackground.Parent = MainLoaderFrame;
 	LoadingBarBackground.BackgroundColor3 = Color3.fromRGB(40, 40, 45);
 	LoadingBarBackground.AnchorPoint = Vector2.new(0.5, 0.5);
 	LoadingBarBackground.Position = UDim2.new(0.5, 0, 0.8, 0);
-	LoadingBarBackground.Size = UDim2.new(0.6, 0, 0, IsMobile and 6 or 8);
+	LoadingBarBackground.Size = UDim2.new(0.6, 0, 0, barHeight);
 	LoadingBarBackground.ClipsDescendants = true;
 	LoadingBarBackground.BorderSizePixel = 0;
 	LoadingBarBackground.ZIndex = 2;
@@ -516,9 +592,9 @@ function Update:StartLoad()
 	BarGlow.Position = UDim2.new(0, -2, 0, -2);
 	BarGlow.ZIndex = 2;
 	
-	CreateRounded(LoadingBarBackground, IsMobile and 3 or 4);
-	CreateRounded(LoadingBar, IsMobile and 3 or 4);
-	CreateRounded(BarGlow, IsMobile and 4 or 5);
+	CreateRounded(LoadingBarBackground, GetDeviceSize(3, 3, 4));
+	CreateRounded(LoadingBar, GetDeviceSize(3, 3, 4));
+	CreateRounded(BarGlow, GetDeviceSize(4, 4, 5));
 	
 	local tweenService = game:GetService("TweenService");
 	local dotCount = 0;
@@ -535,12 +611,13 @@ function Update:StartLoad()
 	
 	local currentPhase = 1;
 	
-	local barTweenInfoPart1 = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
+	-- FIXED: Faster loading bar animations
+	local barTweenInfoPart1 = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
 	local barTweenPart1 = tweenService:Create(LoadingBar, barTweenInfoPart1, {
 		Size = UDim2.new(0.3, 0, 1, 0)
 	});
 	
-	local barTweenInfoPart2 = TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
+	local barTweenInfoPart2 = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
 	local barTweenPart2 = tweenService:Create(LoadingBar, barTweenInfoPart2, {
 		Size = UDim2.new(1, 0, 1, 0)
 	});
@@ -555,33 +632,33 @@ function Update:StartLoad()
 	barTweenPart1.Completed:Connect(function()
 		running = true;
 		barTweenPart2.Completed:Connect(function()
-			wait(0.5);
+			wait(0.25);
 			running = false;
 			DescriptionLoader.Text = "Welcome to Xenon Hub!";
 			
-			-- Enhanced exit animation
-			TweenService:Create(MainLoaderFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+			-- FIXED: Faster exit animation
+			TweenService:Create(MainLoaderFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
 				Size = UDim2.new(0, 0, 0, 0),
 				Position = UDim2.new(0.5, 0, 0.5, 0)
 			}):Play();
 			
-			wait(0.5);
+			wait(0.25);
 			Loader:Destroy();
 		end);
 	end);
 	
-	-- Enhanced loading text animation
+	-- FIXED: Faster loading text animation
 	spawn(function()
 		while running do
 			if currentPhase <= #loadingPhases then
 				DescriptionLoader.Text = loadingPhases[currentPhase];
 				currentPhase = currentPhase + 1;
-				wait(0.8);
+				wait(0.4);
 			else
 				dotCount = (dotCount + 1) % 4;
 				local dots = string.rep(".", dotCount);
 				DescriptionLoader.Text = "Finalizing" .. dots;
-				wait(0.3);
+				wait(0.15);
 			end
 		end;
 	end);
@@ -593,8 +670,8 @@ local SettingsLib = {
 	LoadAnimation = true,
 	Theme = "Dark",
 	MobileOptimized = IsMobile,
-	AnimationSpeed = 1.0,
-	NotificationDuration = 4
+	AnimationSpeed = 2.0, -- Increased default speed
+	NotificationDuration = 3
 };
 
 (getgenv()).LoadConfig = function()
@@ -648,14 +725,14 @@ function Update:LoadAnimation()
 	return SettingsLib.LoadAnimation;
 end;
 
--- Enhanced Window Creation
+-- Enhanced Window Creation with better device detection
 function Update:Window(Config)
 	assert(Config.SubTitle, "SubTitle is required");
 	
-	-- Enhanced window configuration with mobile support
+	-- FIXED: Better responsive window sizing
 	local WindowConfig = {
-		Size = Config.Size or (IsMobile and UDim2.new(0, 380, 0, 500) or UDim2.new(0, 550, 0, 400)),
-		TabWidth = Config.TabWidth or (IsMobile and 120 or 140)
+		Size = Config.Size or UDim2.new(0, GetDeviceSize(380, 480, 550), 0, GetDeviceSize(500, 450, 400)),
+		TabWidth = Config.TabWidth or GetDeviceSize(120, 130, 140)
 	};
 	
 	local osfunc = {};
@@ -685,7 +762,7 @@ function Update:Window(Config)
 	local MainStroke = Instance.new("UIStroke");
 	MainStroke.Parent = OutlineMain;
 	MainStroke.Color = _G.Third;
-	MainStroke.Thickness = 2;
+	MainStroke.Thickness = GetDeviceSize(3, 2, 2);
 	MainStroke.Transparency = 0.6;
 	
 	CreateRounded(OutlineMain, 18);
@@ -700,8 +777,8 @@ function Update:Window(Config)
 	Main.Position = UDim2.new(0.5, 0, 0.5, 0);
 	Main.Size = WindowConfig.Size;
 	
-	-- Enhanced window opening animation
-	OutlineMain:TweenSize(UDim2.new(0, WindowConfig.Size.X.Offset + 20, 0, WindowConfig.Size.Y.Offset + 20), "Out", "Back", 0.6, true);
+	-- FIXED: Faster window opening animation
+	OutlineMain:TweenSize(UDim2.new(0, WindowConfig.Size.X.Offset + 20, 0, WindowConfig.Size.Y.Offset + 20), "Out", "Back", 0.3, true);
 	
 	-- Add subtle gradient background
 	local MainGradient = Instance.new("UIGradient");
@@ -715,13 +792,15 @@ function Update:Window(Config)
 	
 	CreateRounded(Main, 15);
 	
-	-- Enhanced Drag Button with better mobile support
+	-- Enhanced Drag Button with better device support
+	local dragButtonSize = GetDeviceSize(20, 19, 18);
+	
 	local DragButton = Instance.new("Frame");
 	DragButton.Name = "DragButton";
 	DragButton.Parent = Main;
 	DragButton.Position = UDim2.new(1, 8, 1, 8);
 	DragButton.AnchorPoint = Vector2.new(1, 1);
-	DragButton.Size = UDim2.new(0, IsMobile and 20 or 18, 0, IsMobile and 20 or 18);
+	DragButton.Size = UDim2.new(0, dragButtonSize, 0, dragButtonSize);
 	DragButton.BackgroundColor3 = _G.Primary;
 	DragButton.BackgroundTransparency = 0.3;
 	DragButton.ZIndex = 10;
@@ -738,11 +817,13 @@ function Update:Window(Config)
 	CreateRounded(DragButton, 99);
 	
 	-- Enhanced Top Bar
+	local topBarHeight = GetDeviceSize(50, 47, 45);
+	
 	local Top = Instance.new("Frame");
 	Top.Name = "Top";
 	Top.Parent = Main;
 	Top.BackgroundColor3 = Color3.fromRGB(15, 15, 18);
-	Top.Size = UDim2.new(1, 0, 0, IsMobile and 50 or 45);
+	Top.Size = UDim2.new(1, 0, 0, topBarHeight);
 	Top.BackgroundTransparency = 0.3;
 	CreateRounded(Top, 8);
 	
@@ -755,24 +836,29 @@ function Update:Window(Config)
 	});
 	TopGradient.Rotation = 90;
 	
-	-- Enhanced Title with better mobile support
+	-- Enhanced Title with better device support
+	local titleSize = GetDeviceSize(18, 19, 20);
+	local titlePosX = GetDeviceSize(20, 19, 18);
+	
 	local NameHub = Instance.new("TextLabel");
 	NameHub.Name = "NameHub";
 	NameHub.Parent = Top;
 	NameHub.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 	NameHub.BackgroundTransparency = 1;
 	NameHub.RichText = true;
-	NameHub.Position = UDim2.new(0, IsMobile and 20 or 18, 0.5, 0);
+	NameHub.Position = UDim2.new(0, titlePosX, 0.5, 0);
 	NameHub.AnchorPoint = Vector2.new(0, 0.5);
-	NameHub.Size = UDim2.new(0, 1, 0, IsMobile and 28 or 25);
+	NameHub.Size = UDim2.new(0, 1, 0, GetDeviceSize(28, 26, 25));
 	NameHub.Font = Enum.Font.GothamBold;
 	NameHub.Text = "XENON";
-	NameHub.TextSize = IsMobile and 18 or 20;
+	NameHub.TextSize = titleSize;
 	NameHub.TextColor3 = Color3.fromRGB(255, 255, 255);
 	NameHub.TextXAlignment = Enum.TextXAlignment.Left;
 	
 	local nameHubSize = (game:GetService("TextService")):GetTextSize(NameHub.Text, NameHub.TextSize, NameHub.Font, Vector2.new(math.huge, math.huge));
-	NameHub.Size = UDim2.new(0, nameHubSize.X, 0, IsMobile and 28 or 25);
+	NameHub.Size = UDim2.new(0, nameHubSize.X, 0, GetDeviceSize(28, 26, 25));
+	
+	local subtitleSize = GetDeviceSize(13, 14, 15);
 	
 	local SubTitle = Instance.new("TextLabel");
 	SubTitle.Name = "SubTitle";
@@ -780,19 +866,20 @@ function Update:Window(Config)
 	SubTitle.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 	SubTitle.BackgroundTransparency = 1;
 	SubTitle.Position = UDim2.new(0, nameHubSize.X + 10, 0.5, 0);
-	SubTitle.Size = UDim2.new(0, 1, 0, IsMobile and 22 or 20);
+	SubTitle.Size = UDim2.new(0, 1, 0, GetDeviceSize(22, 21, 20));
 	SubTitle.Font = Enum.Font.Gotham;
 	SubTitle.AnchorPoint = Vector2.new(0, 0.5);
 	SubTitle.Text = Config.SubTitle;
-	SubTitle.TextSize = IsMobile and 13 or 15;
+	SubTitle.TextSize = subtitleSize;
 	SubTitle.TextColor3 = _G.Third;
 	
 	local SubTitleSize = (game:GetService("TextService")):GetTextSize(SubTitle.Text, SubTitle.TextSize, SubTitle.Font, Vector2.new(math.huge, math.huge));
-	SubTitle.Size = UDim2.new(0, SubTitleSize.X, 0, IsMobile and 22 or 20);
+	SubTitle.Size = UDim2.new(0, SubTitleSize.X, 0, GetDeviceSize(22, 21, 20));
 	
-	-- Enhanced Control Buttons
-	local buttonSize = IsMobile and 25 or 22;
-	local buttonSpacing = IsMobile and 35 or 30;
+	-- Enhanced Control Buttons with better device sizing
+	local controlButtonSize = GetDeviceSize(25, 23, 22);
+	local controlButtonSpacing = GetDeviceSize(35, 32, 30);
+	local controlButtonPosX = GetDeviceSize(-18, -16, -15);
 	
 	local CloseButton = Instance.new("ImageButton");
 	CloseButton.Name = "CloseButton";
@@ -800,40 +887,40 @@ function Update:Window(Config)
 	CloseButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100);
 	CloseButton.BackgroundTransparency = 0.8;
 	CloseButton.AnchorPoint = Vector2.new(1, 0.5);
-	CloseButton.Position = UDim2.new(1, IsMobile and -18 or -15, 0.5, 0);
-	CloseButton.Size = UDim2.new(0, buttonSize, 0, buttonSize);
+	CloseButton.Position = UDim2.new(1, controlButtonPosX, 0.5, 0);
+	CloseButton.Size = UDim2.new(0, controlButtonSize, 0, controlButtonSize);
 	CloseButton.Image = "rbxassetid://7743878857";
 	CloseButton.ImageTransparency = 0;
 	CloseButton.ImageColor3 = Color3.fromRGB(255, 255, 255);
 	CreateRounded(CloseButton, 6);
 	
-	-- Enhanced button animations
+	-- FIXED: Faster button animations
 	CloseButton.MouseEnter:Connect(function()
-		if not IsMobile then
-			TweenService:Create(CloseButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		if IsPC then
+			TweenService:Create(CloseButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.3,
-				Size = UDim2.new(0, buttonSize + 3, 0, buttonSize + 3)
+				Size = UDim2.new(0, controlButtonSize + 2, 0, controlButtonSize + 2)
 			}):Play();
 		end
 	end);
 	
 	CloseButton.MouseLeave:Connect(function()
-		if not IsMobile then
-			TweenService:Create(CloseButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		if IsPC then
+			TweenService:Create(CloseButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.8,
-				Size = UDim2.new(0, buttonSize, 0, buttonSize)
+				Size = UDim2.new(0, controlButtonSize, 0, controlButtonSize)
 			}):Play();
 		end
 	end);
 	
 	CloseButton.MouseButton1Click:connect(function()
-		-- Enhanced close animation
-		TweenService:Create(OutlineMain, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+		-- FIXED: Faster close animation
+		TweenService:Create(OutlineMain, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
 			Size = UDim2.new(0, 0, 0, 0),
 			Position = UDim2.new(0.5, 0, 0.45, 0)
 		}):Play();
 		
-		wait(0.4);
+		wait(0.2);
 		(game.CoreGui:FindFirstChild("Xenon")).Enabled = false;
 	end);
 	
@@ -843,27 +930,27 @@ function Update:Window(Config)
 	MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 200, 100);
 	MinimizeButton.BackgroundTransparency = 0.8;
 	MinimizeButton.AnchorPoint = Vector2.new(1, 0.5);
-	MinimizeButton.Position = UDim2.new(1, IsMobile and -55 or -50, 0.5, 0);
-	MinimizeButton.Size = UDim2.new(0, buttonSize, 0, buttonSize);
+	MinimizeButton.Position = UDim2.new(1, controlButtonPosX - controlButtonSpacing, 0.5, 0);
+	MinimizeButton.Size = UDim2.new(0, controlButtonSize, 0, controlButtonSize);
 	MinimizeButton.Image = "rbxassetid://10734898355";
 	MinimizeButton.ImageTransparency = 0;
 	MinimizeButton.ImageColor3 = Color3.fromRGB(255, 255, 255);
 	CreateRounded(MinimizeButton, 6);
 	
 	MinimizeButton.MouseEnter:Connect(function()
-		if not IsMobile then
-			TweenService:Create(MinimizeButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		if IsPC then
+			TweenService:Create(MinimizeButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.3,
-				Size = UDim2.new(0, buttonSize + 3, 0, buttonSize + 3)
+				Size = UDim2.new(0, controlButtonSize + 2, 0, controlButtonSize + 2)
 			}):Play();
 		end
 	end);
 	
 	MinimizeButton.MouseLeave:Connect(function()
-		if not IsMobile then
-			TweenService:Create(MinimizeButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		if IsPC then
+			TweenService:Create(MinimizeButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.8,
-				Size = UDim2.new(0, buttonSize, 0, buttonSize)
+				Size = UDim2.new(0, controlButtonSize, 0, controlButtonSize)
 			}):Play();
 		end
 	end);
@@ -878,27 +965,27 @@ function Update:Window(Config)
 	ResizeButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100);
 	ResizeButton.BackgroundTransparency = 0.8;
 	ResizeButton.AnchorPoint = Vector2.new(1, 0.5);
-	ResizeButton.Position = UDim2.new(1, IsMobile and -92 or -85, 0.5, 0);
-	ResizeButton.Size = UDim2.new(0, buttonSize, 0, buttonSize);
+	ResizeButton.Position = UDim2.new(1, controlButtonPosX - (controlButtonSpacing * 2), 0.5, 0);
+	ResizeButton.Size = UDim2.new(0, controlButtonSize, 0, controlButtonSize);
 	ResizeButton.Image = "rbxassetid://10734886735";
 	ResizeButton.ImageTransparency = 0;
 	ResizeButton.ImageColor3 = Color3.fromRGB(255, 255, 255);
 	CreateRounded(ResizeButton, 6);
 	
 	ResizeButton.MouseEnter:Connect(function()
-		if not IsMobile then
-			TweenService:Create(ResizeButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		if IsPC then
+			TweenService:Create(ResizeButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.3,
-				Size = UDim2.new(0, buttonSize + 3, 0, buttonSize + 3)
+				Size = UDim2.new(0, controlButtonSize + 2, 0, controlButtonSize + 2)
 			}):Play();
 		end
 	end);
 	
 	ResizeButton.MouseLeave:Connect(function()
-		if not IsMobile then
-			TweenService:Create(ResizeButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		if IsPC then
+			TweenService:Create(ResizeButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.8,
-				Size = UDim2.new(0, buttonSize, 0, buttonSize)
+				Size = UDim2.new(0, controlButtonSize, 0, controlButtonSize)
 			}):Play();
 		end
 	end);
@@ -949,15 +1036,15 @@ function Update:Window(Config)
 	CreateRounded(CloseSettings, 6);
 	
 	CloseSettings.MouseButton1Click:connect(function()
-		-- Enhanced settings close animation
-		TweenService:Create(SettingsFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+		-- FIXED: Faster settings close animation
+		TweenService:Create(SettingsFrame, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
 			Size = UDim2.new(0, 0, 0, 0)
 		}):Play();
 		
-		wait(0.3);
+		wait(0.15);
 		BackgroundSettings.Visible = false;
 		
-		TweenService:Create(SettingsFrame, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		TweenService:Create(SettingsFrame, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			Size = UDim2.new(0.8, 0, 0.8, 0)
 		}):Play();
 	end);
@@ -968,27 +1055,27 @@ function Update:Window(Config)
 	SettingsButton.BackgroundColor3 = Color3.fromRGB(100, 150, 255);
 	SettingsButton.BackgroundTransparency = 0.8;
 	SettingsButton.AnchorPoint = Vector2.new(1, 0.5);
-	SettingsButton.Position = UDim2.new(1, IsMobile and -129 or -120, 0.5, 0);
-	SettingsButton.Size = UDim2.new(0, buttonSize, 0, buttonSize);
+	SettingsButton.Position = UDim2.new(1, controlButtonPosX - (controlButtonSpacing * 3), 0.5, 0);
+	SettingsButton.Size = UDim2.new(0, controlButtonSize, 0, controlButtonSize);
 	SettingsButton.Image = "rbxassetid://10734950020";
 	SettingsButton.ImageTransparency = 0;
 	SettingsButton.ImageColor3 = Color3.fromRGB(255, 255, 255);
 	CreateRounded(SettingsButton, 6);
 	
 	SettingsButton.MouseEnter:Connect(function()
-		if not IsMobile then
-			TweenService:Create(SettingsButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		if IsPC then
+			TweenService:Create(SettingsButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.3,
-				Size = UDim2.new(0, buttonSize + 3, 0, buttonSize + 3)
+				Size = UDim2.new(0, controlButtonSize + 2, 0, controlButtonSize + 2)
 			}):Play();
 		end
 	end);
 	
 	SettingsButton.MouseLeave:Connect(function()
-		if not IsMobile then
-			TweenService:Create(SettingsButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		if IsPC then
+			TweenService:Create(SettingsButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.8,
-				Size = UDim2.new(0, buttonSize, 0, buttonSize)
+				Size = UDim2.new(0, controlButtonSize, 0, controlButtonSize)
 			}):Play();
 		end
 	end);
@@ -996,14 +1083,16 @@ function Update:Window(Config)
 	SettingsButton.MouseButton1Click:connect(function()
 		BackgroundSettings.Visible = true;
 		
-		-- Enhanced settings open animation
+		-- FIXED: Faster settings open animation
 		SettingsFrame.Size = UDim2.new(0, 0, 0, 0);
-		TweenService:Create(SettingsFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		TweenService:Create(SettingsFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Size = UDim2.new(0.8, 0, 0.8, 0)
 		}):Play();
 	end);
 	
 	-- Enhanced Settings Content
+	local settingsTitleSize = GetDeviceSize(18, 20, 22);
+	
 	local TitleSettings = Instance.new("TextLabel");
 	TitleSettings.Name = "TitleSettings";
 	TitleSettings.Parent = SettingsFrame;
@@ -1014,7 +1103,7 @@ function Update:Window(Config)
 	TitleSettings.Font = Enum.Font.GothamBold;
 	TitleSettings.AnchorPoint = Vector2.new(0, 0);
 	TitleSettings.Text = "⚙️ Library Settings";
-	TitleSettings.TextSize = IsMobile and 18 or 22;
+	TitleSettings.TextSize = settingsTitleSize;
 	TitleSettings.TextColor3 = Color3.fromRGB(255, 255, 255);
 	TitleSettings.TextXAlignment = Enum.TextXAlignment.Left;
 	
@@ -1037,7 +1126,7 @@ function Update:Window(Config)
 	ScrollSettings.Position = UDim2.new(0, 0, 0, 0);
 	ScrollSettings.BackgroundTransparency = 1;
 	ScrollSettings.Size = UDim2.new(1, 0, 1, 0);
-	ScrollSettings.ScrollBarThickness = IsMobile and 6 or 4;
+	ScrollSettings.ScrollBarThickness = GetDeviceSize(6, 5, 4);
 	ScrollSettings.ScrollingDirection = Enum.ScrollingDirection.Y;
 	ScrollSettings.ScrollBarImageColor3 = _G.Third;
 	
@@ -1045,7 +1134,7 @@ function Update:Window(Config)
 	SettingsListLayout.Name = "SettingsListLayout";
 	SettingsListLayout.Parent = ScrollSettings;
 	SettingsListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
-	SettingsListLayout.Padding = UDim.new(0, IsMobile and 12 or 10);
+	SettingsListLayout.Padding = UDim.new(0, GetDeviceSize(12, 11, 10));
 	
 	local PaddingScroll = Instance.new("UIPadding");
 	PaddingScroll.Name = "PaddingScroll";
@@ -1055,7 +1144,7 @@ function Update:Window(Config)
 	PaddingScroll.PaddingLeft = UDim.new(0, 15);
 	PaddingScroll.PaddingRight = UDim.new(0, 15);
 	
-	-- Enhanced Settings Components
+	-- Enhanced Settings Components with faster animations
 	function CreateCheckbox(title, state, callback)
 		local checked = state or false;
 		local Background = Instance.new("Frame");
@@ -1064,35 +1153,39 @@ function Update:Window(Config)
 		Background.ClipsDescendants = true;
 		Background.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
 		Background.BackgroundTransparency = 0.3;
-		Background.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 40);
+		Background.Size = UDim2.new(1, 0, 0, GetDeviceSize(45, 42, 40));
 		CreateRounded(Background, 8);
 		
 		-- Add hover effect for desktop
-		if not IsMobile then
+		if IsPC then
 			Background.MouseEnter:Connect(function()
-				TweenService:Create(Background, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(Background, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundTransparency = 0.1
 				}):Play();
 			end);
 			
 			Background.MouseLeave:Connect(function()
-				TweenService:Create(Background, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(Background, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundTransparency = 0.3
 				}):Play();
 			end);
 		end
+		
+		local checkboxTitleSize = GetDeviceSize(14, 14, 15);
+		local checkboxSize = GetDeviceSize(25, 23, 22);
+		local checkboxPosX = GetDeviceSize(18, 16, 15);
 		
 		local Title = Instance.new("TextLabel");
 		Title.Name = "Title";
 		Title.Parent = Background;
 		Title.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, IsMobile and 55 or 50, 0.5, 0);
-		Title.Size = UDim2.new(1, IsMobile and -85 or -80, 0, IsMobile and 25 or 22);
+		Title.Position = UDim2.new(0, GetDeviceSize(55, 52, 50), 0.5, 0);
+		Title.Size = UDim2.new(1, GetDeviceSize(-85, -82, -80), 0, GetDeviceSize(25, 23, 22));
 		Title.Font = Enum.Font.Gotham;
 		Title.AnchorPoint = Vector2.new(0, 0.5);
 		Title.Text = title or "";
-		Title.TextSize = IsMobile and 14 or 15;
+		Title.TextSize = checkboxTitleSize;
 		Title.TextColor3 = Color3.fromRGB(220, 220, 220);
 		Title.TextXAlignment = Enum.TextXAlignment.Left;
 		
@@ -1102,8 +1195,8 @@ function Update:Window(Config)
 		Checkbox.BackgroundColor3 = Color3.fromRGB(60, 60, 65);
 		Checkbox.BackgroundTransparency = 0;
 		Checkbox.AnchorPoint = Vector2.new(0, 0.5);
-		Checkbox.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, 0);
-		Checkbox.Size = UDim2.new(0, IsMobile and 25 or 22, 0, IsMobile and 25 or 22);
+		Checkbox.Position = UDim2.new(0, checkboxPosX, 0.5, 0);
+		Checkbox.Size = UDim2.new(0, checkboxSize, 0, checkboxSize);
 		Checkbox.Image = "rbxassetid://10709790644";
 		Checkbox.ImageTransparency = 1;
 		Checkbox.ImageColor3 = Color3.fromRGB(255, 255, 255);
@@ -1119,29 +1212,29 @@ function Update:Window(Config)
 		Checkbox.MouseButton1Click:Connect(function()
 			checked = not checked;
 			
-			-- Enhanced checkbox animation
+			-- FIXED: Faster checkbox animation
 			if checked then
-				TweenService:Create(Checkbox, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				TweenService:Create(Circle, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 					BackgroundColor3 = _G.Third,
-					Size = UDim2.new(0, (IsMobile and 25 or 22) + 3, 0, (IsMobile and 25 or 22) + 3)
+					Size = UDim2.new(0, checkboxSize + 2, 0, checkboxSize + 2)
 				}):Play();
-				TweenService:Create(Checkbox, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(Checkbox, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					ImageTransparency = 0
 				}):Play();
-				TweenService:Create(CheckboxStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(CheckboxStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Transparency = 0.3
 				}):Play();
 				
-				wait(0.1);
-				TweenService:Create(Checkbox, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					Size = UDim2.new(0, IsMobile and 25 or 22, 0, IsMobile and 25 or 22)
+				wait(0.05);
+				TweenService:Create(Checkbox, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Size = UDim2.new(0, checkboxSize, 0, checkboxSize)
 				}):Play();
 			else
-				TweenService:Create(Checkbox, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(Checkbox, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundColor3 = Color3.fromRGB(60, 60, 65),
 					ImageTransparency = 1
 				}):Play();
-				TweenService:Create(CheckboxStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(CheckboxStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Transparency = 0.7
 				}):Play();
 			end;
@@ -1170,20 +1263,23 @@ function Update:Window(Config)
 		Background.ClipsDescendants = true;
 		Background.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
 		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 40);
+		Background.Size = UDim2.new(1, 0, 0, GetDeviceSize(45, 42, 40));
+		
+		local buttonHeight = GetDeviceSize(40, 37, 35);
+		local buttonTextSize = GetDeviceSize(14, 14, 15);
 		
 		local Button = Instance.new("TextButton");
 		Button.Name = "Button";
 		Button.Parent = Background;
 		Button.BackgroundColor3 = _G.Third;
 		Button.BackgroundTransparency = 0.1;
-		Button.Size = UDim2.new(0.9, 0, 0, IsMobile and 40 or 35);
+		Button.Size = UDim2.new(0.9, 0, 0, buttonHeight);
 		Button.Font = Enum.Font.GothamBold;
 		Button.Text = title or "Button";
 		Button.AnchorPoint = Vector2.new(0.5, 0.5);
 		Button.Position = UDim2.new(0.5, 0, 0.5, 0);
 		Button.TextColor3 = Color3.fromRGB(255, 255, 255);
-		Button.TextSize = IsMobile and 14 or 15;
+		Button.TextSize = buttonTextSize;
 		Button.AutoButtonColor = false;
 		CreateRounded(Button, 8);
 		
@@ -1194,41 +1290,41 @@ function Update:Window(Config)
 		ButtonStroke.Thickness = 1.5;
 		ButtonStroke.Transparency = 0.5;
 		
-		-- Enhanced button animations
+		-- FIXED: Faster button animations
 		Button.MouseEnter:Connect(function()
-			if not IsMobile then
-				TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			if IsPC then
+				TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundTransparency = 0,
-					Size = UDim2.new(0.9, 0, 0, (IsMobile and 40 or 35) + 3)
+					Size = UDim2.new(0.9, 0, 0, buttonHeight + 2)
 				}):Play();
-				TweenService:Create(ButtonStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(ButtonStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Transparency = 0.2
 				}):Play();
 			end
 		end);
 		
 		Button.MouseLeave:Connect(function()
-			if not IsMobile then
-				TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			if IsPC then
+				TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundTransparency = 0.1,
-					Size = UDim2.new(0.9, 0, 0, IsMobile and 40 or 35)
+					Size = UDim2.new(0.9, 0, 0, buttonHeight)
 				}):Play();
-				TweenService:Create(ButtonStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(ButtonStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Transparency = 0.5
 				}):Play();
 			end
 		end);
 		
 		Button.MouseButton1Click:Connect(function()
-			-- Click animation
-			TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0.85, 0, 0, (IsMobile and 40 or 35) - 3)
+			-- FIXED: Faster click animation
+			TweenService:Create(Button, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = UDim2.new(0.85, 0, 0, buttonHeight - 2)
 			}):Play();
 			
-			wait(0.1);
+			wait(0.05);
 			
-			TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0.9, 0, 0, IsMobile and 40 or 35)
+			TweenService:Create(Button, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = UDim2.new(0.9, 0, 0, buttonHeight)
 			}):Play();
 			
 			callback();
@@ -1269,7 +1365,7 @@ function Update:Window(Config)
 	CreateButton("📋 Copy Debug Info", function()
 		local debugInfo = "Xenon Hub Debug Info:\n";
 		debugInfo = debugInfo .. "Version: Enhanced Edition v4.0\n";
-		debugInfo = debugInfo .. "Device: " .. (IsMobile and "Mobile" or "Desktop") .. "\n";
+		debugInfo = debugInfo .. "Device: " .. (IsMobile and "Mobile" or (IsTablet and "Tablet" or "Desktop")) .. "\n";
 		debugInfo = debugInfo .. "Executor: " .. (identifyexecutor and identifyexecutor() or "Unknown") .. "\n";
 		debugInfo = debugInfo .. "Game: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name;
 		
@@ -1308,7 +1404,7 @@ function Update:Window(Config)
 	ScrollTab.Position = UDim2.new(0, 0, 0, 0);
 	ScrollTab.BackgroundTransparency = 1;
 	ScrollTab.Size = UDim2.new(1, 0, 1, 0);
-	ScrollTab.ScrollBarThickness = IsMobile and 6 or 3;
+	ScrollTab.ScrollBarThickness = GetDeviceSize(6, 4, 3);
 	ScrollTab.ScrollingDirection = Enum.ScrollingDirection.Y;
 	ScrollTab.ScrollBarImageColor3 = _G.Third;
 	
@@ -1316,7 +1412,7 @@ function Update:Window(Config)
 	TabListLayout.Name = "TabListLayout";
 	TabListLayout.Parent = ScrollTab;
 	TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
-	TabListLayout.Padding = UDim.new(0, IsMobile and 4 or 3);
+	TabListLayout.Padding = UDim.new(0, GetDeviceSize(4, 3, 3));
 	
 	local PPD = Instance.new("UIPadding");
 	PPD.Name = "PPD";
@@ -1364,7 +1460,7 @@ function Update:Window(Config)
 	UIPageLayout.EasingStyle = Enum.EasingStyle.Quart;
 	UIPageLayout.FillDirection = Enum.FillDirection.Vertical;
 	UIPageLayout.Padding = UDim.new(0, 15);
-	UIPageLayout.TweenTime = 0.4;
+	UIPageLayout.TweenTime = 0.2; -- FIXED: Faster page transitions
 	UIPageLayout.GamepadInputEnabled = false;
 	UIPageLayout.ScrollWheelInputEnabled = false;
 	UIPageLayout.TouchInputEnabled = false;
@@ -1380,24 +1476,24 @@ function Update:Window(Config)
 				xenonGui.Enabled = not xenonGui.Enabled;
 				
 				if xenonGui.Enabled then
-					-- Enhanced show animation
+					-- FIXED: Faster show animation
 					OutlineMain.Size = UDim2.new(0, 0, 0, 0);
-					OutlineMain:TweenSize(UDim2.new(0, WindowConfig.Size.X.Offset + 20, 0, WindowConfig.Size.Y.Offset + 20), "Out", "Back", 0.5, true);
+					OutlineMain:TweenSize(UDim2.new(0, WindowConfig.Size.X.Offset + 20, 0, WindowConfig.Size.Y.Offset + 20), "Out", "Back", 0.25, true);
 				end
 			end
 		end;
 	end);
 	
-	-- Enhanced Resize System
+	-- Enhanced Resize System with faster animations
 	local Dragging = false;
 	DragButton.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 			Dragging = true;
 			
-			-- Visual feedback for resize start
-			TweenService:Create(DragButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			-- FIXED: Faster visual feedback for resize start
+			TweenService:Create(DragButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.1,
-				Size = UDim2.new(0, (IsMobile and 20 or 18) + 4, 0, (IsMobile and 20 or 18) + 4)
+				Size = UDim2.new(0, dragButtonSize + 2, 0, dragButtonSize + 2)
 			}):Play();
 		end;
 	end);
@@ -1407,10 +1503,10 @@ function Update:Window(Config)
 			if Dragging then
 				Dragging = false;
 				
-				-- Visual feedback for resize end
-				TweenService:Create(DragButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				-- FIXED: Faster visual feedback for resize end
+				TweenService:Create(DragButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundTransparency = 0.3,
-					Size = UDim2.new(0, IsMobile and 20 or 18, 0, IsMobile and 20 or 18)
+					Size = UDim2.new(0, dragButtonSize, 0, dragButtonSize)
 				}):Play();
 			end
 		end;
@@ -1421,20 +1517,20 @@ function Update:Window(Config)
 			local newWidth = math.clamp(Input.Position.X - Main.AbsolutePosition.X, WindowConfig.Size.X.Offset, math.huge);
 			local newHeight = math.clamp(Input.Position.Y - Main.AbsolutePosition.Y, WindowConfig.Size.Y.Offset, math.huge);
 			
-			-- Smooth resize animation
-			TweenService:Create(OutlineMain, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			-- FIXED: Faster resize animation
+			TweenService:Create(OutlineMain, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Size = UDim2.new(0, newWidth + 20, 0, newHeight + 20)
 			}):Play();
 			
-			TweenService:Create(Main, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(Main, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Size = UDim2.new(0, newWidth, 0, newHeight)
 			}):Play();
 			
-			TweenService:Create(Page, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(Page, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Size = UDim2.new(0, newWidth - Tab.Size.X.Offset - 35, 0, newHeight - Top.Size.Y.Offset - 20)
 			}):Play();
 			
-			TweenService:Create(Tab, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(Tab, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Size = UDim2.new(0, WindowConfig.TabWidth, 0, newHeight - Top.Size.Y.Offset - 20)
 			}):Play();
 		end;
@@ -1448,15 +1544,21 @@ function Update:Window(Config)
 		local IDK = Instance.new("ImageLabel");
 		local SelectedTab = Instance.new("Frame");
 		
+		local tabHeight = GetDeviceSize(42, 40, 38);
+		local tabTextSize = GetDeviceSize(13, 13, 12);
+		local tabIconSize = GetDeviceSize(20, 19, 18);
+		local tabIconPosX = GetDeviceSize(12, 11, 10);
+		local tabTitlePosX = GetDeviceSize(38, 36, 35);
+		
 		TabButton.Parent = ScrollTab;
 		TabButton.Name = text .. "Unique";
 		TabButton.Text = "";
 		TabButton.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 		TabButton.BackgroundTransparency = 0.8;
-		TabButton.Size = UDim2.new(1, 0, 0, IsMobile and 42 or 38);
+		TabButton.Size = UDim2.new(1, 0, 0, tabHeight);
 		TabButton.Font = Enum.Font.Gotham;
 		TabButton.TextColor3 = Color3.fromRGB(255, 255, 255);
-		TabButton.TextSize = IsMobile and 13 or 12;
+		TabButton.TextSize = tabTextSize;
 		TabButton.TextTransparency = 0.9;
 		TabButton.AutoButtonColor = false;
 		CreateRounded(TabButton, 8);
@@ -1481,14 +1583,14 @@ function Update:Window(Config)
 		Title.Name = "Title";
 		Title.BackgroundColor3 = Color3.fromRGB(150, 150, 150);
 		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, IsMobile and 38 or 35, 0.5, 0);
-		Title.Size = UDim2.new(1, IsMobile and -45 or -42, 0, IsMobile and 22 or 20);
+		Title.Position = UDim2.new(0, tabTitlePosX, 0.5, 0);
+		Title.Size = UDim2.new(1, -tabTitlePosX - 7, 0, GetDeviceSize(22, 21, 20));
 		Title.Font = Enum.Font.GothamMedium;
 		Title.Text = text;
 		Title.AnchorPoint = Vector2.new(0, 0.5);
 		Title.TextColor3 = Color3.fromRGB(200, 200, 200);
 		Title.TextTransparency = 0.3;
-		Title.TextSize = IsMobile and 13 or 14;
+		Title.TextSize = GetDeviceSize(13, 13, 14);
 		Title.TextXAlignment = Enum.TextXAlignment.Left;
 		
 		IDK.Name = "IDK";
@@ -1496,8 +1598,8 @@ function Update:Window(Config)
 		IDK.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 		IDK.BackgroundTransparency = 1;
 		IDK.ImageTransparency = 0.2;
-		IDK.Position = UDim2.new(0, IsMobile and 12 or 10, 0.5, 0);
-		IDK.Size = UDim2.new(0, IsMobile and 20 or 18, 0, IsMobile and 20 or 18);
+		IDK.Position = UDim2.new(0, tabIconPosX, 0.5, 0);
+		IDK.Size = UDim2.new(0, tabIconSize, 0, tabIconSize);
 		IDK.AnchorPoint = Vector2.new(0, 0.5);
 		IDK.Image = img;
 		IDK.ImageColor3 = Color3.fromRGB(200, 200, 200);
@@ -1511,7 +1613,7 @@ function Update:Window(Config)
 		MainFramePage.Position = UDim2.new(0, 0, 0, 0);
 		MainFramePage.BackgroundTransparency = 1;
 		MainFramePage.Size = UDim2.new(1, 0, 1, 0);
-		MainFramePage.ScrollBarThickness = IsMobile and 6 or 4;
+		MainFramePage.ScrollBarThickness = GetDeviceSize(6, 5, 4);
 		MainFramePage.ScrollingDirection = Enum.ScrollingDirection.Y;
 		MainFramePage.ScrollBarImageColor3 = _G.Third;
 		
@@ -1523,31 +1625,31 @@ function Update:Window(Config)
 		UIPadding.PaddingLeft = UDim.new(0, 12);
 		UIPadding.PaddingRight = UDim.new(0, 12);
 		
-		UIListLayout.Padding = UDim.new(0, IsMobile and 8 or 6);
+		UIListLayout.Padding = UDim.new(0, GetDeviceSize(8, 7, 6));
 		UIListLayout.Parent = MainFramePage;
 		UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
 		
-		-- Enhanced Tab Click Handler
+		-- FIXED: Faster Tab Click Handler
 		TabButton.MouseButton1Click:Connect(function()
 			-- Reset all tabs
 			for i, v in next, ScrollTab:GetChildren() do
 				if v:IsA("TextButton") then
-					TweenService:Create(v, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(v, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.8
 					}):Play();
-					TweenService:Create(v.SelectedTab, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(v.SelectedTab, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Size = UDim2.new(0, 4, 0, 0)
 					}):Play();
-					TweenService:Create(v.IDK, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(v.IDK, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						ImageTransparency = 0.4,
 						ImageColor3 = Color3.fromRGB(200, 200, 200)
 					}):Play();
-					TweenService:Create(v.Title, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(v.Title, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						TextTransparency = 0.4,
 						TextColor3 = Color3.fromRGB(200, 200, 200)
 					}):Play();
 					if v:FindFirstChild("UIStroke") then
-						TweenService:Create(v.UIStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						TweenService:Create(v.UIStroke, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 							Transparency = 0.9
 						}):Play();
 					end
@@ -1555,21 +1657,21 @@ function Update:Window(Config)
 			end
 			
 			-- Activate current tab
-			TweenService:Create(TabButton, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(TabButton, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.3
 			}):Play();
-			TweenService:Create(SelectedTab, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0, 4, 0, IsMobile and 25 or 22)
+			TweenService:Create(SelectedTab, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Size = UDim2.new(0, 4, 0, GetDeviceSize(25, 23, 22))
 			}):Play();
-			TweenService:Create(IDK, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(IDK, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				ImageTransparency = 0,
 				ImageColor3 = _G.Third
 			}):Play();
-			TweenService:Create(Title, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(Title, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				TextTransparency = 0,
 				TextColor3 = Color3.fromRGB(255, 255, 255)
 			}):Play();
-			TweenService:Create(TabStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(TabStroke, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Transparency = 0.5
 			}):Play();
 			
@@ -1582,14 +1684,14 @@ function Update:Window(Config)
 			end;
 		end);
 		
-		-- Enhanced hover effects for desktop
-		if not IsMobile then
+		-- FIXED: Faster hover effects for desktop
+		if IsPC then
 			TabButton.MouseEnter:Connect(function()
 				if TabButton.BackgroundTransparency > 0.5 then -- Only if not active
-					TweenService:Create(TabButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(TabButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.6
 					}):Play();
-					TweenService:Create(TabStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(TabStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.7
 					}):Play();
 				end
@@ -1597,10 +1699,10 @@ function Update:Window(Config)
 			
 			TabButton.MouseLeave:Connect(function()
 				if TabButton.BackgroundTransparency > 0.5 then -- Only if not active
-					TweenService:Create(TabButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(TabButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.8
 					}):Play();
-					TweenService:Create(TabStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(TabStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.9
 					}):Play();
 				end
@@ -1612,17 +1714,17 @@ function Update:Window(Config)
 			-- Reset all tabs first
 			for i, v in next, ScrollTab:GetChildren() do
 				if v:IsA("TextButton") then
-					TweenService:Create(v, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(v, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.8
 					}):Play();
-					TweenService:Create(v.SelectedTab, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(v.SelectedTab, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Size = UDim2.new(0, 4, 0, 0)
 					}):Play();
-					TweenService:Create(v.IDK, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(v.IDK, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						ImageTransparency = 0.4,
 						ImageColor3 = Color3.fromRGB(200, 200, 200)
 					}):Play();
-					TweenService:Create(v.Title, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(v.Title, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						TextTransparency = 0.4,
 						TextColor3 = Color3.fromRGB(200, 200, 200)
 					}):Play();
@@ -1630,21 +1732,21 @@ function Update:Window(Config)
 			end
 			
 			-- Activate first tab
-			TweenService:Create(TabButton, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(TabButton, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				BackgroundTransparency = 0.3
 			}):Play();
-			TweenService:Create(SelectedTab, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0, 4, 0, IsMobile and 25 or 22)
+			TweenService:Create(SelectedTab, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Size = UDim2.new(0, 4, 0, GetDeviceSize(25, 23, 22))
 			}):Play();
-			TweenService:Create(IDK, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(IDK, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				ImageTransparency = 0,
 				ImageColor3 = _G.Third
 			}):Play();
-			TweenService:Create(Title, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(Title, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				TextTransparency = 0,
 				TextColor3 = Color3.fromRGB(255, 255, 255)
 			}):Play();
-			TweenService:Create(TabStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			TweenService:Create(TabStroke, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Transparency = 0.5
 			}):Play();
 			
@@ -1661,29 +1763,29 @@ function Update:Window(Config)
 			end);
 		end);
 		
-		-- Enhanced Fullscreen Toggle
+		-- Enhanced Fullscreen Toggle with faster animations
 		local defaultSize = true;
 		ResizeButton.MouseButton1Click:Connect(function()
 			if defaultSize then
 				defaultSize = false;
 				
-				-- Enhanced fullscreen animation
-				TweenService:Create(OutlineMain, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				-- FIXED: Faster fullscreen animation
+				TweenService:Create(OutlineMain, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 					Position = UDim2.new(0.5, 0, 0.5, 0),
 					Size = UDim2.new(1, -20, 1, -20)
 				}):Play();
 				
-				TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 					Size = UDim2.new(1, -40, 1, -40)
 				}):Play();
 				
-				wait(0.2);
+				wait(0.1);
 				
-				TweenService:Create(Page, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(Page, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Size = UDim2.new(0, Main.AbsoluteSize.X - Tab.AbsoluteSize.X - 35, 0, Main.AbsoluteSize.Y - Top.AbsoluteSize.Y - 20)
 				}):Play();
 				
-				TweenService:Create(Tab, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(Tab, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Size = UDim2.new(0, WindowConfig.TabWidth, 0, Main.AbsoluteSize.Y - Top.AbsoluteSize.Y - 20)
 				}):Play();
 				
@@ -1692,23 +1794,23 @@ function Update:Window(Config)
 			else
 				defaultSize = true;
 				
-				-- Enhanced windowed animation
-				TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				-- FIXED: Faster windowed animation
+				TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 					Size = UDim2.new(0, WindowConfig.Size.X.Offset, 0, WindowConfig.Size.Y.Offset)
 				}):Play();
 				
-				TweenService:Create(OutlineMain, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				TweenService:Create(OutlineMain, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 					Position = UDim2.new(0.5, 0, 0.45, 0),
 					Size = UDim2.new(0, WindowConfig.Size.X.Offset + 20, 0, WindowConfig.Size.Y.Offset + 20)
 				}):Play();
 				
-				wait(0.2);
+				wait(0.1);
 				
-				TweenService:Create(Page, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(Page, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Size = UDim2.new(0, Main.AbsoluteSize.X - Tab.AbsoluteSize.X - 35, 0, Main.AbsoluteSize.Y - Top.AbsoluteSize.Y - 20)
 				}):Play();
 				
-				TweenService:Create(Tab, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(Tab, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Size = UDim2.new(0, WindowConfig.TabWidth, 0, Main.AbsoluteSize.Y - Top.AbsoluteSize.Y - 20)
 				}):Play();
 				
@@ -1717,7 +1819,7 @@ function Update:Window(Config)
 			end;
 		end);
 		
-		-- Enhanced Component Creation Functions
+		-- Enhanced Component Creation Functions with faster animations
 		local main = {};
 		
 		function main:Button(text, callback)
@@ -1727,11 +1829,16 @@ function Update:Window(Config)
 			local ImageLabel = Instance.new("ImageLabel");
 			local ArrowRight = Instance.new("ImageLabel");
 			
+			local buttonHeight = GetDeviceSize(45, 42, 40);
+			local buttonTextSize = GetDeviceSize(14, 14, 15);
+			local buttonIconSize = GetDeviceSize(32, 30, 28);
+			local arrowIconSize = GetDeviceSize(20, 19, 18);
+			
 			Button.Name = "Button";
 			Button.Parent = MainFramePage;
 			Button.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Button.BackgroundTransparency = 0.2;
-			Button.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 40);
+			Button.Size = UDim2.new(1, 0, 0, buttonHeight);
 			CreateRounded(Button, 8);
 			
 			-- Add button border
@@ -1747,7 +1854,7 @@ function Update:Window(Config)
 			TextButton.BackgroundTransparency = 0.9;
 			TextButton.AnchorPoint = Vector2.new(1, 0.5);
 			TextButton.Position = UDim2.new(1, -8, 0.5, 0);
-			TextButton.Size = UDim2.new(0, IsMobile and 32 or 28, 0, IsMobile and 32 or 28);
+			TextButton.Size = UDim2.new(0, buttonIconSize, 0, buttonIconSize);
 			TextButton.Font = Enum.Font.Gotham;
 			TextButton.Text = "";
 			TextButton.TextXAlignment = Enum.TextXAlignment.Left;
@@ -1762,7 +1869,7 @@ function Update:Window(Config)
 			ImageLabel.BackgroundTransparency = 1;
 			ImageLabel.AnchorPoint = Vector2.new(0.5, 0.5);
 			ImageLabel.Position = UDim2.new(0.5, 0, 0.5, 0);
-			ImageLabel.Size = UDim2.new(0, IsMobile and 18 or 16, 0, IsMobile and 18 or 16);
+			ImageLabel.Size = UDim2.new(0, GetDeviceSize(18, 17, 16), 0, GetDeviceSize(18, 17, 16));
 			ImageLabel.Image = "rbxassetid://10734898355";
 			ImageLabel.ImageTransparency = 0;
 			ImageLabel.ImageColor3 = Color3.fromRGB(255, 255, 255);
@@ -1772,14 +1879,14 @@ function Update:Window(Config)
 			TextLabel.BackgroundColor3 = _G.Primary;
 			TextLabel.BackgroundTransparency = 1;
 			TextLabel.AnchorPoint = Vector2.new(0, 0.5);
-			TextLabel.Position = UDim2.new(0, IsMobile and 45 or 40, 0.5, 0);
-			TextLabel.Size = UDim2.new(1, IsMobile and -85 or -75, 1, 0);
+			TextLabel.Position = UDim2.new(0, GetDeviceSize(45, 42, 40), 0.5, 0);
+			TextLabel.Size = UDim2.new(1, GetDeviceSize(-85, -82, -75), 1, 0);
 			TextLabel.Font = Enum.Font.Gotham;
 			TextLabel.RichText = true;
 			TextLabel.Text = text;
 			TextLabel.TextXAlignment = Enum.TextXAlignment.Left;
 			TextLabel.TextColor3 = Color3.fromRGB(220, 220, 220);
-			TextLabel.TextSize = IsMobile and 14 or 15;
+			TextLabel.TextSize = buttonTextSize;
 			TextLabel.ClipsDescendants = true;
 			
 			ArrowRight.Name = "ArrowRight";
@@ -1787,56 +1894,56 @@ function Update:Window(Config)
 			ArrowRight.BackgroundColor3 = _G.Primary;
 			ArrowRight.BackgroundTransparency = 1;
 			ArrowRight.AnchorPoint = Vector2.new(0, 0.5);
-			ArrowRight.Position = UDim2.new(0, IsMobile and 15 or 12, 0.5, 0);
-			ArrowRight.Size = UDim2.new(0, IsMobile and 20 or 18, 0, IsMobile and 20 or 18);
+			ArrowRight.Position = UDim2.new(0, GetDeviceSize(15, 13, 12), 0.5, 0);
+			ArrowRight.Size = UDim2.new(0, arrowIconSize, 0, arrowIconSize);
 			ArrowRight.Image = "rbxassetid://10709768347";
 			ArrowRight.ImageTransparency = 0;
 			ArrowRight.ImageColor3 = _G.Third;
 			
-			-- Enhanced button animations
-			if not IsMobile then
+			-- FIXED: Faster button animations
+			if IsPC then
 				Button.MouseEnter:Connect(function()
-					TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.1
 					}):Play();
-					TweenService:Create(ButtonStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ButtonStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.5
 					}):Play();
-					TweenService:Create(ArrowRight, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Position = UDim2.new(0, (IsMobile and 15 or 12) + 3, 0.5, 0)
+					TweenService:Create(ArrowRight, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Position = UDim2.new(0, GetDeviceSize(15, 13, 12) + 2, 0.5, 0)
 					}):Play();
 				end);
 				
 				Button.MouseLeave:Connect(function()
-					TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.2
 					}):Play();
-					TweenService:Create(ButtonStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ButtonStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.8
 					}):Play();
-					TweenService:Create(ArrowRight, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Position = UDim2.new(0, IsMobile and 15 or 12, 0.5, 0)
+					TweenService:Create(ArrowRight, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Position = UDim2.new(0, GetDeviceSize(15, 13, 12), 0.5, 0)
 					}):Play();
 				end);
 			end
 			
 			TextButton.MouseButton1Click:Connect(function()
-				-- Enhanced click animation
-				TweenService:Create(TextButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					Size = UDim2.new(0, (IsMobile and 32 or 28) - 4, 0, (IsMobile and 32 or 28) - 4)
+				-- FIXED: Faster click animation
+				TweenService:Create(TextButton, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Size = UDim2.new(0, buttonIconSize - 3, 0, buttonIconSize - 3)
 				}):Play();
 				
-				TweenService:Create(ImageLabel, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(ImageLabel, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					ImageColor3 = _G.Third
 				}):Play();
 				
-				wait(0.1);
+				wait(0.05);
 				
-				TweenService:Create(TextButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					Size = UDim2.new(0, IsMobile and 32 or 28, 0, IsMobile and 32 or 28)
+				TweenService:Create(TextButton, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Size = UDim2.new(0, buttonIconSize, 0, buttonIconSize)
 				}):Play();
 				
-				TweenService:Create(ImageLabel, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(ImageLabel, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					ImageColor3 = Color3.fromRGB(255, 255, 255)
 				}):Play();
 				
@@ -1854,6 +1961,13 @@ function Update:Window(Config)
 			local ToggleFrame = Instance.new("Frame");
 			local ToggleImage = Instance.new("TextButton");
 			local Circle = Instance.new("Frame");
+			
+			local toggleHeight = GetDeviceSize(50, 46, 40);
+			local toggleTitleSize = GetDeviceSize(14, 14, 15);
+			local toggleDescSize = GetDeviceSize(11, 11, 12);
+			local toggleFrameWidth = GetDeviceSize(40, 38, 36);
+			local toggleFrameHeight = GetDeviceSize(22, 21, 20);
+			local toggleCircleSize = GetDeviceSize(16, 15, 14);
 			
 			Button.Name = "Button";
 			Button.Parent = MainFramePage;
@@ -1876,41 +1990,41 @@ function Update:Window(Config)
 			Title.Parent = Button;
 			Title.BackgroundColor3 = Color3.fromRGB(150, 150, 150);
 			Title.BackgroundTransparency = 1;
-			Title.Size = UDim2.new(1, 0, 0, IsMobile and 25 or 22);
+			Title.Size = UDim2.new(1, 0, 0, GetDeviceSize(25, 23, 22));
 			Title.Font = Enum.Font.Gotham;
 			Title.Text = text;
 			Title.TextColor3 = Color3.fromRGB(220, 220, 220);
-			Title.TextSize = IsMobile and 14 or 15;
+			Title.TextSize = toggleTitleSize;
 			Title.TextXAlignment = Enum.TextXAlignment.Left;
 			Title.AnchorPoint = Vector2.new(0, 0.5);
 			
 			Desc.Parent = Title;
 			Desc.BackgroundColor3 = Color3.fromRGB(100, 100, 100);
 			Desc.BackgroundTransparency = 1;
-			Desc.Position = UDim2.new(0, 0, 0, IsMobile and 25 or 22);
-			Desc.Size = UDim2.new(0, 300, 0, IsMobile and 18 or 16);
+			Desc.Position = UDim2.new(0, 0, 0, GetDeviceSize(25, 23, 22));
+			Desc.Size = UDim2.new(0, 300, 0, GetDeviceSize(18, 17, 16));
 			Desc.Font = Enum.Font.Gotham;
 			Desc.TextColor3 = Color3.fromRGB(150, 150, 150);
-			Desc.TextSize = IsMobile and 11 or 12;
+			Desc.TextSize = toggleDescSize;
 			Desc.TextXAlignment = Enum.TextXAlignment.Left;
 			
 			if desc then
 				Desc.Text = desc;
-				Title.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, -8);
-				Desc.Position = UDim2.new(0, 0, 0, IsMobile and 25 or 22);
-				Button.Size = UDim2.new(1, 0, 0, IsMobile and 50 or 46);
+				Title.Position = UDim2.new(0, GetDeviceSize(18, 16, 15), 0.5, -8);
+				Desc.Position = UDim2.new(0, 0, 0, GetDeviceSize(25, 23, 22));
+				Button.Size = UDim2.new(1, 0, 0, toggleHeight);
 			else
-				Title.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, 0);
+				Title.Position = UDim2.new(0, GetDeviceSize(18, 16, 15), 0.5, 0);
 				Desc.Visible = false;
-				Button.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 36);
+				Button.Size = UDim2.new(1, 0, 0, GetDeviceSize(40, 38, 36));
 			end;
 			
 			ToggleFrame.Name = "ToggleFrame";
 			ToggleFrame.Parent = Button;
 			ToggleFrame.BackgroundColor3 = _G.Dark;
 			ToggleFrame.BackgroundTransparency = 1;
-			ToggleFrame.Position = UDim2.new(1, IsMobile and -50 or -45, 0.5, 0);
-			ToggleFrame.Size = UDim2.new(0, IsMobile and 40 or 36, 0, IsMobile and 22 or 20);
+			ToggleFrame.Position = UDim2.new(1, GetDeviceSize(-50, -47, -45), 0.5, 0);
+			ToggleFrame.Size = UDim2.new(0, toggleFrameWidth, 0, toggleFrameHeight);
 			ToggleFrame.AnchorPoint = Vector2.new(1, 0.5);
 			CreateRounded(ToggleFrame, 12);
 			
@@ -1937,44 +2051,44 @@ function Update:Window(Config)
 			Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			Circle.BackgroundTransparency = 0;
 			Circle.Position = UDim2.new(0, 3, 0.5, 0);
-			Circle.Size = UDim2.new(0, IsMobile and 16 or 14, 0, IsMobile and 16 or 14);
+			Circle.Size = UDim2.new(0, toggleCircleSize, 0, toggleCircleSize);
 			Circle.AnchorPoint = Vector2.new(0, 0.5);
 			CreateRounded(Circle, 10);
 			
-			-- Enhanced toggle animations
+			-- FIXED: Faster toggle animations
 			ToggleImage.MouseButton1Click:Connect(function()
 				if toggled == false then
 					toggled = true;
 					
-					-- Enhanced on animation
-					TweenService:Create(Circle, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-						Position = UDim2.new(0, (IsMobile and 40 or 36) - (IsMobile and 16 or 14) - 3, 0.5, 0),
+					-- FIXED: Faster on animation
+					TweenService:Create(Circle, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+						Position = UDim2.new(0, toggleFrameWidth - toggleCircleSize - 3, 0.5, 0),
 						BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 					}):Play();
 					
-					TweenService:Create(ToggleImage, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ToggleImage, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundColor3 = _G.Third,
 						BackgroundTransparency = 0
 					}):Play();
 					
-					TweenService:Create(ToggleGlow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ToggleGlow, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.5
 					}):Play();
 				else
 					toggled = false;
 					
-					-- Enhanced off animation
-					TweenService:Create(Circle, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+					-- FIXED: Faster off animation
+					TweenService:Create(Circle, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 						Position = UDim2.new(0, 3, 0.5, 0),
 						BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 					}):Play();
 					
-					TweenService:Create(ToggleImage, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ToggleImage, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundColor3 = Color3.fromRGB(60, 60, 65),
 						BackgroundTransparency = 0.2
 					}):Play();
 					
-					TweenService:Create(ToggleGlow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ToggleGlow, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.9
 					}):Play();
 				end;
@@ -1982,22 +2096,22 @@ function Update:Window(Config)
 				pcall(callback, toggled);
 			end);
 			
-			-- Enhanced hover effects for desktop
-			if not IsMobile then
+			-- FIXED: Faster hover effects for desktop
+			if IsPC then
 				Button.MouseEnter:Connect(function()
-					TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.1
 					}):Play();
-					TweenService:Create(ToggleStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ToggleStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.5
 					}):Play();
 				end);
 				
 				Button.MouseLeave:Connect(function()
-					TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.2
 					}):Play();
-					TweenService:Create(ToggleStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ToggleStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.8
 					}):Play();
 				end);
@@ -2006,7 +2120,7 @@ function Update:Window(Config)
 			-- Set initial state
 			if config == true then
 				toggled = true;
-				Circle.Position = UDim2.new(0, (IsMobile and 40 or 36) - (IsMobile and 16 or 14) - 3, 0.5, 0);
+				Circle.Position = UDim2.new(0, toggleFrameWidth - toggleCircleSize - 3, 0.5, 0);
 				ToggleImage.BackgroundColor3 = _G.Third;
 				ToggleImage.BackgroundTransparency = 0;
 				ToggleGlow.Transparency = 0.5;
@@ -2025,12 +2139,18 @@ function Update:Window(Config)
 			local SelectItems = Instance.new("TextButton");
 			local ArrowDown = Instance.new("ImageLabel");
 			
+			local dropdownHeight = GetDeviceSize(45, 43, 42);
+			local dropdownTitleSize = GetDeviceSize(14, 14, 15);
+			local dropdownSelectWidth = GetDeviceSize(120, 115, 110);
+			local dropdownSelectHeight = GetDeviceSize(28, 26, 25);
+			local dropdownListHeight = GetDeviceSize(120, 115, 110);
+			
 			Dropdown.Name = "Dropdown";
 			Dropdown.Parent = MainFramePage;
 			Dropdown.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Dropdown.BackgroundTransparency = 0.2;
 			Dropdown.ClipsDescendants = false;
-			Dropdown.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 42);
+			Dropdown.Size = UDim2.new(1, 0, 0, dropdownHeight);
 			CreateRounded(Dropdown, 8);
 			
 			-- Add dropdown border
@@ -2044,13 +2164,13 @@ function Update:Window(Config)
 			DropTitle.Parent = Dropdown;
 			DropTitle.BackgroundColor3 = _G.Primary;
 			DropTitle.BackgroundTransparency = 1;
-			DropTitle.Size = UDim2.new(1, 0, 0, IsMobile and 25 or 22);
+			DropTitle.Size = UDim2.new(1, 0, 0, GetDeviceSize(25, 23, 22));
 			DropTitle.Font = Enum.Font.Gotham;
 			DropTitle.Text = text;
 			DropTitle.TextColor3 = Color3.fromRGB(220, 220, 220);
-			DropTitle.TextSize = IsMobile and 14 or 15;
+			DropTitle.TextSize = dropdownTitleSize;
 			DropTitle.TextXAlignment = Enum.TextXAlignment.Left;
-			DropTitle.Position = UDim2.new(0, IsMobile and 18 or 15, 0, IsMobile and 8 or 6);
+			DropTitle.Position = UDim2.new(0, GetDeviceSize(18, 16, 15), 0, GetDeviceSize(8, 7, 6));
 			DropTitle.AnchorPoint = Vector2.new(0, 0);
 			
 			SelectItems.Name = "SelectItems";
@@ -2058,12 +2178,12 @@ function Update:Window(Config)
 			SelectItems.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 			SelectItems.TextColor3 = Color3.fromRGB(200, 200, 200);
 			SelectItems.BackgroundTransparency = 0.3;
-			SelectItems.Position = UDim2.new(1, IsMobile and -12 or -10, 0, IsMobile and 8 or 6);
-			SelectItems.Size = UDim2.new(0, IsMobile and 120 or 110, 0, IsMobile and 28 or 25);
+			SelectItems.Position = UDim2.new(1, GetDeviceSize(-12, -11, -10), 0, GetDeviceSize(8, 7, 6));
+			SelectItems.Size = UDim2.new(0, dropdownSelectWidth, 0, dropdownSelectHeight);
 			SelectItems.AnchorPoint = Vector2.new(1, 0);
 			SelectItems.Font = Enum.Font.Gotham;
 			SelectItems.AutoButtonColor = false;
-			SelectItems.TextSize = IsMobile and 12 or 11;
+			SelectItems.TextSize = GetDeviceSize(12, 12, 11);
 			SelectItems.ZIndex = 1;
 			SelectItems.ClipsDescendants = true;
 			SelectItems.Text = "   Select Item";
@@ -2075,8 +2195,8 @@ function Update:Window(Config)
 			ArrowDown.BackgroundColor3 = _G.Primary;
 			ArrowDown.BackgroundTransparency = 1;
 			ArrowDown.AnchorPoint = Vector2.new(1, 0);
-			ArrowDown.Position = UDim2.new(1, IsMobile and -140 or -125, 0, IsMobile and 15 or 13);
-			ArrowDown.Size = UDim2.new(0, IsMobile and 16 or 14, 0, IsMobile and 16 or 14);
+			ArrowDown.Position = UDim2.new(1, GetDeviceSize(-140, -135, -125), 0, GetDeviceSize(15, 14, 13));
+			ArrowDown.Size = UDim2.new(0, GetDeviceSize(16, 15, 14), 0, GetDeviceSize(16, 15, 14));
 			ArrowDown.Image = "rbxassetid://10709790948";
 			ArrowDown.ImageTransparency = 0;
 			ArrowDown.ImageColor3 = Color3.fromRGB(200, 200, 200);
@@ -2086,8 +2206,8 @@ function Update:Window(Config)
 			DropdownFrameScroll.BackgroundColor3 = Color3.fromRGB(20, 20, 26);
 			DropdownFrameScroll.BackgroundTransparency = 0.1;
 			DropdownFrameScroll.ClipsDescendants = true;
-			DropdownFrameScroll.Size = UDim2.new(1, 0, 0, IsMobile and 120 or 110);
-			DropdownFrameScroll.Position = UDim2.new(0, 0, 0, IsMobile and 50 or 47);
+			DropdownFrameScroll.Size = UDim2.new(1, 0, 0, dropdownListHeight);
+			DropdownFrameScroll.Position = UDim2.new(0, 0, 0, GetDeviceSize(50, 48, 47));
 			DropdownFrameScroll.Visible = false;
 			DropdownFrameScroll.AnchorPoint = Vector2.new(0, 0);
 			CreateRounded(DropdownFrameScroll, 8);
@@ -2110,7 +2230,7 @@ function Update:Window(Config)
 			DropScroll.Size = UDim2.new(1, 0, 1, -16);
 			DropScroll.AnchorPoint = Vector2.new(0, 0);
 			DropScroll.ClipsDescendants = true;
-			DropScroll.ScrollBarThickness = IsMobile and 6 or 4;
+			DropScroll.ScrollBarThickness = GetDeviceSize(6, 5, 4);
 			DropScroll.ScrollBarImageColor3 = _G.Third;
 			DropScroll.ZIndex = 3;
 			
@@ -2124,22 +2244,25 @@ function Update:Window(Config)
 			
 			UIListLayout.Parent = DropScroll;
 			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
-			UIListLayout.Padding = UDim.new(0, IsMobile and 3 or 2);
+			UIListLayout.Padding = UDim.new(0, GetDeviceSize(3, 3, 2));
 			
 			-- Create dropdown items
 			for i, v in next, option do
 				local Item = Instance.new("TextButton");
 				local SelectedItems = Instance.new("Frame");
 				
+				local itemHeight = GetDeviceSize(35, 33, 32);
+				local itemTextSize = GetDeviceSize(13, 12, 12);
+				
 				Item.Name = "Item";
 				Item.Parent = DropScroll;
 				Item.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 				Item.BackgroundTransparency = 0.8;
-				Item.Size = UDim2.new(1, 0, 0, IsMobile and 35 or 32);
+				Item.Size = UDim2.new(1, 0, 0, itemHeight);
 				Item.Font = Enum.Font.Gotham;
 				Item.Text = tostring(v);
 				Item.TextColor3 = Color3.fromRGB(200, 200, 200);
-				Item.TextSize = IsMobile and 13 or 12;
+				Item.TextSize = itemTextSize;
 				Item.TextTransparency = 0.3;
 				Item.TextXAlignment = Enum.TextXAlignment.Left;
 				Item.ZIndex = 4;
@@ -2148,22 +2271,22 @@ function Update:Window(Config)
 				
 				local ItemPadding = Instance.new("UIPadding");
 				ItemPadding.Parent = Item;
-				ItemPadding.PaddingLeft = UDim.new(0, IsMobile and 35 or 32);
+				ItemPadding.PaddingLeft = UDim.new(0, GetDeviceSize(35, 33, 32));
 				
 				SelectedItems.Name = "SelectedItems";
 				SelectedItems.Parent = Item;
 				SelectedItems.BackgroundColor3 = _G.Third;
 				SelectedItems.BackgroundTransparency = 1;
 				SelectedItems.Size = UDim2.new(0, 4, 0.6, 0);
-				SelectedItems.Position = UDim2.new(0, IsMobile and 12 or 10, 0.5, 0);
+				SelectedItems.Position = UDim2.new(0, GetDeviceSize(12, 11, 10), 0.5, 0);
 				SelectedItems.AnchorPoint = Vector2.new(0, 0.5);
 				SelectedItems.ZIndex = 4;
 				CreateRounded(SelectedItems, 2);
 				
-				-- Enhanced item animations
-				if not IsMobile then
+				-- FIXED: Faster item animations
+				if IsPC then
 					Item.MouseEnter:Connect(function()
-						TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						TweenService:Create(Item, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 							BackgroundTransparency = 0.5,
 							TextTransparency = 0.1
 						}):Play();
@@ -2171,7 +2294,7 @@ function Update:Window(Config)
 					
 					Item.MouseLeave:Connect(function()
 						if Item.BackgroundTransparency > 0.6 then -- Only if not selected
-							TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							TweenService:Create(Item, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 								BackgroundTransparency = 0.8,
 								TextTransparency = 0.3
 							}):Play();
@@ -2196,12 +2319,12 @@ function Update:Window(Config)
 					for i, item in next, DropScroll:GetChildren() do
 						if item:IsA("TextButton") then
 							local selectedIndicator = item:FindFirstChild("SelectedItems");
-							TweenService:Create(item, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							TweenService:Create(item, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 								BackgroundTransparency = 0.8,
 								TextTransparency = 0.3
 							}):Play();
 							if selectedIndicator then
-								TweenService:Create(selectedIndicator, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+								TweenService:Create(selectedIndicator, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 									BackgroundTransparency = 1
 								}):Play();
 							end
@@ -2209,11 +2332,11 @@ function Update:Window(Config)
 					end
 					
 					-- Activate selected item
-					TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Item, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.3,
 						TextTransparency = 0
 					}):Play();
-					TweenService:Create(SelectedItems, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(SelectedItems, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0
 					}):Play();
 					
@@ -2223,74 +2346,74 @@ function Update:Window(Config)
 			
 			DropScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 12);
 			
-			-- Enhanced dropdown toggle
+			-- FIXED: Faster dropdown toggle
 			SelectItems.MouseButton1Click:Connect(function()
 				if isdropping == false then
 					isdropping = true;
 					
-					-- Enhanced open animation
+					-- FIXED: Faster open animation
 					DropdownFrameScroll.Visible = true;
 					DropdownFrameScroll.Size = UDim2.new(1, 0, 0, 0);
 					
-					TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, IsMobile and 120 or 110)
+					TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+						Size = UDim2.new(1, 0, 0, dropdownListHeight)
 					}):Play();
 					
-					TweenService:Create(Dropdown, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, (IsMobile and 45 or 42) + (IsMobile and 120 or 110) + 5)
+					TweenService:Create(Dropdown, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Size = UDim2.new(1, 0, 0, dropdownHeight + dropdownListHeight + 5)
 					}):Play();
 					
-					TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ArrowDown, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Rotation = 180,
 						ImageColor3 = _G.Third
 					}):Play();
 					
-					TweenService:Create(DropdownStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(DropdownStroke, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.5
 					}):Play();
 				else
 					isdropping = false;
 					
-					-- Enhanced close animation
-					TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					-- FIXED: Faster close animation
+					TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 						Size = UDim2.new(1, 0, 0, 0)
 					}):Play();
 					
-					TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, IsMobile and 45 or 42)
+					TweenService:Create(Dropdown, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Size = UDim2.new(1, 0, 0, dropdownHeight)
 					}):Play();
 					
-					TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(ArrowDown, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Rotation = 0,
 						ImageColor3 = Color3.fromRGB(200, 200, 200)
 					}):Play();
 					
-					TweenService:Create(DropdownStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(DropdownStroke, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.8
 					}):Play();
 					
-					wait(0.3);
+					wait(0.15);
 					DropdownFrameScroll.Visible = false;
 				end;
 			end);
 			
-			-- Enhanced hover effects for desktop
-			if not IsMobile then
+			-- FIXED: Faster hover effects for desktop
+			if IsPC then
 				Dropdown.MouseEnter:Connect(function()
-					TweenService:Create(Dropdown, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Dropdown, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.1
 					}):Play();
-					TweenService:Create(DropdownStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(DropdownStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.6
 					}):Play();
 				end);
 				
 				Dropdown.MouseLeave:Connect(function()
 					if not isdropping then
-						TweenService:Create(Dropdown, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						TweenService:Create(Dropdown, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 							BackgroundTransparency = 0.2
 						}):Play();
-						TweenService:Create(DropdownStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						TweenService:Create(DropdownStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 							Transparency = 0.8
 						}):Play();
 					end
@@ -2302,15 +2425,18 @@ function Update:Window(Config)
 				local Item = Instance.new("TextButton");
 				local SelectedItems = Instance.new("Frame");
 				
+				local itemHeight = GetDeviceSize(35, 33, 32);
+				local itemTextSize = GetDeviceSize(13, 12, 12);
+				
 				Item.Name = "Item";
 				Item.Parent = DropScroll;
 				Item.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 				Item.BackgroundTransparency = 0.8;
-				Item.Size = UDim2.new(1, 0, 0, IsMobile and 35 or 32);
+				Item.Size = UDim2.new(1, 0, 0, itemHeight);
 				Item.Font = Enum.Font.Gotham;
 				Item.Text = tostring(t);
 				Item.TextColor3 = Color3.fromRGB(200, 200, 200);
-				Item.TextSize = IsMobile and 13 or 12;
+				Item.TextSize = itemTextSize;
 				Item.TextTransparency = 0.3;
 				Item.TextXAlignment = Enum.TextXAlignment.Left;
 				Item.ZIndex = 4;
@@ -2319,14 +2445,14 @@ function Update:Window(Config)
 				
 				local ItemPadding = Instance.new("UIPadding");
 				ItemPadding.Parent = Item;
-				ItemPadding.PaddingLeft = UDim.new(0, IsMobile and 35 or 32);
+				ItemPadding.PaddingLeft = UDim.new(0, GetDeviceSize(35, 33, 32));
 				
 				SelectedItems.Name = "SelectedItems";
 				SelectedItems.Parent = Item;
 				SelectedItems.BackgroundColor3 = _G.Third;
 				SelectedItems.BackgroundTransparency = 1;
 				SelectedItems.Size = UDim2.new(0, 4, 0.6, 0);
-				SelectedItems.Position = UDim2.new(0, IsMobile and 12 or 10, 0.5, 0);
+				SelectedItems.Position = UDim2.new(0, GetDeviceSize(12, 11, 10), 0.5, 0);
 				SelectedItems.AnchorPoint = Vector2.new(0, 0.5);
 				SelectedItems.ZIndex = 4;
 				CreateRounded(SelectedItems, 2);
@@ -2338,12 +2464,12 @@ function Update:Window(Config)
 					for i, item in next, DropScroll:GetChildren() do
 						if item:IsA("TextButton") then
 							local selectedIndicator = item:FindFirstChild("SelectedItems");
-							TweenService:Create(item, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							TweenService:Create(item, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 								BackgroundTransparency = 0.8,
 								TextTransparency = 0.3
 							}):Play();
 							if selectedIndicator then
-								TweenService:Create(selectedIndicator, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+								TweenService:Create(selectedIndicator, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 									BackgroundTransparency = 1
 								}):Play();
 							end
@@ -2351,11 +2477,11 @@ function Update:Window(Config)
 					end
 					
 					-- Activate selected item
-					TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Item, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.3,
 						TextTransparency = 0
 					}):Play();
-					TweenService:Create(SelectedItems, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(SelectedItems, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0
 					}):Play();
 					
@@ -2369,7 +2495,7 @@ function Update:Window(Config)
 				SelectItems.Text = "   Select Item";
 				isdropping = false;
 				DropdownFrameScroll.Visible = false;
-				Dropdown.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 42);
+				Dropdown.Size = UDim2.new(1, 0, 0, dropdownHeight);
 				ArrowDown.Rotation = 0;
 				ArrowDown.ImageColor3 = Color3.fromRGB(200, 200, 200);
 				
@@ -2391,11 +2517,17 @@ function Update:Window(Config)
 			local bar1 = Instance.new("Frame");
 			local circlebar = Instance.new("Frame");
 			
+			local sliderHeight = GetDeviceSize(40, 39, 38);
+			local sliderTitleSize = GetDeviceSize(14, 14, 15);
+			local sliderBarWidth = GetDeviceSize(110, 105, 100);
+			local sliderBarHeight = GetDeviceSize(6, 6, 5);
+			local sliderCircleSize = GetDeviceSize(16, 15, 14);
+			
 			Slider.Name = "Slider";
 			Slider.Parent = MainFramePage;
 			Slider.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Slider.BackgroundTransparency = 0.2;
-			Slider.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 38);
+			Slider.Size = UDim2.new(1, 0, 0, sliderHeight);
 			CreateRounded(Slider, 8);
 			
 			-- Add slider border
@@ -2408,32 +2540,32 @@ function Update:Window(Config)
 			Title.Parent = Slider;
 			Title.BackgroundColor3 = Color3.fromRGB(150, 150, 150);
 			Title.BackgroundTransparency = 1;
-			Title.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, 0);
-			Title.Size = UDim2.new(1, 0, 0, IsMobile and 22 or 20);
+			Title.Position = UDim2.new(0, GetDeviceSize(18, 16, 15), 0.5, 0);
+			Title.Size = UDim2.new(1, 0, 0, GetDeviceSize(22, 21, 20));
 			Title.Font = Enum.Font.Gotham;
 			Title.Text = text;
 			Title.AnchorPoint = Vector2.new(0, 0.5);
 			Title.TextColor3 = Color3.fromRGB(220, 220, 220);
-			Title.TextSize = IsMobile and 14 or 15;
+			Title.TextSize = sliderTitleSize;
 			Title.TextXAlignment = Enum.TextXAlignment.Left;
 			
 			ValueText.Parent = bar;
 			ValueText.BackgroundColor3 = Color3.fromRGB(150, 150, 150);
 			ValueText.BackgroundTransparency = 1;
-			ValueText.Position = UDim2.new(0, IsMobile and -45 or -40, 0.5, 0);
-			ValueText.Size = UDim2.new(0, IsMobile and 35 or 32, 0, IsMobile and 22 or 20);
+			ValueText.Position = UDim2.new(0, GetDeviceSize(-45, -42, -40), 0.5, 0);
+			ValueText.Size = UDim2.new(0, GetDeviceSize(35, 33, 32), 0, GetDeviceSize(22, 21, 20));
 			ValueText.Font = Enum.Font.GothamBold;
 			ValueText.Text = tostring(set);
 			ValueText.AnchorPoint = Vector2.new(0, 0.5);
 			ValueText.TextColor3 = _G.Third;
-			ValueText.TextSize = IsMobile and 13 or 14;
+			ValueText.TextSize = GetDeviceSize(13, 13, 14);
 			ValueText.TextXAlignment = Enum.TextXAlignment.Right;
 			
 			bar.Name = "bar";
 			bar.Parent = Slider;
 			bar.BackgroundColor3 = Color3.fromRGB(50, 50, 55);
-			bar.Size = UDim2.new(0, IsMobile and 110 or 100, 0, IsMobile and 6 or 5);
-			bar.Position = UDim2.new(1, IsMobile and -15 or -12, 0.5, 0);
+			bar.Size = UDim2.new(0, sliderBarWidth, 0, sliderBarHeight);
+			bar.Position = UDim2.new(1, GetDeviceSize(-15, -13, -12), 0.5, 0);
 			bar.BackgroundTransparency = 0.3;
 			bar.AnchorPoint = Vector2.new(1, 0.5);
 			CreateRounded(bar, 3);
@@ -2450,7 +2582,7 @@ function Update:Window(Config)
 			circlebar.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			circlebar.Position = UDim2.new(1, 0, 0.5, 0);
 			circlebar.AnchorPoint = Vector2.new(0.5, 0.5);
-			circlebar.Size = UDim2.new(0, IsMobile and 16 or 14, 0, IsMobile and 16 or 14);
+			circlebar.Size = UDim2.new(0, sliderCircleSize, 0, sliderCircleSize);
 			CreateRounded(circlebar, 10);
 			
 			-- Add circle glow
@@ -2463,16 +2595,16 @@ function Update:Window(Config)
 			local Value = set;
 			local Dragging = false;
 			
-			-- Enhanced slider interactions
+			-- FIXED: Faster slider interactions
 			circlebar.InputBegan:Connect(function(Input)
 				if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 					Dragging = true;
 					
-					-- Visual feedback for drag start
-					TweenService:Create(circlebar, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(0, (IsMobile and 16 or 14) + 4, 0, (IsMobile and 16 or 14) + 4)
+					-- FIXED: Faster visual feedback for drag start
+					TweenService:Create(circlebar, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Size = UDim2.new(0, sliderCircleSize + 3, 0, sliderCircleSize + 3)
 					}):Play();
-					TweenService:Create(CircleGlow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(CircleGlow, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.3
 					}):Play();
 				end;
@@ -2482,10 +2614,10 @@ function Update:Window(Config)
 				if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 					Dragging = true;
 					
-					TweenService:Create(circlebar, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(0, (IsMobile and 16 or 14) + 4, 0, (IsMobile and 16 or 14) + 4)
+					TweenService:Create(circlebar, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Size = UDim2.new(0, sliderCircleSize + 3, 0, sliderCircleSize + 3)
 					}):Play();
-					TweenService:Create(CircleGlow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(CircleGlow, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.3
 					}):Play();
 				end;
@@ -2496,11 +2628,11 @@ function Update:Window(Config)
 					if Dragging then
 						Dragging = false;
 						
-						-- Visual feedback for drag end
-						TweenService:Create(circlebar, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-							Size = UDim2.new(0, IsMobile and 16 or 14, 0, IsMobile and 16 or 14)
+						-- FIXED: Faster visual feedback for drag end
+						TweenService:Create(circlebar, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							Size = UDim2.new(0, sliderCircleSize, 0, sliderCircleSize)
 						}):Play();
-						TweenService:Create(CircleGlow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						TweenService:Create(CircleGlow, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 							Transparency = 0.7
 						}):Play();
 					end
@@ -2512,8 +2644,8 @@ function Update:Window(Config)
 					local percentage = math.clamp((Input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1);
 					Value = math.floor(min + (max - min) * percentage);
 					
-					-- Smooth slider animation
-					TweenService:Create(bar1, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					-- FIXED: Faster slider animation
+					TweenService:Create(bar1, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Size = UDim2.new(percentage, 0, 1, 0)
 					}):Play();
 					
@@ -2522,23 +2654,23 @@ function Update:Window(Config)
 				end;
 			end);
 			
-			-- Enhanced hover effects for desktop
-			if not IsMobile then
+			-- FIXED: Faster hover effects for desktop
+			if IsPC then
 				Slider.MouseEnter:Connect(function()
-					TweenService:Create(Slider, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Slider, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.1
 					}):Play();
-					TweenService:Create(SliderStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(SliderStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.5
 					}):Play();
 				end);
 				
 				Slider.MouseLeave:Connect(function()
 					if not Dragging then
-						TweenService:Create(Slider, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						TweenService:Create(Slider, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 							BackgroundTransparency = 0.2
 						}):Play();
-						TweenService:Create(SliderStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						TweenService:Create(SliderStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 							Transparency = 0.8
 						}):Play();
 					end
@@ -2554,11 +2686,17 @@ function Update:Window(Config)
 			local TextboxLabel = Instance.new("TextLabel");
 			local RealTextbox = Instance.new("TextBox");
 			
+			local textboxHeight = GetDeviceSize(40, 39, 38);
+			local textboxTitleSize = GetDeviceSize(14, 14, 15);
+			local textboxInputWidth = GetDeviceSize(100, 95, 90);
+			local textboxInputHeight = GetDeviceSize(28, 26, 25);
+			local textboxInputTextSize = GetDeviceSize(12, 12, 13);
+			
 			Textbox.Name = "Textbox";
 			Textbox.Parent = MainFramePage;
 			Textbox.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Textbox.BackgroundTransparency = 0.2;
-			Textbox.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 38);
+			Textbox.Size = UDim2.new(1, 0, 0, textboxHeight);
 			CreateRounded(Textbox, 8);
 			
 			-- Add textbox border
@@ -2572,13 +2710,13 @@ function Update:Window(Config)
 			TextboxLabel.Parent = Textbox;
 			TextboxLabel.BackgroundColor3 = _G.Primary;
 			TextboxLabel.BackgroundTransparency = 1;
-			TextboxLabel.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, 0);
+			TextboxLabel.Position = UDim2.new(0, GetDeviceSize(18, 16, 15), 0.5, 0);
 			TextboxLabel.Text = text;
-			TextboxLabel.Size = UDim2.new(1, 0, 0, IsMobile and 22 or 20);
+			TextboxLabel.Size = UDim2.new(1, 0, 0, GetDeviceSize(22, 21, 20));
 			TextboxLabel.Font = Enum.Font.Gotham;
 			TextboxLabel.AnchorPoint = Vector2.new(0, 0.5);
 			TextboxLabel.TextColor3 = Color3.fromRGB(220, 220, 220);
-			TextboxLabel.TextSize = IsMobile and 14 or 15;
+			TextboxLabel.TextSize = textboxTitleSize;
 			TextboxLabel.TextTransparency = 0;
 			TextboxLabel.TextXAlignment = Enum.TextXAlignment.Left;
 			
@@ -2586,15 +2724,15 @@ function Update:Window(Config)
 			RealTextbox.Parent = Textbox;
 			RealTextbox.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 			RealTextbox.BackgroundTransparency = 0.3;
-			RealTextbox.Position = UDim2.new(1, IsMobile and -12 or -10, 0.5, 0);
+			RealTextbox.Position = UDim2.new(1, GetDeviceSize(-12, -11, -10), 0.5, 0);
 			RealTextbox.AnchorPoint = Vector2.new(1, 0.5);
-			RealTextbox.Size = UDim2.new(0, IsMobile and 100 or 90, 0, IsMobile and 28 or 25);
+			RealTextbox.Size = UDim2.new(0, textboxInputWidth, 0, textboxInputHeight);
 			RealTextbox.Font = Enum.Font.Gotham;
 			RealTextbox.Text = "";
 			RealTextbox.PlaceholderText = "Enter text...";
 			RealTextbox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120);
 			RealTextbox.TextColor3 = Color3.fromRGB(255, 255, 255);
-			RealTextbox.TextSize = IsMobile and 12 or 13;
+			RealTextbox.TextSize = textboxInputTextSize;
 			RealTextbox.TextTransparency = 0;
 			RealTextbox.ClipsDescendants = true;
 			CreateRounded(RealTextbox, 6);
@@ -2606,43 +2744,43 @@ function Update:Window(Config)
 			InputStroke.Thickness = 1;
 			InputStroke.Transparency = 0.8;
 			
-			-- Enhanced textbox interactions
+			-- FIXED: Faster textbox interactions
 			RealTextbox.Focused:Connect(function()
-				TweenService:Create(InputStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(InputStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Transparency = 0.3
 				}):Play();
-				TweenService:Create(RealTextbox, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(RealTextbox, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundTransparency = 0.1
 				}):Play();
 			end);
 			
 			RealTextbox.FocusLost:Connect(function()
-				TweenService:Create(InputStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(InputStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Transparency = 0.8
 				}):Play();
-				TweenService:Create(RealTextbox, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(RealTextbox, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundTransparency = 0.3
 				}):Play();
 				
 				callback(RealTextbox.Text);
 			end);
 			
-			-- Enhanced hover effects for desktop
-			if not IsMobile then
+			-- FIXED: Faster hover effects for desktop
+			if IsPC then
 				Textbox.MouseEnter:Connect(function()
-					TweenService:Create(Textbox, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Textbox, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.1
 					}):Play();
-					TweenService:Create(TextboxStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(TextboxStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.5
 					}):Play();
 				end);
 				
 				Textbox.MouseLeave:Connect(function()
-					TweenService:Create(Textbox, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(Textbox, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 0.2
 					}):Play();
-					TweenService:Create(TextboxStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					TweenService:Create(TextboxStroke, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 0.8
 					}):Play();
 				end);
@@ -2654,23 +2792,27 @@ function Update:Window(Config)
 			local Label = Instance.new("TextLabel");
 			local ImageLabel = Instance.new("ImageLabel");
 			
+			local labelHeight = GetDeviceSize(35, 33, 32);
+			local labelTextSize = GetDeviceSize(14, 14, 15);
+			local labelIconSize = GetDeviceSize(18, 17, 16);
+			
 			Frame.Name = "Frame";
 			Frame.Parent = MainFramePage;
 			Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Frame.BackgroundTransparency = 0.5;
-			Frame.Size = UDim2.new(1, 0, 0, IsMobile and 35 or 32);
+			Frame.Size = UDim2.new(1, 0, 0, labelHeight);
 			CreateRounded(Frame, 8);
 			
 			Label.Name = "Label";
 			Label.Parent = Frame;
 			Label.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			Label.BackgroundTransparency = 1;
-			Label.Size = UDim2.new(1, IsMobile and -45 or -40, 0, IsMobile and 22 or 20);
+			Label.Size = UDim2.new(1, GetDeviceSize(-45, -42, -40), 0, GetDeviceSize(22, 21, 20));
 			Label.Font = Enum.Font.Gotham;
-			Label.Position = UDim2.new(0, IsMobile and 40 or 35, 0.5, 0);
+			Label.Position = UDim2.new(0, GetDeviceSize(40, 37, 35), 0.5, 0);
 			Label.AnchorPoint = Vector2.new(0, 0.5);
 			Label.TextColor3 = Color3.fromRGB(200, 200, 200);
-			Label.TextSize = IsMobile and 14 or 15;
+			Label.TextSize = labelTextSize;
 			Label.Text = text;
 			Label.TextXAlignment = Enum.TextXAlignment.Left;
 			
@@ -2679,8 +2821,8 @@ function Update:Window(Config)
 			ImageLabel.BackgroundColor3 = Color3.fromRGB(200, 200, 200);
 			ImageLabel.BackgroundTransparency = 1;
 			ImageLabel.ImageTransparency = 0;
-			ImageLabel.Position = UDim2.new(0, IsMobile and 15 or 12, 0.5, 0);
-			ImageLabel.Size = UDim2.new(0, IsMobile and 18 or 16, 0, IsMobile and 18 or 16);
+			ImageLabel.Position = UDim2.new(0, GetDeviceSize(15, 13, 12), 0.5, 0);
+			ImageLabel.Size = UDim2.new(0, labelIconSize, 0, labelIconSize);
 			ImageLabel.AnchorPoint = Vector2.new(0, 0.5);
 			ImageLabel.Image = "rbxassetid://10723415903";
 			ImageLabel.ImageColor3 = _G.Third;
@@ -2689,14 +2831,14 @@ function Update:Window(Config)
 			function labelfunc:Set(newtext)
 				Label.Text = newtext;
 				
-				-- Add text update animation
-				TweenService:Create(Label, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				-- FIXED: Faster text update animation
+				TweenService:Create(Label, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					TextTransparency = 0.5
 				}):Play();
 				
-				wait(0.1);
+				wait(0.05);
 				
-				TweenService:Create(Label, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(Label, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					TextTransparency = 0
 				}):Play();
 			end;
@@ -2710,11 +2852,14 @@ function Update:Window(Config)
 			local Sep2 = Instance.new("TextLabel");
 			local Sep3 = Instance.new("TextLabel");
 			
+			local separatorHeight = GetDeviceSize(40, 39, 38);
+			local separatorTextSize = GetDeviceSize(15, 15, 16);
+			
 			Seperator.Name = "Seperator";
 			Seperator.Parent = MainFramePage;
 			Seperator.BackgroundColor3 = _G.Primary;
 			Seperator.BackgroundTransparency = 1;
-			Seperator.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 38);
+			Seperator.Size = UDim2.new(1, 0, 0, separatorHeight);
 			
 			-- Enhanced separator with gradient lines
 			Sep1.Name = "Sep1";
@@ -2743,11 +2888,11 @@ function Update:Window(Config)
 			Sep2.BackgroundTransparency = 1;
 			Sep2.AnchorPoint = Vector2.new(0.5, 0.5);
 			Sep2.Position = UDim2.new(0.5, 0, 0.5, 0);
-			Sep2.Size = UDim2.new(1, 0, 0, IsMobile and 25 or 22);
+			Sep2.Size = UDim2.new(1, 0, 0, GetDeviceSize(25, 24, 22));
 			Sep2.Font = Enum.Font.GothamBold;
 			Sep2.Text = text;
 			Sep2.TextColor3 = Color3.fromRGB(255, 255, 255);
-			Sep2.TextSize = IsMobile and 15 or 16;
+			Sep2.TextSize = separatorTextSize;
 			
 			-- Add text glow effect
 			local TextGlow = Instance.new("UIStroke");
@@ -2781,12 +2926,14 @@ function Update:Window(Config)
 			local Linee = Instance.new("Frame");
 			local Line = Instance.new("Frame");
 			
+			local lineHeight = GetDeviceSize(25, 23, 22);
+			
 			Linee.Name = "Linee";
 			Linee.Parent = MainFramePage;
 			Linee.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			Linee.BackgroundTransparency = 1;
 			Linee.Position = UDim2.new(0, 0, 0.119999997, 0);
-			Linee.Size = UDim2.new(1, 0, 0, IsMobile and 25 or 22);
+			Linee.Size = UDim2.new(1, 0, 0, lineHeight);
 			
 			Line.Name = "Line";
 			Line.Parent = Linee;
