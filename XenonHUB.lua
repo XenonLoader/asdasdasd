@@ -269,31 +269,31 @@ function Update:Notify(desc, notifType)
 	Image.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 	Image.BackgroundTransparency = 1;
 	Image.Position = UDim2.new(0, 12, 0, 12);
-	Image.Size = UDim2.new(0, IsMobile and 35 : 40, 0, IsMobile and 35 : 40);
+	Image.Size = UDim2.new(0, IsMobile and 35 or 40, 0, IsMobile and 35 or 40);
 	Image.Image = typeIcon;
 	Image.ImageColor3 = typeColor;
 	
 	Title.Parent = Frame;
 	Title.BackgroundColor3 = _G.Primary;
 	Title.BackgroundTransparency = 1;
-	Title.Position = UDim2.new(0, IsMobile and 55 : 60, 0, IsMobile and 8 : 12);
-	Title.Size = UDim2.new(1, IsMobile and -85 : -90, 0, 22);
+	Title.Position = UDim2.new(0, IsMobile and 55 or 60, 0, IsMobile and 8 or 12);
+	Title.Size = UDim2.new(1, IsMobile and -85 or -90, 0, 22);
 	Title.Font = Enum.Font.GothamBold;
 	Title.Text = "Xenon Hub";
 	Title.TextColor3 = Color3.fromRGB(255, 255, 255);
-	Title.TextSize = IsMobile and 14 : 16;
+	Title.TextSize = IsMobile and 14 or 16;
 	Title.TextXAlignment = Enum.TextXAlignment.Left;
 	
 	Desc.Parent = Frame;
 	Desc.BackgroundColor3 = _G.Primary;
 	Desc.BackgroundTransparency = 1;
-	Desc.Position = UDim2.new(0, IsMobile and 55 : 60, 0, IsMobile and 28 : 35);
-	Desc.Size = UDim2.new(1, IsMobile and -85 : -90, 0, IsMobile and 25 : 28);
+	Desc.Position = UDim2.new(0, IsMobile and 55 or 60, 0, IsMobile and 28 or 35);
+	Desc.Size = UDim2.new(1, IsMobile and -85 or -90, 0, IsMobile and 25 or 28);
 	Desc.Font = Enum.Font.Gotham;
 	Desc.TextTransparency = 0.2;
 	Desc.Text = desc;
 	Desc.TextColor3 = Color3.fromRGB(200, 200, 200);
-	Desc.TextSize = IsMobile and 11 : 13;
+	Desc.TextSize = IsMobile and 11 or 13;
 	Desc.TextXAlignment = Enum.TextXAlignment.Left;
 	Desc.TextWrapped = true;
 	
@@ -450,7 +450,7 @@ function Update:StartLoad()
 	TitleLoader.Parent = MainLoaderFrame;
 	TitleLoader.Text = "XENON HUB";
 	TitleLoader.Font = Enum.Font.GothamBold;
-	TitleLoader.TextSize = IsMobile and 35 : 45;
+	TitleLoader.TextSize = IsMobile and 35 or 45;
 	TitleLoader.TextColor3 = Color3.fromRGB(255, 255, 255);
 	TitleLoader.BackgroundTransparency = 1;
 	TitleLoader.AnchorPoint = Vector2.new(0.5, 0.5);
@@ -471,7 +471,7 @@ function Update:StartLoad()
 	VersionLoader.Parent = MainLoaderFrame;
 	VersionLoader.Text = "Enhanced Edition v4.0";
 	VersionLoader.Font = Enum.Font.Gotham;
-	VersionLoader.TextSize = IsMobile and 12 : 14;
+	VersionLoader.TextSize = IsMobile and 12 or 14;
 	VersionLoader.TextColor3 = Color3.fromRGB(150, 150, 150);
 	VersionLoader.BackgroundTransparency = 1;
 	VersionLoader.AnchorPoint = Vector2.new(0.5, 0.5);
@@ -482,7 +482,7 @@ function Update:StartLoad()
 	DescriptionLoader.Parent = MainLoaderFrame;
 	DescriptionLoader.Text = "Initializing...";
 	DescriptionLoader.Font = Enum.Font.Gotham;
-	DescriptionLoader.TextSize = IsMobile and 13 : 16;
+	DescriptionLoader.TextSize = IsMobile and 13 or 16;
 	DescriptionLoader.TextColor3 = Color3.fromRGB(200, 200, 200);
 	DescriptionLoader.BackgroundTransparency = 1;
 	DescriptionLoader.AnchorPoint = Vector2.new(0.5, 0.5);
@@ -496,7 +496,7 @@ function Update:StartLoad()
 	LoadingBarBackground.BackgroundColor3 = Color3.fromRGB(40, 40, 45);
 	LoadingBarBackground.AnchorPoint = Vector2.new(0.5, 0.5);
 	LoadingBarBackground.Position = UDim2.new(0.5, 0, 0.8, 0);
-	LoadingBarBackground.Size = UDim2.new(0.6, 0, 0, IsMobile and 6 : 8);
+	LoadingBarBackground.Size = UDim2.new(0.6, 0, 0, IsMobile and 6 or 8);
 	LoadingBarBackground.ClipsDescendants = true;
 	LoadingBarBackground.BorderSizePixel = 0;
 	LoadingBarBackground.ZIndex = 2;
@@ -516,9 +516,9 @@ function Update:StartLoad()
 	BarGlow.Position = UDim2.new(0, -2, 0, -2);
 	BarGlow.ZIndex = 2;
 	
-	CreateRounded(LoadingBarBackground, IsMobile and 3 : 4);
-	CreateRounded(LoadingBar, IsMobile and 3 : 4);
-	CreateRounded(BarGlow, IsMobile and 4 : 5);
+	CreateRounded(LoadingBarBackground, IsMobile and 3 or 4);
+	CreateRounded(LoadingBar, IsMobile and 3 or 4);
+	CreateRounded(BarGlow, IsMobile and 4 or 5);
 	
 	local tweenService = game:GetService("TweenService");
 	local dotCount = 0;
@@ -721,7 +721,7 @@ function Update:Window(Config)
 	DragButton.Parent = Main;
 	DragButton.Position = UDim2.new(1, 8, 1, 8);
 	DragButton.AnchorPoint = Vector2.new(1, 1);
-	DragButton.Size = UDim2.new(0, IsMobile and 20 : 18, 0, IsMobile and 20 : 18);
+	DragButton.Size = UDim2.new(0, IsMobile and 20 or 18, 0, IsMobile and 20 or 18);
 	DragButton.BackgroundColor3 = _G.Primary;
 	DragButton.BackgroundTransparency = 0.3;
 	DragButton.ZIndex = 10;
@@ -742,7 +742,7 @@ function Update:Window(Config)
 	Top.Name = "Top";
 	Top.Parent = Main;
 	Top.BackgroundColor3 = Color3.fromRGB(15, 15, 18);
-	Top.Size = UDim2.new(1, 0, 0, IsMobile and 50 : 45);
+	Top.Size = UDim2.new(1, 0, 0, IsMobile and 50 or 45);
 	Top.BackgroundTransparency = 0.3;
 	CreateRounded(Top, 8);
 	
@@ -762,17 +762,17 @@ function Update:Window(Config)
 	NameHub.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 	NameHub.BackgroundTransparency = 1;
 	NameHub.RichText = true;
-	NameHub.Position = UDim2.new(0, IsMobile and 20 : 18, 0.5, 0);
+	NameHub.Position = UDim2.new(0, IsMobile and 20 or 18, 0.5, 0);
 	NameHub.AnchorPoint = Vector2.new(0, 0.5);
-	NameHub.Size = UDim2.new(0, 1, 0, IsMobile and 28 : 25);
+	NameHub.Size = UDim2.new(0, 1, 0, IsMobile and 28 or 25);
 	NameHub.Font = Enum.Font.GothamBold;
 	NameHub.Text = "XENON";
-	NameHub.TextSize = IsMobile and 18 : 20;
+	NameHub.TextSize = IsMobile and 18 or 20;
 	NameHub.TextColor3 = Color3.fromRGB(255, 255, 255);
 	NameHub.TextXAlignment = Enum.TextXAlignment.Left;
 	
 	local nameHubSize = (game:GetService("TextService")):GetTextSize(NameHub.Text, NameHub.TextSize, NameHub.Font, Vector2.new(math.huge, math.huge));
-	NameHub.Size = UDim2.new(0, nameHubSize.X, 0, IsMobile and 28 : 25);
+	NameHub.Size = UDim2.new(0, nameHubSize.X, 0, IsMobile and 28 or 25);
 	
 	local SubTitle = Instance.new("TextLabel");
 	SubTitle.Name = "SubTitle";
@@ -780,19 +780,19 @@ function Update:Window(Config)
 	SubTitle.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 	SubTitle.BackgroundTransparency = 1;
 	SubTitle.Position = UDim2.new(0, nameHubSize.X + 10, 0.5, 0);
-	SubTitle.Size = UDim2.new(0, 1, 0, IsMobile and 22 : 20);
+	SubTitle.Size = UDim2.new(0, 1, 0, IsMobile and 22 or 20);
 	SubTitle.Font = Enum.Font.Gotham;
 	SubTitle.AnchorPoint = Vector2.new(0, 0.5);
 	SubTitle.Text = Config.SubTitle;
-	SubTitle.TextSize = IsMobile and 13 : 15;
+	SubTitle.TextSize = IsMobile and 13 or 15;
 	SubTitle.TextColor3 = _G.Third;
 	
 	local SubTitleSize = (game:GetService("TextService")):GetTextSize(SubTitle.Text, SubTitle.TextSize, SubTitle.Font, Vector2.new(math.huge, math.huge));
-	SubTitle.Size = UDim2.new(0, SubTitleSize.X, 0, IsMobile and 22 : 20);
+	SubTitle.Size = UDim2.new(0, SubTitleSize.X, 0, IsMobile and 22 or 20);
 	
 	-- Enhanced Control Buttons
-	local buttonSize = IsMobile and 25 : 22;
-	local buttonSpacing = IsMobile and 35 : 30;
+	local buttonSize = IsMobile and 25 or 22;
+	local buttonSpacing = IsMobile and 35 or 30;
 	
 	local CloseButton = Instance.new("ImageButton");
 	CloseButton.Name = "CloseButton";
@@ -800,7 +800,7 @@ function Update:Window(Config)
 	CloseButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100);
 	CloseButton.BackgroundTransparency = 0.8;
 	CloseButton.AnchorPoint = Vector2.new(1, 0.5);
-	CloseButton.Position = UDim2.new(1, IsMobile and -18 : -15, 0.5, 0);
+	CloseButton.Position = UDim2.new(1, IsMobile and -18 or -15, 0.5, 0);
 	CloseButton.Size = UDim2.new(0, buttonSize, 0, buttonSize);
 	CloseButton.Image = "rbxassetid://7743878857";
 	CloseButton.ImageTransparency = 0;
@@ -843,7 +843,7 @@ function Update:Window(Config)
 	MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 200, 100);
 	MinimizeButton.BackgroundTransparency = 0.8;
 	MinimizeButton.AnchorPoint = Vector2.new(1, 0.5);
-	MinimizeButton.Position = UDim2.new(1, IsMobile and -55 : -50, 0.5, 0);
+	MinimizeButton.Position = UDim2.new(1, IsMobile and -55 or -50, 0.5, 0);
 	MinimizeButton.Size = UDim2.new(0, buttonSize, 0, buttonSize);
 	MinimizeButton.Image = "rbxassetid://10734898355";
 	MinimizeButton.ImageTransparency = 0;
@@ -878,7 +878,7 @@ function Update:Window(Config)
 	ResizeButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100);
 	ResizeButton.BackgroundTransparency = 0.8;
 	ResizeButton.AnchorPoint = Vector2.new(1, 0.5);
-	ResizeButton.Position = UDim2.new(1, IsMobile and -92 : -85, 0.5, 0);
+	ResizeButton.Position = UDim2.new(1, IsMobile and -92 or -85, 0.5, 0);
 	ResizeButton.Size = UDim2.new(0, buttonSize, 0, buttonSize);
 	ResizeButton.Image = "rbxassetid://10734886735";
 	ResizeButton.ImageTransparency = 0;
@@ -968,7 +968,7 @@ function Update:Window(Config)
 	SettingsButton.BackgroundColor3 = Color3.fromRGB(100, 150, 255);
 	SettingsButton.BackgroundTransparency = 0.8;
 	SettingsButton.AnchorPoint = Vector2.new(1, 0.5);
-	SettingsButton.Position = UDim2.new(1, IsMobile and -129 : -120, 0.5, 0);
+	SettingsButton.Position = UDim2.new(1, IsMobile and -129 or -120, 0.5, 0);
 	SettingsButton.Size = UDim2.new(0, buttonSize, 0, buttonSize);
 	SettingsButton.Image = "rbxassetid://10734950020";
 	SettingsButton.ImageTransparency = 0;
@@ -1014,7 +1014,7 @@ function Update:Window(Config)
 	TitleSettings.Font = Enum.Font.GothamBold;
 	TitleSettings.AnchorPoint = Vector2.new(0, 0);
 	TitleSettings.Text = "⚙️ Library Settings";
-	TitleSettings.TextSize = IsMobile and 18 : 22;
+	TitleSettings.TextSize = IsMobile and 18 or 22;
 	TitleSettings.TextColor3 = Color3.fromRGB(255, 255, 255);
 	TitleSettings.TextXAlignment = Enum.TextXAlignment.Left;
 	
@@ -1037,7 +1037,7 @@ function Update:Window(Config)
 	ScrollSettings.Position = UDim2.new(0, 0, 0, 0);
 	ScrollSettings.BackgroundTransparency = 1;
 	ScrollSettings.Size = UDim2.new(1, 0, 1, 0);
-	ScrollSettings.ScrollBarThickness = IsMobile and 6 : 4;
+	ScrollSettings.ScrollBarThickness = IsMobile and 6 or 4;
 	ScrollSettings.ScrollingDirection = Enum.ScrollingDirection.Y;
 	ScrollSettings.ScrollBarImageColor3 = _G.Third;
 	
@@ -1045,7 +1045,7 @@ function Update:Window(Config)
 	SettingsListLayout.Name = "SettingsListLayout";
 	SettingsListLayout.Parent = ScrollSettings;
 	SettingsListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
-	SettingsListLayout.Padding = UDim.new(0, IsMobile and 12 : 10);
+	SettingsListLayout.Padding = UDim.new(0, IsMobile and 12 or 10);
 	
 	local PaddingScroll = Instance.new("UIPadding");
 	PaddingScroll.Name = "PaddingScroll";
@@ -1064,7 +1064,7 @@ function Update:Window(Config)
 		Background.ClipsDescendants = true;
 		Background.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
 		Background.BackgroundTransparency = 0.3;
-		Background.Size = UDim2.new(1, 0, 0, IsMobile and 45 : 40);
+		Background.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 40);
 		CreateRounded(Background, 8);
 		
 		-- Add hover effect for desktop
@@ -1087,12 +1087,12 @@ function Update:Window(Config)
 		Title.Parent = Background;
 		Title.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, IsMobile and 55 : 50, 0.5, 0);
-		Title.Size = UDim2.new(1, IsMobile and -85 : -80, 0, IsMobile and 25 : 22);
+		Title.Position = UDim2.new(0, IsMobile and 55 or 50, 0.5, 0);
+		Title.Size = UDim2.new(1, IsMobile and -85 or -80, 0, IsMobile and 25 or 22);
 		Title.Font = Enum.Font.Gotham;
 		Title.AnchorPoint = Vector2.new(0, 0.5);
 		Title.Text = title or "";
-		Title.TextSize = IsMobile and 14 : 15;
+		Title.TextSize = IsMobile and 14 or 15;
 		Title.TextColor3 = Color3.fromRGB(220, 220, 220);
 		Title.TextXAlignment = Enum.TextXAlignment.Left;
 		
@@ -1102,8 +1102,8 @@ function Update:Window(Config)
 		Checkbox.BackgroundColor3 = Color3.fromRGB(60, 60, 65);
 		Checkbox.BackgroundTransparency = 0;
 		Checkbox.AnchorPoint = Vector2.new(0, 0.5);
-		Checkbox.Position = UDim2.new(0, IsMobile and 18 : 15, 0.5, 0);
-		Checkbox.Size = UDim2.new(0, IsMobile and 25 : 22, 0, IsMobile and 25 : 22);
+		Checkbox.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, 0);
+		Checkbox.Size = UDim2.new(0, IsMobile and 25 or 22, 0, IsMobile and 25 or 22);
 		Checkbox.Image = "rbxassetid://10709790644";
 		Checkbox.ImageTransparency = 1;
 		Checkbox.ImageColor3 = Color3.fromRGB(255, 255, 255);
@@ -1170,20 +1170,20 @@ function Update:Window(Config)
 		Background.ClipsDescendants = true;
 		Background.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
 		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, IsMobile and 45 : 40);
+		Background.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 40);
 		
 		local Button = Instance.new("TextButton");
 		Button.Name = "Button";
 		Button.Parent = Background;
 		Button.BackgroundColor3 = _G.Third;
 		Button.BackgroundTransparency = 0.1;
-		Button.Size = UDim2.new(0.9, 0, 0, IsMobile and 40 : 35);
+		Button.Size = UDim2.new(0.9, 0, 0, IsMobile and 40 or 35);
 		Button.Font = Enum.Font.GothamBold;
 		Button.Text = title or "Button";
 		Button.AnchorPoint = Vector2.new(0.5, 0.5);
 		Button.Position = UDim2.new(0.5, 0, 0.5, 0);
 		Button.TextColor3 = Color3.fromRGB(255, 255, 255);
-		Button.TextSize = IsMobile and 14 : 15;
+		Button.TextSize = IsMobile and 14 or 15;
 		Button.AutoButtonColor = false;
 		CreateRounded(Button, 8);
 		
@@ -1308,7 +1308,7 @@ function Update:Window(Config)
 	ScrollTab.Position = UDim2.new(0, 0, 0, 0);
 	ScrollTab.BackgroundTransparency = 1;
 	ScrollTab.Size = UDim2.new(1, 0, 1, 0);
-	ScrollTab.ScrollBarThickness = IsMobile and 6 : 3;
+	ScrollTab.ScrollBarThickness = IsMobile and 6 or 3;
 	ScrollTab.ScrollingDirection = Enum.ScrollingDirection.Y;
 	ScrollTab.ScrollBarImageColor3 = _G.Third;
 	
@@ -1316,7 +1316,7 @@ function Update:Window(Config)
 	TabListLayout.Name = "TabListLayout";
 	TabListLayout.Parent = ScrollTab;
 	TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
-	TabListLayout.Padding = UDim.new(0, IsMobile and 4 : 3);
+	TabListLayout.Padding = UDim.new(0, IsMobile and 4 or 3);
 	
 	local PPD = Instance.new("UIPadding");
 	PPD.Name = "PPD";
@@ -1453,10 +1453,10 @@ function Update:Window(Config)
 		TabButton.Text = "";
 		TabButton.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 		TabButton.BackgroundTransparency = 0.8;
-		TabButton.Size = UDim2.new(1, 0, 0, IsMobile and 42 : 38);
+		TabButton.Size = UDim2.new(1, 0, 0, IsMobile and 42 or 38);
 		TabButton.Font = Enum.Font.Gotham;
 		TabButton.TextColor3 = Color3.fromRGB(255, 255, 255);
-		TabButton.TextSize = IsMobile and 13 : 12;
+		TabButton.TextSize = IsMobile and 13 or 12;
 		TabButton.TextTransparency = 0.9;
 		TabButton.AutoButtonColor = false;
 		CreateRounded(TabButton, 8);
@@ -1481,14 +1481,14 @@ function Update:Window(Config)
 		Title.Name = "Title";
 		Title.BackgroundColor3 = Color3.fromRGB(150, 150, 150);
 		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, IsMobile and 38 : 35, 0.5, 0);
-		Title.Size = UDim2.new(1, IsMobile and -45 : -42, 0, IsMobile and 22 : 20);
+		Title.Position = UDim2.new(0, IsMobile and 38 or 35, 0.5, 0);
+		Title.Size = UDim2.new(1, IsMobile and -45 or -42, 0, IsMobile and 22 or 20);
 		Title.Font = Enum.Font.GothamMedium;
 		Title.Text = text;
 		Title.AnchorPoint = Vector2.new(0, 0.5);
 		Title.TextColor3 = Color3.fromRGB(200, 200, 200);
 		Title.TextTransparency = 0.3;
-		Title.TextSize = IsMobile and 13 : 14;
+		Title.TextSize = IsMobile and 13 or 14;
 		Title.TextXAlignment = Enum.TextXAlignment.Left;
 		
 		IDK.Name = "IDK";
@@ -1496,8 +1496,8 @@ function Update:Window(Config)
 		IDK.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 		IDK.BackgroundTransparency = 1;
 		IDK.ImageTransparency = 0.2;
-		IDK.Position = UDim2.new(0, IsMobile and 12 : 10, 0.5, 0);
-		IDK.Size = UDim2.new(0, IsMobile and 20 : 18, 0, IsMobile and 20 : 18);
+		IDK.Position = UDim2.new(0, IsMobile and 12 or 10, 0.5, 0);
+		IDK.Size = UDim2.new(0, IsMobile and 20 or 18, 0, IsMobile and 20 or 18);
 		IDK.AnchorPoint = Vector2.new(0, 0.5);
 		IDK.Image = img;
 		IDK.ImageColor3 = Color3.fromRGB(200, 200, 200);
@@ -1511,7 +1511,7 @@ function Update:Window(Config)
 		MainFramePage.Position = UDim2.new(0, 0, 0, 0);
 		MainFramePage.BackgroundTransparency = 1;
 		MainFramePage.Size = UDim2.new(1, 0, 1, 0);
-		MainFramePage.ScrollBarThickness = IsMobile and 6 : 4;
+		MainFramePage.ScrollBarThickness = IsMobile and 6 or 4;
 		MainFramePage.ScrollingDirection = Enum.ScrollingDirection.Y;
 		MainFramePage.ScrollBarImageColor3 = _G.Third;
 		
@@ -1523,7 +1523,7 @@ function Update:Window(Config)
 		UIPadding.PaddingLeft = UDim.new(0, 12);
 		UIPadding.PaddingRight = UDim.new(0, 12);
 		
-		UIListLayout.Padding = UDim.new(0, IsMobile and 8 : 6);
+		UIListLayout.Padding = UDim.new(0, IsMobile and 8 or 6);
 		UIListLayout.Parent = MainFramePage;
 		UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
 		
@@ -1559,7 +1559,7 @@ function Update:Window(Config)
 				BackgroundTransparency = 0.3
 			}):Play();
 			TweenService:Create(SelectedTab, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0, 4, 0, IsMobile and 25 : 22)
+				Size = UDim2.new(0, 4, 0, IsMobile and 25 or 22)
 			}):Play();
 			TweenService:Create(IDK, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				ImageTransparency = 0,
@@ -1634,7 +1634,7 @@ function Update:Window(Config)
 				BackgroundTransparency = 0.3
 			}):Play();
 			TweenService:Create(SelectedTab, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0, 4, 0, IsMobile and 25 : 22)
+				Size = UDim2.new(0, 4, 0, IsMobile and 25 or 22)
 			}):Play();
 			TweenService:Create(IDK, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				ImageTransparency = 0,
@@ -1731,7 +1731,7 @@ function Update:Window(Config)
 			Button.Parent = MainFramePage;
 			Button.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Button.BackgroundTransparency = 0.2;
-			Button.Size = UDim2.new(1, 0, 0, IsMobile and 45 : 40);
+			Button.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 40);
 			CreateRounded(Button, 8);
 			
 			-- Add button border
@@ -1747,7 +1747,7 @@ function Update:Window(Config)
 			TextButton.BackgroundTransparency = 0.9;
 			TextButton.AnchorPoint = Vector2.new(1, 0.5);
 			TextButton.Position = UDim2.new(1, -8, 0.5, 0);
-			TextButton.Size = UDim2.new(0, IsMobile and 32 : 28, 0, IsMobile and 32 : 28);
+			TextButton.Size = UDim2.new(0, IsMobile and 32 or 28, 0, IsMobile and 32 or 28);
 			TextButton.Font = Enum.Font.Gotham;
 			TextButton.Text = "";
 			TextButton.TextXAlignment = Enum.TextXAlignment.Left;
@@ -1762,7 +1762,7 @@ function Update:Window(Config)
 			ImageLabel.BackgroundTransparency = 1;
 			ImageLabel.AnchorPoint = Vector2.new(0.5, 0.5);
 			ImageLabel.Position = UDim2.new(0.5, 0, 0.5, 0);
-			ImageLabel.Size = UDim2.new(0, IsMobile and 18 : 16, 0, IsMobile and 18 : 16);
+			ImageLabel.Size = UDim2.new(0, IsMobile and 18 or 16, 0, IsMobile and 18 or 16);
 			ImageLabel.Image = "rbxassetid://10734898355";
 			ImageLabel.ImageTransparency = 0;
 			ImageLabel.ImageColor3 = Color3.fromRGB(255, 255, 255);
@@ -1772,14 +1772,14 @@ function Update:Window(Config)
 			TextLabel.BackgroundColor3 = _G.Primary;
 			TextLabel.BackgroundTransparency = 1;
 			TextLabel.AnchorPoint = Vector2.new(0, 0.5);
-			TextLabel.Position = UDim2.new(0, IsMobile and 45 : 40, 0.5, 0);
-			TextLabel.Size = UDim2.new(1, IsMobile and -85 : -75, 1, 0);
+			TextLabel.Position = UDim2.new(0, IsMobile and 45 or 40, 0.5, 0);
+			TextLabel.Size = UDim2.new(1, IsMobile and -85 or -75, 1, 0);
 			TextLabel.Font = Enum.Font.Gotham;
 			TextLabel.RichText = true;
 			TextLabel.Text = text;
 			TextLabel.TextXAlignment = Enum.TextXAlignment.Left;
 			TextLabel.TextColor3 = Color3.fromRGB(220, 220, 220);
-			TextLabel.TextSize = IsMobile and 14 : 15;
+			TextLabel.TextSize = IsMobile and 14 or 15;
 			TextLabel.ClipsDescendants = true;
 			
 			ArrowRight.Name = "ArrowRight";
@@ -1787,8 +1787,8 @@ function Update:Window(Config)
 			ArrowRight.BackgroundColor3 = _G.Primary;
 			ArrowRight.BackgroundTransparency = 1;
 			ArrowRight.AnchorPoint = Vector2.new(0, 0.5);
-			ArrowRight.Position = UDim2.new(0, IsMobile and 15 : 12, 0.5, 0);
-			ArrowRight.Size = UDim2.new(0, IsMobile and 20 : 18, 0, IsMobile and 20 : 18);
+			ArrowRight.Position = UDim2.new(0, IsMobile and 15 or 12, 0.5, 0);
+			ArrowRight.Size = UDim2.new(0, IsMobile and 20 or 18, 0, IsMobile and 20 or 18);
 			ArrowRight.Image = "rbxassetid://10709768347";
 			ArrowRight.ImageTransparency = 0;
 			ArrowRight.ImageColor3 = _G.Third;
@@ -1876,41 +1876,41 @@ function Update:Window(Config)
 			Title.Parent = Button;
 			Title.BackgroundColor3 = Color3.fromRGB(150, 150, 150);
 			Title.BackgroundTransparency = 1;
-			Title.Size = UDim2.new(1, 0, 0, IsMobile and 25 : 22);
+			Title.Size = UDim2.new(1, 0, 0, IsMobile and 25 or 22);
 			Title.Font = Enum.Font.Gotham;
 			Title.Text = text;
 			Title.TextColor3 = Color3.fromRGB(220, 220, 220);
-			Title.TextSize = IsMobile and 14 : 15;
+			Title.TextSize = IsMobile and 14 or 15;
 			Title.TextXAlignment = Enum.TextXAlignment.Left;
 			Title.AnchorPoint = Vector2.new(0, 0.5);
 			
 			Desc.Parent = Title;
 			Desc.BackgroundColor3 = Color3.fromRGB(100, 100, 100);
 			Desc.BackgroundTransparency = 1;
-			Desc.Position = UDim2.new(0, 0, 0, IsMobile and 25 : 22);
-			Desc.Size = UDim2.new(0, 300, 0, IsMobile and 18 : 16);
+			Desc.Position = UDim2.new(0, 0, 0, IsMobile and 25 or 22);
+			Desc.Size = UDim2.new(0, 300, 0, IsMobile and 18 or 16);
 			Desc.Font = Enum.Font.Gotham;
 			Desc.TextColor3 = Color3.fromRGB(150, 150, 150);
-			Desc.TextSize = IsMobile and 11 : 12;
+			Desc.TextSize = IsMobile and 11 or 12;
 			Desc.TextXAlignment = Enum.TextXAlignment.Left;
 			
 			if desc then
 				Desc.Text = desc;
-				Title.Position = UDim2.new(0, IsMobile and 18 : 15, 0.5, -8);
-				Desc.Position = UDim2.new(0, 0, 0, IsMobile and 25 : 22);
-				Button.Size = UDim2.new(1, 0, 0, IsMobile and 50 : 46);
+				Title.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, -8);
+				Desc.Position = UDim2.new(0, 0, 0, IsMobile and 25 or 22);
+				Button.Size = UDim2.new(1, 0, 0, IsMobile and 50 or 46);
 			else
-				Title.Position = UDim2.new(0, IsMobile and 18 : 15, 0.5, 0);
+				Title.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, 0);
 				Desc.Visible = false;
-				Button.Size = UDim2.new(1, 0, 0, IsMobile and 40 : 36);
+				Button.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 36);
 			end;
 			
 			ToggleFrame.Name = "ToggleFrame";
 			ToggleFrame.Parent = Button;
 			ToggleFrame.BackgroundColor3 = _G.Dark;
 			ToggleFrame.BackgroundTransparency = 1;
-			ToggleFrame.Position = UDim2.new(1, IsMobile and -50 : -45, 0.5, 0);
-			ToggleFrame.Size = UDim2.new(0, IsMobile and 40 : 36, 0, IsMobile and 22 : 20);
+			ToggleFrame.Position = UDim2.new(1, IsMobile and -50 or -45, 0.5, 0);
+			ToggleFrame.Size = UDim2.new(0, IsMobile and 40 or 36, 0, IsMobile and 22 or 20);
 			ToggleFrame.AnchorPoint = Vector2.new(1, 0.5);
 			CreateRounded(ToggleFrame, 12);
 			
@@ -1937,7 +1937,7 @@ function Update:Window(Config)
 			Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			Circle.BackgroundTransparency = 0;
 			Circle.Position = UDim2.new(0, 3, 0.5, 0);
-			Circle.Size = UDim2.new(0, IsMobile and 16 : 14, 0, IsMobile and 16 : 14);
+			Circle.Size = UDim2.new(0, IsMobile and 16 or 14, 0, IsMobile and 16 or 14);
 			Circle.AnchorPoint = Vector2.new(0, 0.5);
 			CreateRounded(Circle, 10);
 			
@@ -2030,7 +2030,7 @@ function Update:Window(Config)
 			Dropdown.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Dropdown.BackgroundTransparency = 0.2;
 			Dropdown.ClipsDescendants = false;
-			Dropdown.Size = UDim2.new(1, 0, 0, IsMobile and 45 : 42);
+			Dropdown.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 42);
 			CreateRounded(Dropdown, 8);
 			
 			-- Add dropdown border
@@ -2044,13 +2044,13 @@ function Update:Window(Config)
 			DropTitle.Parent = Dropdown;
 			DropTitle.BackgroundColor3 = _G.Primary;
 			DropTitle.BackgroundTransparency = 1;
-			DropTitle.Size = UDim2.new(1, 0, 0, IsMobile and 25 : 22);
+			DropTitle.Size = UDim2.new(1, 0, 0, IsMobile and 25 or 22);
 			DropTitle.Font = Enum.Font.Gotham;
 			DropTitle.Text = text;
 			DropTitle.TextColor3 = Color3.fromRGB(220, 220, 220);
-			DropTitle.TextSize = IsMobile and 14 : 15;
+			DropTitle.TextSize = IsMobile and 14 or 15;
 			DropTitle.TextXAlignment = Enum.TextXAlignment.Left;
-			DropTitle.Position = UDim2.new(0, IsMobile and 18 : 15, 0, IsMobile and 8 : 6);
+			DropTitle.Position = UDim2.new(0, IsMobile and 18 or 15, 0, IsMobile and 8 or 6);
 			DropTitle.AnchorPoint = Vector2.new(0, 0);
 			
 			SelectItems.Name = "SelectItems";
@@ -2058,12 +2058,12 @@ function Update:Window(Config)
 			SelectItems.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 			SelectItems.TextColor3 = Color3.fromRGB(200, 200, 200);
 			SelectItems.BackgroundTransparency = 0.3;
-			SelectItems.Position = UDim2.new(1, IsMobile and -12 : -10, 0, IsMobile and 8 : 6);
-			SelectItems.Size = UDim2.new(0, IsMobile and 120 : 110, 0, IsMobile and 28 : 25);
+			SelectItems.Position = UDim2.new(1, IsMobile and -12 or -10, 0, IsMobile and 8 or 6);
+			SelectItems.Size = UDim2.new(0, IsMobile and 120 or 110, 0, IsMobile and 28 or 25);
 			SelectItems.AnchorPoint = Vector2.new(1, 0);
 			SelectItems.Font = Enum.Font.Gotham;
 			SelectItems.AutoButtonColor = false;
-			SelectItems.TextSize = IsMobile and 12 : 11;
+			SelectItems.TextSize = IsMobile and 12 or 11;
 			SelectItems.ZIndex = 1;
 			SelectItems.ClipsDescendants = true;
 			SelectItems.Text = "   Select Item";
@@ -2075,8 +2075,8 @@ function Update:Window(Config)
 			ArrowDown.BackgroundColor3 = _G.Primary;
 			ArrowDown.BackgroundTransparency = 1;
 			ArrowDown.AnchorPoint = Vector2.new(1, 0);
-			ArrowDown.Position = UDim2.new(1, IsMobile and -140 : -125, 0, IsMobile and 15 : 13);
-			ArrowDown.Size = UDim2.new(0, IsMobile and 16 : 14, 0, IsMobile and 16 : 14);
+			ArrowDown.Position = UDim2.new(1, IsMobile and -140 or -125, 0, IsMobile and 15 or 13);
+			ArrowDown.Size = UDim2.new(0, IsMobile and 16 or 14, 0, IsMobile and 16 or 14);
 			ArrowDown.Image = "rbxassetid://10709790948";
 			ArrowDown.ImageTransparency = 0;
 			ArrowDown.ImageColor3 = Color3.fromRGB(200, 200, 200);
@@ -2086,8 +2086,8 @@ function Update:Window(Config)
 			DropdownFrameScroll.BackgroundColor3 = Color3.fromRGB(20, 20, 26);
 			DropdownFrameScroll.BackgroundTransparency = 0.1;
 			DropdownFrameScroll.ClipsDescendants = true;
-			DropdownFrameScroll.Size = UDim2.new(1, 0, 0, IsMobile and 120 : 110);
-			DropdownFrameScroll.Position = UDim2.new(0, 0, 0, IsMobile and 50 : 47);
+			DropdownFrameScroll.Size = UDim2.new(1, 0, 0, IsMobile and 120 or 110);
+			DropdownFrameScroll.Position = UDim2.new(0, 0, 0, IsMobile and 50 or 47);
 			DropdownFrameScroll.Visible = false;
 			DropdownFrameScroll.AnchorPoint = Vector2.new(0, 0);
 			CreateRounded(DropdownFrameScroll, 8);
@@ -2110,7 +2110,7 @@ function Update:Window(Config)
 			DropScroll.Size = UDim2.new(1, 0, 1, -16);
 			DropScroll.AnchorPoint = Vector2.new(0, 0);
 			DropScroll.ClipsDescendants = true;
-			DropScroll.ScrollBarThickness = IsMobile and 6 : 4;
+			DropScroll.ScrollBarThickness = IsMobile and 6 or 4;
 			DropScroll.ScrollBarImageColor3 = _G.Third;
 			DropScroll.ZIndex = 3;
 			
@@ -2124,7 +2124,7 @@ function Update:Window(Config)
 			
 			UIListLayout.Parent = DropScroll;
 			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
-			UIListLayout.Padding = UDim.new(0, IsMobile and 3 : 2);
+			UIListLayout.Padding = UDim.new(0, IsMobile and 3 or 2);
 			
 			-- Create dropdown items
 			for i, v in next, option do
@@ -2135,11 +2135,11 @@ function Update:Window(Config)
 				Item.Parent = DropScroll;
 				Item.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 				Item.BackgroundTransparency = 0.8;
-				Item.Size = UDim2.new(1, 0, 0, IsMobile and 35 : 32);
+				Item.Size = UDim2.new(1, 0, 0, IsMobile and 35 or 32);
 				Item.Font = Enum.Font.Gotham;
 				Item.Text = tostring(v);
 				Item.TextColor3 = Color3.fromRGB(200, 200, 200);
-				Item.TextSize = IsMobile and 13 : 12;
+				Item.TextSize = IsMobile and 13 or 12;
 				Item.TextTransparency = 0.3;
 				Item.TextXAlignment = Enum.TextXAlignment.Left;
 				Item.ZIndex = 4;
@@ -2148,14 +2148,14 @@ function Update:Window(Config)
 				
 				local ItemPadding = Instance.new("UIPadding");
 				ItemPadding.Parent = Item;
-				ItemPadding.PaddingLeft = UDim.new(0, IsMobile and 35 : 32);
+				ItemPadding.PaddingLeft = UDim.new(0, IsMobile and 35 or 32);
 				
 				SelectedItems.Name = "SelectedItems";
 				SelectedItems.Parent = Item;
 				SelectedItems.BackgroundColor3 = _G.Third;
 				SelectedItems.BackgroundTransparency = 1;
 				SelectedItems.Size = UDim2.new(0, 4, 0.6, 0);
-				SelectedItems.Position = UDim2.new(0, IsMobile and 12 : 10, 0.5, 0);
+				SelectedItems.Position = UDim2.new(0, IsMobile and 12 or 10, 0.5, 0);
 				SelectedItems.AnchorPoint = Vector2.new(0, 0.5);
 				SelectedItems.ZIndex = 4;
 				CreateRounded(SelectedItems, 2);
@@ -2233,11 +2233,11 @@ function Update:Window(Config)
 					DropdownFrameScroll.Size = UDim2.new(1, 0, 0, 0);
 					
 					TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, IsMobile and 120 : 110)
+						Size = UDim2.new(1, 0, 0, IsMobile and 120 or 110)
 					}):Play();
 					
 					TweenService:Create(Dropdown, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, (IsMobile and 45 : 42) + (IsMobile and 120 : 110) + 5)
+						Size = UDim2.new(1, 0, 0, (IsMobile and 45 or 42) + (IsMobile and 120 or 110) + 5)
 					}):Play();
 					
 					TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -2257,7 +2257,7 @@ function Update:Window(Config)
 					}):Play();
 					
 					TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, IsMobile and 45 : 42)
+						Size = UDim2.new(1, 0, 0, IsMobile and 45 or 42)
 					}):Play();
 					
 					TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -2306,11 +2306,11 @@ function Update:Window(Config)
 				Item.Parent = DropScroll;
 				Item.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 				Item.BackgroundTransparency = 0.8;
-				Item.Size = UDim2.new(1, 0, 0, IsMobile and 35 : 32);
+				Item.Size = UDim2.new(1, 0, 0, IsMobile and 35 or 32);
 				Item.Font = Enum.Font.Gotham;
 				Item.Text = tostring(t);
 				Item.TextColor3 = Color3.fromRGB(200, 200, 200);
-				Item.TextSize = IsMobile and 13 : 12;
+				Item.TextSize = IsMobile and 13 or 12;
 				Item.TextTransparency = 0.3;
 				Item.TextXAlignment = Enum.TextXAlignment.Left;
 				Item.ZIndex = 4;
@@ -2319,14 +2319,14 @@ function Update:Window(Config)
 				
 				local ItemPadding = Instance.new("UIPadding");
 				ItemPadding.Parent = Item;
-				ItemPadding.PaddingLeft = UDim.new(0, IsMobile and 35 : 32);
+				ItemPadding.PaddingLeft = UDim.new(0, IsMobile and 35 or 32);
 				
 				SelectedItems.Name = "SelectedItems";
 				SelectedItems.Parent = Item;
 				SelectedItems.BackgroundColor3 = _G.Third;
 				SelectedItems.BackgroundTransparency = 1;
 				SelectedItems.Size = UDim2.new(0, 4, 0.6, 0);
-				SelectedItems.Position = UDim2.new(0, IsMobile and 12 : 10, 0.5, 0);
+				SelectedItems.Position = UDim2.new(0, IsMobile and 12 or 10, 0.5, 0);
 				SelectedItems.AnchorPoint = Vector2.new(0, 0.5);
 				SelectedItems.ZIndex = 4;
 				CreateRounded(SelectedItems, 2);
@@ -2369,7 +2369,7 @@ function Update:Window(Config)
 				SelectItems.Text = "   Select Item";
 				isdropping = false;
 				DropdownFrameScroll.Visible = false;
-				Dropdown.Size = UDim2.new(1, 0, 0, IsMobile and 45 : 42);
+				Dropdown.Size = UDim2.new(1, 0, 0, IsMobile and 45 or 42);
 				ArrowDown.Rotation = 0;
 				ArrowDown.ImageColor3 = Color3.fromRGB(200, 200, 200);
 				
@@ -2395,7 +2395,7 @@ function Update:Window(Config)
 			Slider.Parent = MainFramePage;
 			Slider.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Slider.BackgroundTransparency = 0.2;
-			Slider.Size = UDim2.new(1, 0, 0, IsMobile and 40 : 38);
+			Slider.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 38);
 			CreateRounded(Slider, 8);
 			
 			-- Add slider border
@@ -2408,32 +2408,32 @@ function Update:Window(Config)
 			Title.Parent = Slider;
 			Title.BackgroundColor3 = Color3.fromRGB(150, 150, 150);
 			Title.BackgroundTransparency = 1;
-			Title.Position = UDim2.new(0, IsMobile and 18 : 15, 0.5, 0);
-			Title.Size = UDim2.new(1, 0, 0, IsMobile and 22 : 20);
+			Title.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, 0);
+			Title.Size = UDim2.new(1, 0, 0, IsMobile and 22 or 20);
 			Title.Font = Enum.Font.Gotham;
 			Title.Text = text;
 			Title.AnchorPoint = Vector2.new(0, 0.5);
 			Title.TextColor3 = Color3.fromRGB(220, 220, 220);
-			Title.TextSize = IsMobile and 14 : 15;
+			Title.TextSize = IsMobile and 14 or 15;
 			Title.TextXAlignment = Enum.TextXAlignment.Left;
 			
 			ValueText.Parent = bar;
 			ValueText.BackgroundColor3 = Color3.fromRGB(150, 150, 150);
 			ValueText.BackgroundTransparency = 1;
-			ValueText.Position = UDim2.new(0, IsMobile and -45 : -40, 0.5, 0);
-			ValueText.Size = UDim2.new(0, IsMobile and 35 : 32, 0, IsMobile and 22 : 20);
+			ValueText.Position = UDim2.new(0, IsMobile and -45 or -40, 0.5, 0);
+			ValueText.Size = UDim2.new(0, IsMobile and 35 or 32, 0, IsMobile and 22 or 20);
 			ValueText.Font = Enum.Font.GothamBold;
 			ValueText.Text = tostring(set);
 			ValueText.AnchorPoint = Vector2.new(0, 0.5);
 			ValueText.TextColor3 = _G.Third;
-			ValueText.TextSize = IsMobile and 13 : 14;
+			ValueText.TextSize = IsMobile and 13 or 14;
 			ValueText.TextXAlignment = Enum.TextXAlignment.Right;
 			
 			bar.Name = "bar";
 			bar.Parent = Slider;
 			bar.BackgroundColor3 = Color3.fromRGB(50, 50, 55);
-			bar.Size = UDim2.new(0, IsMobile and 110 : 100, 0, IsMobile and 6 : 5);
-			bar.Position = UDim2.new(1, IsMobile and -15 : -12, 0.5, 0);
+			bar.Size = UDim2.new(0, IsMobile and 110 or 100, 0, IsMobile and 6 or 5);
+			bar.Position = UDim2.new(1, IsMobile and -15 or -12, 0.5, 0);
 			bar.BackgroundTransparency = 0.3;
 			bar.AnchorPoint = Vector2.new(1, 0.5);
 			CreateRounded(bar, 3);
@@ -2450,7 +2450,7 @@ function Update:Window(Config)
 			circlebar.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			circlebar.Position = UDim2.new(1, 0, 0.5, 0);
 			circlebar.AnchorPoint = Vector2.new(0.5, 0.5);
-			circlebar.Size = UDim2.new(0, IsMobile and 16 : 14, 0, IsMobile and 16 : 14);
+			circlebar.Size = UDim2.new(0, IsMobile and 16 or 14, 0, IsMobile and 16 or 14);
 			CreateRounded(circlebar, 10);
 			
 			-- Add circle glow
@@ -2558,7 +2558,7 @@ function Update:Window(Config)
 			Textbox.Parent = MainFramePage;
 			Textbox.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Textbox.BackgroundTransparency = 0.2;
-			Textbox.Size = UDim2.new(1, 0, 0, IsMobile and 40 : 38);
+			Textbox.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 38);
 			CreateRounded(Textbox, 8);
 			
 			-- Add textbox border
@@ -2572,13 +2572,13 @@ function Update:Window(Config)
 			TextboxLabel.Parent = Textbox;
 			TextboxLabel.BackgroundColor3 = _G.Primary;
 			TextboxLabel.BackgroundTransparency = 1;
-			TextboxLabel.Position = UDim2.new(0, IsMobile and 18 : 15, 0.5, 0);
+			TextboxLabel.Position = UDim2.new(0, IsMobile and 18 or 15, 0.5, 0);
 			TextboxLabel.Text = text;
-			TextboxLabel.Size = UDim2.new(1, 0, 0, IsMobile and 22 : 20);
+			TextboxLabel.Size = UDim2.new(1, 0, 0, IsMobile and 22 or 20);
 			TextboxLabel.Font = Enum.Font.Gotham;
 			TextboxLabel.AnchorPoint = Vector2.new(0, 0.5);
 			TextboxLabel.TextColor3 = Color3.fromRGB(220, 220, 220);
-			TextboxLabel.TextSize = IsMobile and 14 : 15;
+			TextboxLabel.TextSize = IsMobile and 14 or 15;
 			TextboxLabel.TextTransparency = 0;
 			TextboxLabel.TextXAlignment = Enum.TextXAlignment.Left;
 			
@@ -2586,15 +2586,15 @@ function Update:Window(Config)
 			RealTextbox.Parent = Textbox;
 			RealTextbox.BackgroundColor3 = Color3.fromRGB(30, 30, 38);
 			RealTextbox.BackgroundTransparency = 0.3;
-			RealTextbox.Position = UDim2.new(1, IsMobile and -12 : -10, 0.5, 0);
+			RealTextbox.Position = UDim2.new(1, IsMobile and -12 or -10, 0.5, 0);
 			RealTextbox.AnchorPoint = Vector2.new(1, 0.5);
-			RealTextbox.Size = UDim2.new(0, IsMobile and 100 : 90, 0, IsMobile and 28 : 25);
+			RealTextbox.Size = UDim2.new(0, IsMobile and 100 or 90, 0, IsMobile and 28 or 25);
 			RealTextbox.Font = Enum.Font.Gotham;
 			RealTextbox.Text = "";
 			RealTextbox.PlaceholderText = "Enter text...";
 			RealTextbox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120);
 			RealTextbox.TextColor3 = Color3.fromRGB(255, 255, 255);
-			RealTextbox.TextSize = IsMobile and 12 : 13;
+			RealTextbox.TextSize = IsMobile and 12 or 13;
 			RealTextbox.TextTransparency = 0;
 			RealTextbox.ClipsDescendants = true;
 			CreateRounded(RealTextbox, 6);
@@ -2658,19 +2658,19 @@ function Update:Window(Config)
 			Frame.Parent = MainFramePage;
 			Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 32);
 			Frame.BackgroundTransparency = 0.5;
-			Frame.Size = UDim2.new(1, 0, 0, IsMobile and 35 : 32);
+			Frame.Size = UDim2.new(1, 0, 0, IsMobile and 35 or 32);
 			CreateRounded(Frame, 8);
 			
 			Label.Name = "Label";
 			Label.Parent = Frame;
 			Label.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			Label.BackgroundTransparency = 1;
-			Label.Size = UDim2.new(1, IsMobile and -45 : -40, 0, IsMobile and 22 : 20);
+			Label.Size = UDim2.new(1, IsMobile and -45 or -40, 0, IsMobile and 22 or 20);
 			Label.Font = Enum.Font.Gotham;
-			Label.Position = UDim2.new(0, IsMobile and 40 : 35, 0.5, 0);
+			Label.Position = UDim2.new(0, IsMobile and 40 or 35, 0.5, 0);
 			Label.AnchorPoint = Vector2.new(0, 0.5);
 			Label.TextColor3 = Color3.fromRGB(200, 200, 200);
-			Label.TextSize = IsMobile and 14 : 15;
+			Label.TextSize = IsMobile and 14 or 15;
 			Label.Text = text;
 			Label.TextXAlignment = Enum.TextXAlignment.Left;
 			
@@ -2679,8 +2679,8 @@ function Update:Window(Config)
 			ImageLabel.BackgroundColor3 = Color3.fromRGB(200, 200, 200);
 			ImageLabel.BackgroundTransparency = 1;
 			ImageLabel.ImageTransparency = 0;
-			ImageLabel.Position = UDim2.new(0, IsMobile and 15 : 12, 0.5, 0);
-			ImageLabel.Size = UDim2.new(0, IsMobile and 18 : 16, 0, IsMobile and 18 : 16);
+			ImageLabel.Position = UDim2.new(0, IsMobile and 15 or 12, 0.5, 0);
+			ImageLabel.Size = UDim2.new(0, IsMobile and 18 or 16, 0, IsMobile and 18 or 16);
 			ImageLabel.AnchorPoint = Vector2.new(0, 0.5);
 			ImageLabel.Image = "rbxassetid://10723415903";
 			ImageLabel.ImageColor3 = _G.Third;
@@ -2714,7 +2714,7 @@ function Update:Window(Config)
 			Seperator.Parent = MainFramePage;
 			Seperator.BackgroundColor3 = _G.Primary;
 			Seperator.BackgroundTransparency = 1;
-			Seperator.Size = UDim2.new(1, 0, 0, IsMobile and 40 : 38);
+			Seperator.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 38);
 			
 			-- Enhanced separator with gradient lines
 			Sep1.Name = "Sep1";
@@ -2743,11 +2743,11 @@ function Update:Window(Config)
 			Sep2.BackgroundTransparency = 1;
 			Sep2.AnchorPoint = Vector2.new(0.5, 0.5);
 			Sep2.Position = UDim2.new(0.5, 0, 0.5, 0);
-			Sep2.Size = UDim2.new(1, 0, 0, IsMobile and 25 : 22);
+			Sep2.Size = UDim2.new(1, 0, 0, IsMobile and 25 or 22);
 			Sep2.Font = Enum.Font.GothamBold;
 			Sep2.Text = text;
 			Sep2.TextColor3 = Color3.fromRGB(255, 255, 255);
-			Sep2.TextSize = IsMobile and 15 : 16;
+			Sep2.TextSize = IsMobile and 15 or 16;
 			
 			-- Add text glow effect
 			local TextGlow = Instance.new("UIStroke");
@@ -2786,7 +2786,7 @@ function Update:Window(Config)
 			Linee.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			Linee.BackgroundTransparency = 1;
 			Linee.Position = UDim2.new(0, 0, 0.119999997, 0);
-			Linee.Size = UDim2.new(1, 0, 0, IsMobile and 25 : 22);
+			Linee.Size = UDim2.new(1, 0, 0, IsMobile and 25 or 22);
 			
 			Line.Name = "Line";
 			Line.Parent = Linee;
