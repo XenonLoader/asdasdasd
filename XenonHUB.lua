@@ -536,16 +536,11 @@ function Update:StartLoad()
 	end);
 	
 	barTweenPart2.Completed:Connect(function()
+		running = true;
 		barTweenPart3.Completed:Connect(function()
-			running = false; -- Stop the text animation first
 			wait(0.5);
+			running = false;
 			DescriptionLoader.Text = "Welcome to Xenon!";
-			
-			-- Stop all animations
-			logoAnimation:Cancel();
-			glowAnimation:Cancel();
-			titleAnimation:Cancel();
-			rotateAnimation:Cancel();
 			
 			-- Enhanced exit animation
 			TweenService:Create(MainLoaderFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
@@ -558,7 +553,7 @@ function Update:StartLoad()
 			}):Play();
 			
 			wait(1);
-			Loader:Destroy(); -- Properly destroy the loader
+			Loader:Destroy();
 		end);
 	end);
 	
@@ -586,7 +581,7 @@ end;
 -- Configuration and Settings Management
 local SettingsLib = {
 	SaveSettings = true,
-	LoadAnimation = true
+	LoadAnimation = false
 };
 
 (getgenv()).LoadConfig = function()
