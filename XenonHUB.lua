@@ -313,9 +313,10 @@ function Update:Notify(desc)
 	table.insert(NotificationList, {OutlineFrame, title});
 end;
 
--- Enhanced Loading Animation with Modern Design
+-- Enhanced Loading Animation with Modern Design - FIXED VERSION
 function Update:StartLoad()
 	local Loader = Instance.new("ScreenGui");
+	Loader.Name = "XenonLoader";
 	Loader.Parent = game.CoreGui;
 	Loader.ZIndexBehavior = Enum.ZIndexBehavior.Global;
 	Loader.DisplayOrder = 1000;
@@ -494,6 +495,7 @@ function Update:StartLoad()
 	local tweenService = game:GetService("TweenService");
 	local dotCount = 0;
 	local running = true;
+	local loadingComplete = false;
 	
 	-- Enhanced loading stages
 	local loadingStages = {
@@ -505,83 +507,134 @@ function Update:StartLoad()
 	};
 	local currentStage = 1;
 	
-	-- Stage 1: Quick initial load
-	local barTweenInfoPart1 = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
-	local barTweenPart1 = tweenService:Create(LoadingBar, barTweenInfoPart1, {
-		Size = UDim2.new(0.3, 0, 1, 0)
-	});
-	
-	-- Stage 2: Progressive load
-	local barTweenInfoPart2 = TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
-	local barTweenPart2 = tweenService:Create(LoadingBar, barTweenInfoPart2, {
-		Size = UDim2.new(0.7, 0, 1, 0)
-	});
-	
-	-- Stage 3: Final completion
-	local barTweenInfoPart3 = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
-	local barTweenPart3 = tweenService:Create(LoadingBar, barTweenInfoPart3, {
-		Size = UDim2.new(1, 0, 1, 0)
-	});
-	
-	barTweenPart1:Play();
-	
-	function Update:Loaded()
-		barTweenPart3:Play();
-	end;
-	
-	barTweenPart1.Completed:Connect(function()
-		barTweenPart2:Play();
-		currentStage = 2;
-		DescriptionLoader.Text = loadingStages[currentStage];
-	end);
-	
-	barTweenPart2.Completed:Connect(function()
-		running = true;
-		barTweenPart3.Completed:Connect(function()
-			wait(0.5);
-			running = false;
-			DescriptionLoader.Text = "Welcome to Xenon!";
-			
-			-- Enhanced exit animation
-			TweenService:Create(MainLoaderFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
-				Size = UDim2.new(0, 0, 0, 0),
-				Rotation = 180
-			}):Play();
-			
-			TweenService:Create(LoaderFrame, TweenInfo.new(1, Enum.EasingStyle.Quad), {
-				BackgroundTransparency = 1
-			}):Play();
-			
-			wait(1);
-			Loader:Destroy();
+	-- FIXED: Create proper loading sequence with controlled timing
+	local function startLoadingSequence()
+		-- Stage 1: Quick initial load (0-30%)
+		local barTweenInfoPart1 = TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
+		local barTweenPart1 = tweenService:Create(LoadingBar, barTweenInfoPart1, {
+			Size = UDim2.new(0.3, 0, 1, 0)
+		});
+		
+		-- Stage 2: Progressive load (30-70%)
+		local barTweenInfoPart2 = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
+		local barTweenPart2 = tweenService:Create(LoadingBar, barTweenInfoPart2, {
+			Size = UDim2.new(0.7, 0, 1, 0)
+		});
+		
+		-- Stage 3: Final completion (70-100%)
+		local barTweenInfoPart3 = TweenInfo.new(1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
+		local barTweenPart3 = tweenService:Create(LoadingBar, barTweenInfoPart3, {
+			Size = UDim2.new(1, 0, 1, 0)
+		});
+		
+		-- Start first stage
+		barTweenPart1:Play();
+		DescriptionLoader.Text = loadingStages[1];
+		
+		-- Handle stage transitions
+		barTweenPart1.Completed:Connect(function()
+			if not loadingComplete then
+				currentStage = 2;
+				DescriptionLoader.Text = loadingStages[currentStage];
+				barTweenPart2:Play();
+			end
 		end);
-	end);
+		
+		barTweenPart2.Completed:Connect(function()
+			if not loadingComplete then
+				currentStage = 3;
+				DescriptionLoader.Text = loadingStages[currentStage];
+				wait(0.5); -- Brief pause before final stage
+				currentStage = 4;
+				DescriptionLoader.Text = loadingStages[currentStage];
+				wait(0.5);
+				currentStage = 5;
+				DescriptionLoader.Text = loadingStages[currentStage];
+				wait(1.0); -- Wait longer on "Almost ready.." stage
+				barTweenPart3:Play();
+			end
+		end);
+		
+		-- FIXED: Only destroy when explicitly called via Update:Loaded()
+		barTweenPart3.Completed:Connect(function()
+			if not loadingComplete then
+				DescriptionLoader.Text = "Ready! Waiting for completion...";
+				-- Don't auto-destroy here, wait for Update:Loaded() call
+			end
+		end);
+		
+		-- Store references for external control
+		Update._LoaderReferences = {
+			Loader = Loader,
+			MainLoaderFrame = MainLoaderFrame,
+			LoaderFrame = LoaderFrame,
+			DescriptionLoader = DescriptionLoader,
+			running = running,
+			loadingComplete = loadingComplete
+		};
+	end
 	
-	-- Enhanced loading text animation
+	-- Start the loading sequence
+	startLoadingSequence();
+	
+	-- Enhanced loading text animation with dots
 	spawn(function()
-		while running do
-			for i = 1, #loadingStages do
-				if not running then break end
-				currentStage = i;
-				DescriptionLoader.Text = loadingStages[i];
-				
-				-- Typewriter effect
-				local originalText = loadingStages[i];
-				for j = 1, 3 do
-					if not running then break end
-					DescriptionLoader.Text = originalText .. string.rep(".", j);
-					wait(0.3);
+		while running and not loadingComplete do
+			local originalText = DescriptionLoader.Text;
+			if originalText:find("%.%.") then
+				-- Remove existing dots and add animated ones
+				local baseText = originalText:gsub("%.+", "");
+				for i = 1, 3 do
+					if not running or loadingComplete then break end
+					DescriptionLoader.Text = baseText .. string.rep(".", i);
+					wait(0.4);
 				end
-				wait(0.4);
+				wait(0.2);
+			else
+				wait(0.5);
 			end
 		end
 	end);
 end;
 
+-- FIXED: Proper Loaded function that actually completes the loading
+function Update:Loaded()
+	if Update._LoaderReferences then
+		local refs = Update._LoaderReferences;
+		refs.loadingComplete = true;
+		refs.running = false;
+		
+		-- Update final message
+		refs.DescriptionLoader.Text = "Welcome to Xenon!";
+		
+		-- Wait a moment to show the completion message
+		wait(0.8);
+		
+		-- Enhanced exit animation
+		TweenService:Create(refs.MainLoaderFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
+			Size = UDim2.new(0, 0, 0, 0),
+			Rotation = 180
+		}):Play();
+		
+		TweenService:Create(refs.LoaderFrame, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+			BackgroundTransparency = 1
+		}):Play();
+		
+		-- Clean up after animation
+		wait(1);
+		if refs.Loader and refs.Loader.Parent then
+			refs.Loader:Destroy();
+		end
+		
+		-- Clear references
+		Update._LoaderReferences = nil;
+	end
+end;
+
 -- Configuration and Settings Management
 local SettingsLib = {
 	SaveSettings = true,
-	LoadAnimation = false
+	LoadAnimation = true
 };
 
 (getgenv()).LoadConfig = function()
