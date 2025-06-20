@@ -111,6 +111,14 @@ function MakeDraggable(topbarobject, object)
 	end);
 end;
 
+-- Anti-AFK System
+local vu = game:GetService("VirtualUser");
+game:GetService("Players").LocalPlayer.Idled:Connect(function()
+	vu:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame);
+	wait(1);
+	vu:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame);
+end);
+
 local ScreenGui = Instance.new("ScreenGui");
 ScreenGui.Parent = game.CoreGui;
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling;
@@ -602,11 +610,22 @@ function Update:StartLoad()
 	end);
 end;
 
+-- Enhanced Settings Library with Auto Save functionality
 local SettingsLib = {
 	SaveSettings = true,
-	LoadAnimation = true
+	LoadAnimation = true,
+	AutoLoadOnStart = true,
+	FeatureSettings = {}
 };
 
+-- Auto Save functionality
+local function AutoSaveSettings()
+	if SettingsLib.SaveSettings then
+		(getgenv()).SaveConfig();
+	end;
+end;
+
+-- Enhanced configuration system
 (getgenv()).LoadConfig = function()
 	if readfile and writefile and isfile and isfolder then
 		if not isfolder("Xenon") then
@@ -614,6 +633,9 @@ local SettingsLib = {
 		end;
 		if not isfolder("Xenon/Library/") then
 			makefolder("Xenon/Library/");
+		end;
+		if not isfolder("Xenon/Configs/") then
+			makefolder("Xenon/Configs/");
 		end;
 		if not isfile(("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json")) then
 			writefile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json", (game:GetService("HttpService")):JSONEncode(SettingsLib));
@@ -632,7 +654,7 @@ end;
 (getgenv()).SaveConfig = function()
 	if readfile and writefile and isfile and isfolder then
 		if not isfile(("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json")) then
-			(getgenv()).Load();
+			(getgenv()).LoadConfig();
 		else
 			local Decode = (game:GetService("HttpService")):JSONDecode(readfile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json"));
 			local Array = {};
@@ -646,7 +668,73 @@ end;
 	end;
 end;
 
+-- Save specific feature configuration
+(getgenv()).SaveFeatureConfig = function(configName)
+	if readfile and writefile and isfile and isfolder then
+		if not isfolder("Xenon/Configs/") then
+			makefolder("Xenon/Configs/");
+		end;
+		local configPath = "Xenon/Configs/" .. configName .. ".json";
+		writefile(configPath, (game:GetService("HttpService")):JSONEncode(SettingsLib.FeatureSettings));
+		return true;
+	else
+		return false;
+	end;
+end;
+
+-- Load specific feature configuration
+(getgenv()).LoadFeatureConfig = function(configName)
+	if readfile and writefile and isfile and isfolder then
+		local configPath = "Xenon/Configs/" .. configName .. ".json";
+		if isfile(configPath) then
+			local Decode = (game:GetService("HttpService")):JSONDecode(readfile(configPath));
+			SettingsLib.FeatureSettings = Decode;
+			return true;
+		end;
+	end;
+	return false;
+end;
+
+-- Delete specific feature configuration
+(getgenv()).DeleteFeatureConfig = function(configName)
+	if readfile and writefile and isfile and isfolder then
+		local configPath = "Xenon/Configs/" .. configName .. ".json";
+		if isfile(configPath) then
+			delfile(configPath);
+			return true;
+		end;
+	end;
+	return false;
+end;
+
+-- Get list of saved configurations
+(getgenv()).GetSavedConfigs = function()
+	if readfile and writefile and isfile and isfolder then
+		if isfolder("Xenon/Configs/") then
+			local configs = {};
+			local files = listfiles("Xenon/Configs/");
+			for _, file in pairs(files) do
+				if string.find(file, ".json") then
+					local configName = string.gsub(file, "Xenon/Configs/", "");
+					configName = string.gsub(configName, ".json", "");
+					table.insert(configs, configName);
+				end;
+			end;
+			return configs;
+		end;
+	end;
+	return {};
+end;
+
 (getgenv()).LoadConfig();
+
+-- Auto Load on Start
+if SettingsLib.AutoLoadOnStart then
+	local configs = (getgenv()).GetSavedConfigs();
+	if #configs > 0 then
+		(getgenv()).LoadFeatureConfig(configs[1]); -- Load first available config
+	end;
+end;
 
 function Update:SaveSettings()
 	if SettingsLib.SaveSettings then
@@ -1173,21 +1261,167 @@ function Update:Window(Config)
 		end);
 	end;
 	
-	CreateCheckbox("Save Settings", SettingsLib.SaveSettings, function(state)
+	-- Configuration name input
+	function CreateConfigInput(title, placeholder, callback)
+		local Background = Instance.new("Frame");
+		Background.Name = "Background";
+		Background.Parent = ScrollSettings;
+		Background.ClipsDescendants = true;
+		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
+		Background.BackgroundTransparency = 1;
+		Background.Size = UDim2.new(1, 0, 0, 35);
+		
+		local Title = Instance.new("TextLabel");
+		Title.Name = "Title";
+		Title.Parent = Background;
+		Title.BackgroundTransparency = 1;
+		Title.Position = UDim2.new(0, 30, 0, 5);
+		Title.Size = UDim2.new(0.4, 0, 0, 20);
+		Title.Font = Enum.Font.Code;
+		Title.Text = title;
+		Title.TextColor3 = Color3.fromRGB(200, 200, 200);
+		Title.TextSize = 14;
+		Title.TextXAlignment = Enum.TextXAlignment.Left;
+		
+		local TextBox = Instance.new("TextBox");
+		TextBox.Name = "TextBox";
+		TextBox.Parent = Background;
+		TextBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
+		TextBox.Position = UDim2.new(0.5, 0, 0, 5);
+		TextBox.Size = UDim2.new(0.45, 0, 0, 25);
+		TextBox.Font = Enum.Font.Gotham;
+		TextBox.PlaceholderText = placeholder;
+		TextBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120);
+		TextBox.Text = "";
+		TextBox.TextColor3 = Color3.fromRGB(255, 255, 255);
+		TextBox.TextSize = 12;
+		TextBox.TextXAlignment = Enum.TextXAlignment.Center;
+		CreateRounded(TextBox, 5);
+		CreateStroke(TextBox, Color3.fromRGB(60, 60, 65), 1);
+		
+		TextBox.FocusLost:Connect(function(enterPressed)
+			if enterPressed and TextBox.Text ~= "" then
+				callback(TextBox.Text);
+				TextBox.Text = "";
+			end;
+		end);
+		
+		return TextBox;
+	end;
+	
+	-- Configuration dropdown
+	function CreateConfigDropdown(title, callback)
+		local configs = (getgenv()).GetSavedConfigs();
+		
+		local Background = Instance.new("Frame");
+		Background.Name = "Background";
+		Background.Parent = ScrollSettings;
+		Background.ClipsDescendants = true;
+		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
+		Background.BackgroundTransparency = 1;
+		Background.Size = UDim2.new(1, 0, 0, 35);
+		
+		local Title = Instance.new("TextLabel");
+		Title.Name = "Title";
+		Title.Parent = Background;
+		Title.BackgroundTransparency = 1;
+		Title.Position = UDim2.new(0, 30, 0, 5);
+		Title.Size = UDim2.new(0.4, 0, 0, 20);
+		Title.Font = Enum.Font.Code;
+		Title.Text = title;
+		Title.TextColor3 = Color3.fromRGB(200, 200, 200);
+		Title.TextSize = 14;
+		Title.TextXAlignment = Enum.TextXAlignment.Left;
+		
+		local Dropdown = Instance.new("TextButton");
+		Dropdown.Name = "Dropdown";
+		Dropdown.Parent = Background;
+		Dropdown.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
+		Dropdown.Position = UDim2.new(0.5, 0, 0, 5);
+		Dropdown.Size = UDim2.new(0.45, 0, 0, 25);
+		Dropdown.Font = Enum.Font.Gotham;
+		Dropdown.Text = #configs > 0 and configs[1] or "No configs";
+		Dropdown.TextColor3 = Color3.fromRGB(255, 255, 255);
+		Dropdown.TextSize = 12;
+		Dropdown.AutoButtonColor = false;
+		CreateRounded(Dropdown, 5);
+		CreateStroke(Dropdown, Color3.fromRGB(60, 60, 65), 1);
+		
+		local selectedConfig = #configs > 0 and configs[1] or nil;
+		
+		Dropdown.MouseButton1Click:Connect(function()
+			if selectedConfig then
+				callback(selectedConfig);
+			end;
+		end);
+		
+		return {
+			Update = function()
+				configs = (getgenv()).GetSavedConfigs();
+				selectedConfig = #configs > 0 and configs[1] or nil;
+				Dropdown.Text = selectedConfig or "No configs";
+			end
+		};
+	end;
+	
+	-- Enhanced Settings with new features
+	CreateCheckbox("Auto Save Settings", SettingsLib.SaveSettings, function(state)
 		SettingsLib.SaveSettings = state;
-		(getgenv()).SaveConfig();
+		AutoSaveSettings();
 	end);
 	
 	CreateCheckbox("Loading Animation", SettingsLib.LoadAnimation, function(state)
 		SettingsLib.LoadAnimation = state;
-		(getgenv()).SaveConfig();
+		AutoSaveSettings();
 	end);
 	
-	CreateButton("Reset Config", function()
+	CreateCheckbox("Auto Load on Start", SettingsLib.AutoLoadOnStart, function(state)
+		SettingsLib.AutoLoadOnStart = state;
+		AutoSaveSettings();
+	end);
+	
+	-- Configuration management
+	local configInput = CreateConfigInput("Config Name:", "Enter config name...", function(configName)
+		if (getgenv()).SaveFeatureConfig(configName) then
+			Update:Notify("Configuration '" .. configName .. "' saved successfully!");
+		else
+			Update:Notify("Failed to save configuration!");
+		end;
+	end);
+	
+	local configDropdown = CreateConfigDropdown("Load Config:", function(configName)
+		if (getgenv()).LoadFeatureConfig(configName) then
+			Update:Notify("Configuration '" .. configName .. "' loaded successfully!");
+		else
+			Update:Notify("Failed to load configuration!");
+		end;
+	end);
+	
+	CreateButton("Delete Selected Config", function()
+		local configs = (getgenv()).GetSavedConfigs();
+		if #configs > 0 then
+			if (getgenv()).DeleteFeatureConfig(configs[1]) then
+				Update:Notify("Configuration deleted successfully!");
+				configDropdown.Update();
+			else
+				Update:Notify("Failed to delete configuration!");
+			end;
+		else
+			Update:Notify("No configurations to delete!");
+		end;
+	end);
+	
+	CreateButton("Reset All Settings", function()
 		if isfolder("Xenon") then
 			delfolder("Xenon");
 		end;
-		Update:Notify("Config has been reseted!");
+		SettingsLib = {
+			SaveSettings = true,
+			LoadAnimation = true,
+			AutoLoadOnStart = true,
+			FeatureSettings = {}
+		};
+		Update:Notify("All settings have been reset!");
 	end);
 	
 	-- Enhanced Tab System with better visual feedback
@@ -1651,6 +1885,12 @@ function Update:Window(Config)
 		function main:Toggle(text, config, desc, callback)
 			config = config or false;
 			local toggled = config;
+			local featureKey = text .. "_toggle";
+			
+			-- Load from saved settings
+			if SettingsLib.FeatureSettings[featureKey] ~= nil then
+				toggled = SettingsLib.FeatureSettings[featureKey];
+			end;
 			
 			local UICorner = Instance.new("UICorner");
 			local TogglePadding = Instance.new("UIPadding");
@@ -1787,11 +2027,15 @@ function Update:Window(Config)
 						BackgroundTransparency = 0.8
 					})):Play();
 				end;
+				
+				-- Auto Save Settings
+				SettingsLib.FeatureSettings[featureKey] = toggled;
+				AutoSaveSettings();
+				
 				pcall(callback, toggled);
 			end);
 			
-			if config == true then
-				toggled = true;
+			if toggled == true then
 				Circle:TweenPosition(UDim2.new(0, 17, 0.5, 0), "Out", "Sine", 0.4, true);
 				(TweenService:Create(ToggleImage, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundColor3 = _G.Third,
@@ -1809,6 +2053,16 @@ function Update:Window(Config)
 			local filteredOptions = {};
 			local searchText = "";
 			local activeItem = var;
+			local featureKey = text .. "_dropdown";
+			
+			-- Load from saved settings
+			if SettingsLib.FeatureSettings[featureKey] ~= nil then
+				if multiSelect then
+					selectedItems = SettingsLib.FeatureSettings[featureKey];
+				else
+					activeItem = SettingsLib.FeatureSettings[featureKey];
+				end;
+			end;
 			
 			-- Initialize filtered options
 			for i, v in pairs(option) do
@@ -2002,6 +2256,8 @@ function Update:Window(Config)
 					end;
 					updateDropdownItems();
 					updateSelectionDisplay();
+					SettingsLib.FeatureSettings[featureKey] = selectedItems;
+					AutoSaveSettings();
 					pcall(callback, selectedItems);
 				end);
 				
@@ -2009,6 +2265,8 @@ function Update:Window(Config)
 					selectedItems = {};
 					updateDropdownItems();
 					updateSelectionDisplay();
+					SettingsLib.FeatureSettings[featureKey] = selectedItems;
+					AutoSaveSettings();
 					pcall(callback, selectedItems);
 				end);
 			end;
@@ -2046,6 +2304,7 @@ function Update:Window(Config)
 						SelectItems.Text = "   Select Items";
 					elseif count == 1 then
 						SelectItems.Text = "   " .. selectedItems[1];
+					
 					else
 						SelectItems.Text = "   " .. count .. " items selected";
 					end;
@@ -2253,12 +2512,16 @@ function Update:Window(Config)
 							end;
 							
 							updateSelectionDisplay();
+							SettingsLib.FeatureSettings[featureKey] = selectedItems;
+							AutoSaveSettings();
 							pcall(callback, selectedItems);
 						else
 							-- Single select logic
 							activeItem = optionValue;
 							updateSelectionDisplay();
 							updateDropdownItems();
+							SettingsLib.FeatureSettings[featureKey] = activeItem;
+							AutoSaveSettings();
 							pcall(callback, optionValue);
 						end;
 					end);
@@ -2269,10 +2532,10 @@ function Update:Window(Config)
 			end;
 			
 			-- Search functionality
-SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-	searchText = SearchBox.Text;
-	updateDropdownItems();
-end);
+			SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+				searchText = SearchBox.Text;
+				updateDropdownItems();
+			end);
 			
 			-- Search box focus effects
 			SearchBox.Focused:Connect(function()
@@ -2454,6 +2717,14 @@ end);
 		end;
 		
 		function main:Slider(text, min, max, set, callback)
+			local featureKey = text .. "_slider";
+			local Value = set;
+			
+			-- Load from saved settings
+			if SettingsLib.FeatureSettings[featureKey] ~= nil then
+				Value = SettingsLib.FeatureSettings[featureKey];
+			end;
+			
 			local Slider = Instance.new("Frame");
 			local slidercorner = Instance.new("UICorner");
 			local sliderr = Instance.new("Frame");
@@ -2516,7 +2787,7 @@ end);
 			ValueText.Position = UDim2.new(0, -38, 0.5, 0);
 			ValueText.Size = UDim2.new(0, 30, 0, 30);
 			ValueText.Font = Enum.Font.GothamMedium;
-			ValueText.Text = set;
+			ValueText.Text = Value;
 			ValueText.AnchorPoint = Vector2.new(0, 0.5);
 			ValueText.TextColor3 = Color3.fromRGB(255, 255, 255);
 			ValueText.TextSize = 12;
@@ -2535,7 +2806,7 @@ end);
 			bar1.Parent = bar;
 			bar1.BackgroundColor3 = _G.Third;
 			bar1.BackgroundTransparency = 0;
-			bar1.Size = UDim2.new(set / max, 0, 0, 4);
+			bar1.Size = UDim2.new(Value / max, 0, 0, 4);
 			
 			-- Add gradient to slider bar
 			local SliderGradient = CreateGradient(bar1, ColorSequence.new({
@@ -2633,11 +2904,17 @@ end);
 					ValueText.Text = Value;
 					bar1.Size = UDim2.new(0, math.clamp(Input.Position.X - bar1.AbsolutePosition.X, 0, 100), 0, 4);
 					circlebar.Position = UDim2.new(0, math.clamp(Input.Position.X - bar1.AbsolutePosition.X - 5, 0, 100), 0, -5);
+					
+					-- Auto Save Settings
+					SettingsLib.FeatureSettings[featureKey] = Value;
+					AutoSaveSettings();
 				end;
 			end);
 		end;
 		
 		function main:Textbox(text, disappear, callback)
+			local featureKey = text .. "_textbox";
+			
 			local Textbox = Instance.new("Frame");
 			local TextboxCorner = Instance.new("UICorner");
 			local TextboxLabel = Instance.new("TextLabel");
@@ -2685,6 +2962,11 @@ end);
 			RealTextbox.ClipsDescendants = true;
 			CreateStroke(RealTextbox, Color3.fromRGB(60, 60, 65), 1);
 			
+			-- Load from saved settings
+			if SettingsLib.FeatureSettings[featureKey] ~= nil then
+				RealTextbox.Text = SettingsLib.FeatureSettings[featureKey];
+			end;
+			
 			-- Enhanced textbox hover effects with glow
 			RealTextbox.MouseEnter:Connect(function()
 				TweenService:Create(RealTextbox, TweenInfo.new(0.2, Enum.EasingStyle.Back), {
@@ -2710,6 +2992,11 @@ end);
 				TweenService:Create(RealTextbox, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
 					BackgroundColor3 = Color3.fromRGB(200, 200, 200)
 				}):Play();
+				
+				-- Auto Save Settings
+				SettingsLib.FeatureSettings[featureKey] = RealTextbox.Text;
+				AutoSaveSettings();
+				
 				callback(RealTextbox.Text);
 			end);
 			
