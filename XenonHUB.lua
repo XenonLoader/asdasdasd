@@ -1757,8 +1757,18 @@ function Update:Window(Config)
 			end;
 		end;
 		
-		function main:Dropdown(text, option, var, callback)
+		-- ENHANCED DROPDOWN WITH SEARCH AND MULTI-SELECT
+		function main:Dropdown(text, option, var, callback, multiSelect)
+			multiSelect = multiSelect or false;
 			local isdropping = false;
+			local selectedItems = {};
+			local filteredOptions = {};
+			local searchText = "";
+			
+			-- Copy all options to filtered list initially
+			for i, v in pairs(option) do
+				table.insert(filteredOptions, v);
+			end;
 			
 			local Dropdown = Instance.new("Frame");
 			local DropdownFrameScroll = Instance.new("Frame");
@@ -1775,6 +1785,41 @@ function Update:Window(Config)
 			local SelectItems = Instance.new("TextButton");
 			local DropImage = Instance.new("ImageLabel");
 			local UIStroke = Instance.new("UIStroke");
+			
+			-- Search Box
+			local SearchBox = Instance.new("TextBox");
+			SearchBox.Name = "SearchBox";
+			SearchBox.Parent = nil; -- Will be parented later
+			SearchBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
+			SearchBox.BackgroundTransparency = 0;
+			SearchBox.Position = UDim2.new(0, 5, 0, 5);
+			SearchBox.Size = UDim2.new(1, -10, 0, 25);
+			SearchBox.Font = Enum.Font.Gotham;
+			SearchBox.PlaceholderText = "Search items...";
+			SearchBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150);
+			SearchBox.Text = "";
+			SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255);
+			SearchBox.TextSize = 12;
+			SearchBox.TextXAlignment = Enum.TextXAlignment.Left;
+			CreateRounded(SearchBox, 5);
+			CreateStroke(SearchBox, Color3.fromRGB(60, 60, 65), 1);
+			
+			-- Search Icon
+			local SearchIcon = Instance.new("ImageLabel");
+			SearchIcon.Name = "SearchIcon";
+			SearchIcon.Parent = SearchBox;
+			SearchIcon.BackgroundTransparency = 1;
+			SearchIcon.Position = UDim2.new(1, -20, 0.5, 0);
+			SearchIcon.Size = UDim2.new(0, 15, 0, 15);
+			SearchIcon.AnchorPoint = Vector2.new(0.5, 0.5);
+			SearchIcon.Image = "rbxassetid://10709761530";
+			SearchIcon.ImageColor3 = Color3.fromRGB(150, 150, 150);
+			
+			-- Add padding to search box text
+			local SearchPadding = Instance.new("UIPadding");
+			SearchPadding.Parent = SearchBox;
+			SearchPadding.PaddingLeft = UDim.new(0, 8);
+			SearchPadding.PaddingRight = UDim.new(0, 25);
 			
 			Dropdown.Name = "Dropdown";
 			Dropdown.Parent = MainFramePage;
@@ -1805,16 +1850,32 @@ function Update:Window(Config)
 			SelectItems.TextColor3 = Color3.fromRGB(255, 255, 255);
 			SelectItems.BackgroundTransparency = 0;
 			SelectItems.Position = UDim2.new(1, -5, 0, 5);
-			SelectItems.Size = UDim2.new(0, 100, 0, 30);
+			SelectItems.Size = UDim2.new(0, 120, 0, 30);
 			SelectItems.AnchorPoint = Vector2.new(1, 0);
 			SelectItems.Font = Enum.Font.GothamMedium;
 			SelectItems.AutoButtonColor = false;
 			SelectItems.TextSize = 9;
 			SelectItems.ZIndex = 1;
 			SelectItems.ClipsDescendants = true;
-			SelectItems.Text = "   Select Items";
+			SelectItems.Text = multiSelect and "   Select Items" or "   Select Item";
 			SelectItems.TextXAlignment = Enum.TextXAlignment.Left;
 			CreateStroke(SelectItems, Color3.fromRGB(60, 60, 65), 1);
+			
+			-- Multi-select indicator
+			local MultiSelectIndicator = Instance.new("TextLabel");
+			if multiSelect then
+				MultiSelectIndicator.Name = "MultiSelectIndicator";
+				MultiSelectIndicator.Parent = Dropdown;
+				MultiSelectIndicator.BackgroundTransparency = 1;
+				MultiSelectIndicator.Position = UDim2.new(1, -135, 0, 8);
+				MultiSelectIndicator.Size = UDim2.new(0, 20, 0, 20);
+				MultiSelectIndicator.Font = Enum.Font.GothamBold;
+				MultiSelectIndicator.Text = "M";
+				MultiSelectIndicator.TextColor3 = _G.Accent;
+				MultiSelectIndicator.TextSize = 10;
+				MultiSelectIndicator.TextStrokeTransparency = 0.8;
+				MultiSelectIndicator.TextStrokeColor3 = _G.Accent;
+			end;
 			
 			local ArrowDown = Instance.new("ImageLabel");
 			ArrowDown.Name = "ArrowDown";
@@ -1822,7 +1883,7 @@ function Update:Window(Config)
 			ArrowDown.BackgroundColor3 = _G.Primary;
 			ArrowDown.BackgroundTransparency = 1;
 			ArrowDown.AnchorPoint = Vector2.new(1, 0);
-			ArrowDown.Position = UDim2.new(1, -110, 0, 10);
+			ArrowDown.Position = UDim2.new(1, -130, 0, 10);
 			ArrowDown.Size = UDim2.new(0, 20, 0, 20);
 			ArrowDown.Image = "rbxassetid://10709790948";
 			ArrowDown.ImageTransparency = 0;
@@ -1835,7 +1896,7 @@ function Update:Window(Config)
 			SelectItems.MouseEnter:Connect(function()
 				TweenService:Create(SelectItems, TweenInfo.new(0.2, Enum.EasingStyle.Back), {
 					BackgroundColor3 = Color3.fromRGB(34, 34, 36),
-					Size = UDim2.new(0, 102, 0, 32)
+					Size = UDim2.new(0, 122, 0, 32)
 				}):Play();
 				TweenService:Create(ArrowDown, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
 					ImageColor3 = _G.Third
@@ -1845,7 +1906,7 @@ function Update:Window(Config)
 			SelectItems.MouseLeave:Connect(function()
 				TweenService:Create(SelectItems, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
 					BackgroundColor3 = Color3.fromRGB(24, 24, 26),
-					Size = UDim2.new(0, 100, 0, 30)
+					Size = UDim2.new(0, 120, 0, 30)
 				}):Play();
 				TweenService:Create(ArrowDown, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
 					ImageColor3 = Color3.fromRGB(255, 255, 255)
@@ -1869,13 +1930,16 @@ function Update:Window(Config)
 			DropdownFrameScroll.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
 			DropdownFrameScroll.BackgroundTransparency = 0;
 			DropdownFrameScroll.ClipsDescendants = true;
-			DropdownFrameScroll.Size = UDim2.new(1, 0, 0, 100);
+			DropdownFrameScroll.Size = UDim2.new(1, 0, 0, 130);
 			DropdownFrameScroll.Position = UDim2.new(0, 5, 0, 40);
 			DropdownFrameScroll.Visible = false;
 			DropdownFrameScroll.AnchorPoint = Vector2.new(0, 0);
 			UICorner_4.Parent = DropdownFrameScroll;
 			UICorner_4.CornerRadius = UDim.new(0, 5);
 			CreateStroke(DropdownFrameScroll, Color3.fromRGB(60, 60, 65), 1);
+			
+			-- Parent search box to dropdown frame
+			SearchBox.Parent = DropdownFrameScroll;
 			
 			DropScroll.Name = "DropScroll";
 			DropScroll.Parent = DropdownFrameScroll;
@@ -1884,8 +1948,8 @@ function Update:Window(Config)
 			DropScroll.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			DropScroll.BackgroundTransparency = 1;
 			DropScroll.BorderSizePixel = 0;
-			DropScroll.Position = UDim2.new(0, 0, 0, 10);
-			DropScroll.Size = UDim2.new(1, 0, 0, 80);
+			DropScroll.Position = UDim2.new(0, 0, 0, 35);
+			DropScroll.Size = UDim2.new(1, 0, 0, 90);
 			DropScroll.AnchorPoint = Vector2.new(0, 0);
 			DropScroll.ClipsDescendants = true;
 			DropScroll.ScrollBarThickness = 3;
@@ -1904,131 +1968,329 @@ function Update:Window(Config)
 			UIPadding.Parent = DropScroll;
 			UIPadding.PaddingLeft = UDim.new(0, 5);
 			
-			for i, v in next, option do
-				local Item = Instance.new("TextButton");
-				local CRNRitems = Instance.new("UICorner");
-				local UICorner_5 = Instance.new("UICorner");
-				local ItemPadding = Instance.new("UIPadding");
+			-- Clear All Button (for multi-select)
+			local ClearAllButton = nil;
+			if multiSelect then
+				ClearAllButton = Instance.new("TextButton");
+				ClearAllButton.Name = "ClearAllButton";
+				ClearAllButton.Parent = DropdownFrameScroll;
+				ClearAllButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50);
+				ClearAllButton.BackgroundTransparency = 0.2;
+				ClearAllButton.Position = UDim2.new(1, -60, 0, 5);
+				ClearAllButton.Size = UDim2.new(0, 50, 0, 25);
+				ClearAllButton.Font = Enum.Font.GothamBold;
+				ClearAllButton.Text = "Clear";
+				ClearAllButton.TextColor3 = Color3.fromRGB(255, 255, 255);
+				ClearAllButton.TextSize = 10;
+				ClearAllButton.AutoButtonColor = false;
+				CreateRounded(ClearAllButton, 5);
 				
-				Item.Name = "Item";
-				Item.Parent = DropScroll;
-				Item.BackgroundColor3 = _G.Primary;
-				Item.BackgroundTransparency = 1;
-				Item.Size = UDim2.new(1, 0, 0, 30);
-				Item.Font = Enum.Font.Nunito;
-				Item.Text = tostring(v);
-				Item.TextColor3 = Color3.fromRGB(255, 255, 255);
-				Item.TextSize = 13;
-				Item.TextTransparency = 0.5;
-				Item.TextXAlignment = Enum.TextXAlignment.Left;
-				Item.ZIndex = 4;
-				
-				ItemPadding.Parent = Item;
-				ItemPadding.PaddingLeft = UDim.new(0, 8);
-				
-				UICorner_5.Parent = Item;
-				UICorner_5.CornerRadius = UDim.new(0, 5);
-				
-				local SelectedItems = Instance.new("Frame");
-				SelectedItems.Name = "SelectedItems";
-				SelectedItems.Parent = Item;
-				SelectedItems.BackgroundColor3 = _G.Third;
-				SelectedItems.BackgroundTransparency = 1;
-				SelectedItems.Size = UDim2.new(0, 3, 0.4, 0);
-				SelectedItems.Position = UDim2.new(0, -8, 0.5, 0);
-				SelectedItems.AnchorPoint = Vector2.new(0, 0.5);
-				SelectedItems.ZIndex = 4;
-				
-				CRNRitems.Parent = SelectedItems;
-				CRNRitems.CornerRadius = UDim.new(0, 999);
-				
-				-- Enhanced dropdown item hover effects with slide animation
-				Item.MouseEnter:Connect(function()
-					TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-						BackgroundTransparency = 0.8,
-						TextTransparency = 0.2
-					}):Play();
-					TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-						Position = UDim2.new(0, 2, 0, Item.Position.Y.Offset)
-					}):Play();
-				end);
-				
-				Item.MouseLeave:Connect(function()
-					if activeItem ~= Item.Text then
-						TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-							BackgroundTransparency = 1,
-							TextTransparency = 0.5
-						}):Play();
-					end;
-					TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-						Position = UDim2.new(0, 0, 0, Item.Position.Y.Offset)
-					}):Play();
-				end);
-				
-				if var then
-					pcall(callback, var);
-					SelectItems.Text = "   " .. var;
-					activeItem = tostring(var);
-					for i, v in next, DropScroll:GetChildren() do
-						if v:IsA("TextButton") then
+				ClearAllButton.MouseButton1Click:Connect(function()
+					selectedItems = {};
+					SelectItems.Text = "   Select Items";
+					-- Update all items to show unselected state
+					for i, v in pairs(DropScroll:GetChildren()) do
+						if v:IsA("TextButton") and v.Name == "Item" then
 							local SelectedItems = v:FindFirstChild("SelectedItems");
-							if activeItem == v.Text then
-								v.BackgroundTransparency = 0.8;
-								v.TextTransparency = 0;
-								if SelectedItems then
-									SelectedItems.BackgroundTransparency = 0;
-								end;
+							local CheckIcon = v:FindFirstChild("CheckIcon");
+							if SelectedItems then
+								SelectedItems.BackgroundTransparency = 1;
 							end;
+							if CheckIcon then
+								CheckIcon.ImageTransparency = 1;
+							end;
+							v.BackgroundTransparency = 1;
+							v.TextTransparency = 0.5;
 						end;
 					end;
-				end;
-				
-				Item.MouseButton1Click:Connect(function()
-					SelectItems.ClipsDescendants = true;
-					callback(Item.Text);
-					activeItem = Item.Text;
-					for i, v in next, DropScroll:GetChildren() do
-						if v:IsA("TextButton") then
-							local SelectedItems = v:FindFirstChild("SelectedItems");
-							if activeItem == v.Text then
-								v.BackgroundTransparency = 0.8;
-								v.TextTransparency = 0;
-								if SelectedItems then
-									SelectedItems.BackgroundTransparency = 0;		
-								end;
-							else
-								v.BackgroundTransparency = 1;
-								v.TextTransparency = 0.5;
-								if SelectedItems then
-									SelectedItems.BackgroundTransparency = 1;
-								end;
-							end;
-						end;
-					end;
-					SelectItems.Text = "   " .. Item.Text;
+					pcall(callback, selectedItems);
 				end);
 			end;
 			
-			DropScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y);
+			-- Function to filter and update dropdown items
+			local function updateDropdownItems()
+				-- Clear existing items
+				for i, v in pairs(DropScroll:GetChildren()) do
+					if v:IsA("TextButton") and v.Name == "Item" then
+						v:Destroy();
+					end;
+				end;
+				
+				-- Filter options based on search text
+				filteredOptions = {};
+				for i, v in pairs(option) do
+					if searchText == "" or string.find(string.lower(tostring(v)), string.lower(searchText)) then
+						table.insert(filteredOptions, v);
+					end;
+				end;
+				
+				-- Create filtered items
+				for i, v in pairs(filteredOptions) do
+					local Item = Instance.new("TextButton");
+					local CRNRitems = Instance.new("UICorner");
+					local UICorner_5 = Instance.new("UICorner");
+					local ItemPadding = Instance.new("UIPadding");
+					
+					Item.Name = "Item";
+					Item.Parent = DropScroll;
+					Item.BackgroundColor3 = _G.Primary;
+					Item.BackgroundTransparency = 1;
+					Item.Size = UDim2.new(1, 0, 0, 30);
+					Item.Font = Enum.Font.Nunito;
+					Item.Text = tostring(v);
+					Item.TextColor3 = Color3.fromRGB(255, 255, 255);
+					Item.TextSize = 13;
+					Item.TextTransparency = 0.5;
+					Item.TextXAlignment = Enum.TextXAlignment.Left;
+					Item.ZIndex = 4;
+					
+					ItemPadding.Parent = Item;
+					ItemPadding.PaddingLeft = UDim.new(0, multiSelect and 35 or 8);
+					
+					UICorner_5.Parent = Item;
+					UICorner_5.CornerRadius = UDim.new(0, 5);
+					
+					local SelectedItems = Instance.new("Frame");
+					SelectedItems.Name = "SelectedItems";
+					SelectedItems.Parent = Item;
+					SelectedItems.BackgroundColor3 = _G.Third;
+					SelectedItems.BackgroundTransparency = 1;
+					SelectedItems.Size = UDim2.new(0, 3, 0.4, 0);
+					SelectedItems.Position = UDim2.new(0, -8, 0.5, 0);
+					SelectedItems.AnchorPoint = Vector2.new(0, 0.5);
+					SelectedItems.ZIndex = 4;
+					
+					CRNRitems.Parent = SelectedItems;
+					CRNRitems.CornerRadius = UDim.new(0, 999);
+					
+					-- Multi-select checkbox
+					local CheckIcon = nil;
+					if multiSelect then
+						CheckIcon = Instance.new("ImageLabel");
+						CheckIcon.Name = "CheckIcon";
+						CheckIcon.Parent = Item;
+						CheckIcon.BackgroundTransparency = 1;
+						CheckIcon.Position = UDim2.new(0, 8, 0.5, 0);
+						CheckIcon.Size = UDim2.new(0, 15, 0, 15);
+						CheckIcon.AnchorPoint = Vector2.new(0, 0.5);
+						CheckIcon.Image = "rbxassetid://10709790644";
+						CheckIcon.ImageColor3 = _G.Third;
+						CheckIcon.ImageTransparency = 1;
+						CheckIcon.ZIndex = 4;
+					end;
+					
+					-- Enhanced dropdown item hover effects with slide animation
+					Item.MouseEnter:Connect(function()
+						TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+							BackgroundTransparency = 0.8,
+							TextTransparency = 0.2
+						}):Play();
+						TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+							Position = UDim2.new(0, 2, 0, Item.Position.Y.Offset)
+						}):Play();
+					end);
+					
+					Item.MouseLeave:Connect(function()
+						local isSelected = false;
+						if multiSelect then
+							for _, selected in pairs(selectedItems) do
+								if selected == Item.Text then
+									isSelected = true;
+									break;
+								end;
+							end;
+						else
+							isSelected = (activeItem == Item.Text);
+						end;
+						
+						if not isSelected then
+							TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+								BackgroundTransparency = 1,
+								TextTransparency = 0.5
+							}):Play();
+						end;
+						TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+							Position = UDim2.new(0, 0, 0, Item.Position.Y.Offset)
+						}):Play();
+					end);
+					
+					-- Check if item is already selected
+					local isSelected = false;
+					if multiSelect then
+						for _, selected in pairs(selectedItems) do
+							if selected == tostring(v) then
+								isSelected = true;
+								break;
+							end;
+						end;
+					else
+						isSelected = (var and tostring(var) == tostring(v));
+					end;
+					
+					if isSelected then
+						Item.BackgroundTransparency = 0.8;
+						Item.TextTransparency = 0;
+						if SelectedItems then
+							SelectedItems.BackgroundTransparency = 0;
+						end;
+						if CheckIcon then
+							CheckIcon.ImageTransparency = 0;
+						end;
+					end;
+					
+					Item.MouseButton1Click:Connect(function()
+						if multiSelect then
+							-- Multi-select logic
+							local itemText = Item.Text;
+							local isCurrentlySelected = false;
+							local selectedIndex = 0;
+							
+							for i, selected in pairs(selectedItems) do
+								if selected == itemText then
+									isCurrentlySelected = true;
+									selectedIndex = i;
+									break;
+								end;
+							end;
+							
+							if isCurrentlySelected then
+								-- Remove from selection
+								table.remove(selectedItems, selectedIndex);
+								Item.BackgroundTransparency = 1;
+								Item.TextTransparency = 0.5;
+								if SelectedItems then
+									SelectedItems.BackgroundTransparency = 1;
+								end;
+								if CheckIcon then
+									CheckIcon.ImageTransparency = 1;
+								end;
+							else
+								-- Add to selection
+								table.insert(selectedItems, itemText);
+								Item.BackgroundTransparency = 0.8;
+								Item.TextTransparency = 0;
+								if SelectedItems then
+									SelectedItems.BackgroundTransparency = 0;
+								end;
+								if CheckIcon then
+									CheckIcon.ImageTransparency = 0;
+								end;
+							end;
+							
+							-- Update display text
+							if #selectedItems == 0 then
+								SelectItems.Text = "   Select Items";
+							elseif #selectedItems == 1 then
+								SelectItems.Text = "   " .. selectedItems[1];
+							else
+								SelectItems.Text = "   " .. #selectedItems .. " items selected";
+							end;
+							
+							pcall(callback, selectedItems);
+						else
+							-- Single select logic
+							SelectItems.ClipsDescendants = true;
+							callback(Item.Text);
+							activeItem = Item.Text;
+							for i, v in next, DropScroll:GetChildren() do
+								if v:IsA("TextButton") and v.Name == "Item" then
+									local SelectedItems = v:FindFirstChild("SelectedItems");
+									if activeItem == v.Text then
+										v.BackgroundTransparency = 0.8;
+										v.TextTransparency = 0;
+										if SelectedItems then
+											SelectedItems.BackgroundTransparency = 0;		
+										end;
+									else
+										v.BackgroundTransparency = 1;
+										v.TextTransparency = 0.5;
+										if SelectedItems then
+											SelectedItems.BackgroundTransparency = 1;
+										end;
+									end;
+								end;
+							end;
+							SelectItems.Text = "   " .. Item.Text;
+						end;
+					end);
+				end;
+				
+				DropScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y);
+			end;
+			
+			-- Search functionality
+			SearchBox.Changed:Connect(function(property)
+				if property == "Text" then
+					searchText = SearchBox.Text;
+					updateDropdownItems();
+				end;
+			end);
+			
+			-- Enhanced search box effects
+			SearchBox.Focused:Connect(function()
+				TweenService:Create(SearchBox, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+					BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+				}):Play();
+				TweenService:Create(SearchIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+					ImageColor3 = _G.Third
+				}):Play();
+			end);
+			
+			SearchBox.FocusLost:Connect(function()
+				TweenService:Create(SearchBox, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+					BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+				}):Play();
+				TweenService:Create(SearchIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+					ImageColor3 = Color3.fromRGB(150, 150, 150)
+				}):Play();
+			end);
+			
+			-- Initialize dropdown with all items
+			updateDropdownItems();
+			
+			-- Set initial value if provided
+			if var then
+				if multiSelect then
+					if type(var) == "table" then
+						selectedItems = var;
+						if #selectedItems == 0 then
+							SelectItems.Text = "   Select Items";
+						elseif #selectedItems == 1 then
+							SelectItems.Text = "   " .. selectedItems[1];
+						else
+							SelectItems.Text = "   " .. #selectedItems .. " items selected";
+						end;
+					else
+						selectedItems = {tostring(var)};
+						SelectItems.Text = "   " .. tostring(var);
+					end;
+				else
+					pcall(callback, var);
+					SelectItems.Text = "   " .. var;
+					activeItem = tostring(var);
+				end;
+				updateDropdownItems(); -- Refresh to show selected state
+			end;
 			
 			SelectItems.MouseButton1Click:Connect(function()
 				if isdropping == false then
 					isdropping = true;
+					DropdownFrameScroll.Visible = true;
 					(TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, -10, 0, 100),
-						Visible = true
+						Size = UDim2.new(1, -10, 0, 130)
 					})):Play();
 					(TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, 145)
+						Size = UDim2.new(1, 0, 0, 175)
 					})):Play();
 					(TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 						Rotation = 180
 					})):Play();
+					-- Focus search box when dropdown opens
+					SearchBox:CaptureFocus();
 				else
 					isdropping = false;
 					(TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, -10, 0, 0),
-						Visible = false
+						Size = UDim2.new(1, -10, 0, 0)
 					})):Play();
 					(TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Size = UDim2.new(1, 0, 0, 40)
@@ -2036,83 +2298,68 @@ function Update:Window(Config)
 					(TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Rotation = 0
 					})):Play();
+					wait(0.3);
+					DropdownFrameScroll.Visible = false;
+					SearchBox.Text = "";
+					searchText = "";
+					updateDropdownItems();
 				end;
 			end);
 			
 			local dropfunc = {};
 			
 			function dropfunc:Add(t)
-				local Item = Instance.new("TextButton");
-				local CRNRitems = Instance.new("UICorner");
-				local UICorner_5 = Instance.new("UICorner");
-				local ItemPadding = Instance.new("UIPadding");
-				
-				Item.Name = "Item";
-				Item.Parent = DropScroll;
-				Item.BackgroundColor3 = _G.Primary;
-				Item.BackgroundTransparency = 1;
-				Item.Size = UDim2.new(1, 0, 0, 30);
-				Item.Font = Enum.Font.Nunito;
-				Item.Text = tostring(t);
-				Item.TextColor3 = Color3.fromRGB(255, 255, 255);
-				Item.TextSize = 13;
-				Item.TextTransparency = 0.5;
-				Item.TextXAlignment = Enum.TextXAlignment.Left;
-				Item.ZIndex = 4;
-				
-				ItemPadding.Parent = Item;
-				ItemPadding.PaddingLeft = UDim.new(0, 8);
-				
-				UICorner_5.Parent = Item;
-				UICorner_5.CornerRadius = UDim.new(0, 5);
-				
-				local SelectedItems = Instance.new("Frame");
-				SelectedItems.Name = "SelectedItems";
-				SelectedItems.Parent = Item;
-				SelectedItems.BackgroundColor3 = _G.Third;
-				SelectedItems.BackgroundTransparency = 1;
-				SelectedItems.Size = UDim2.new(0, 3, 0.4, 0);
-				SelectedItems.Position = UDim2.new(0, -8, 0.5, 0);
-				SelectedItems.AnchorPoint = Vector2.new(0, 0.5);
-				SelectedItems.ZIndex = 4;
-				
-				CRNRitems.Parent = SelectedItems;
-				CRNRitems.CornerRadius = UDim.new(0, 999);
-				
-				Item.MouseButton1Click:Connect(function()
-					callback(Item.Text);
-					activeItem = Item.Text;
-					for i, v in next, DropScroll:GetChildren() do
-						if v:IsA("TextButton") then
-							local SelectedItems = v:FindFirstChild("SelectedItems");
-							if activeItem == v.Text then
-								v.BackgroundTransparency = 0.8;
-								v.TextTransparency = 0;
-								if SelectedItems then
-									SelectedItems.BackgroundTransparency = 0;
-								end;
-							else
-								v.BackgroundTransparency = 1;
-								v.TextTransparency = 0.5;
-								if SelectedItems then
-									SelectedItems.BackgroundTransparency = 1;
-								end;
-							end;
+				table.insert(option, t);
+				updateDropdownItems();
+			end;
+			
+			function dropfunc:Remove(t)
+				for i, v in pairs(option) do
+					if v == t then
+						table.remove(option, i);
+						break;
+					end;
+				end;
+				-- Remove from selected items if it was selected
+				if multiSelect then
+					for i, v in pairs(selectedItems) do
+						if v == t then
+							table.remove(selectedItems, i);
+							break;
 						end;
 					end;
-					SelectItems.Text = "   " .. Item.Text;
-				end);
+				end;
+				updateDropdownItems();
 			end;
 			
 			function dropfunc:Clear()
-				SelectItems.Text = "   Select Items";
+				option = {};
+				selectedItems = {};
+				SelectItems.Text = multiSelect and "   Select Items" or "   Select Item";
 				isdropping = false;
 				DropdownFrameScroll.Visible = false;
-				for i, v in next, DropScroll:GetChildren() do
-					if v:IsA("TextButton") then
-						v:Destroy();
+				updateDropdownItems();
+			end;
+			
+			function dropfunc:GetSelected()
+				return multiSelect and selectedItems or activeItem;
+			end;
+			
+			function dropfunc:SetSelected(items)
+				if multiSelect then
+					selectedItems = type(items) == "table" and items or {items};
+					if #selectedItems == 0 then
+						SelectItems.Text = "   Select Items";
+					elseif #selectedItems == 1 then
+						SelectItems.Text = "   " .. selectedItems[1];
+					else
+						SelectItems.Text = "   " .. #selectedItems .. " items selected";
 					end;
+				else
+					activeItem = tostring(items);
+					SelectItems.Text = "   " .. tostring(items);
 				end;
+				updateDropdownItems();
 			end;
 			
 			return dropfunc;
