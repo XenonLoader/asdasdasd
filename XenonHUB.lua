@@ -615,7 +615,9 @@ local SettingsLib = {
 	SaveSettings = true,
 	LoadAnimation = true,
 	AutoLoadOnStart = true,
-	FeatureSettings = {}
+	FeatureSettings = {},
+	ConfigName = "",
+	AutoLoadConfig = ""
 };
 
 -- Auto Save functionality
@@ -731,8 +733,8 @@ end;
 -- Auto Load on Start
 if SettingsLib.AutoLoadOnStart then
 	local configs = (getgenv()).GetSavedConfigs();
-	if #configs > 0 then
-		(getgenv()).LoadFeatureConfig(configs[1]); -- Load first available config
+	if #configs > 0 and SettingsLib.AutoLoadConfig ~= "" then
+		(getgenv()).LoadFeatureConfig(SettingsLib.AutoLoadConfig);
 	end;
 end;
 
@@ -839,7 +841,7 @@ function Update:Window(Config)
 	Top.Name = "Top";
 	Top.Parent = Main;
 	Top.BackgroundColor3 = Color3.fromRGB(20, 20, 25);
-	Top.Size = UDim2.new(1, 0, 0, 45); -- Increased height for status bar
+	Top.Size = UDim2.new(1, 0, 0, 45);
 	Top.BackgroundTransparency = 0.1;
 	CreateRounded(Top, 5);
 	
@@ -1003,6 +1005,7 @@ function Update:Window(Config)
 		}):Play();
 	end);
 	
+	-- ENHANCED CONFIGURATION SETTINGS INTERFACE
 	local BackgroundSettings = Instance.new("Frame");
 	BackgroundSettings.Name = "BackgroundSettings";
 	BackgroundSettings.Parent = OutlineMain;
@@ -1024,9 +1027,17 @@ function Update:Window(Config)
 	SettingsFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
 	SettingsFrame.BackgroundTransparency = 0;
 	SettingsFrame.Position = UDim2.new(0.5, 0, 0.5, 0);
-	SettingsFrame.Size = UDim2.new(0.7, 0, 0.7, 0);
+	SettingsFrame.Size = UDim2.new(0.9, 0, 0.9, 0);
 	CreateRounded(SettingsFrame, 15);
 	CreateStroke(SettingsFrame, Color3.fromRGB(40, 40, 45), 1);
+	
+	-- Add gradient to settings frame
+	local SettingsGradient = CreateGradient(SettingsFrame, ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 24, 26)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(28, 28, 32)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(24, 24, 26))
+	}));
+	SettingsGradient.Rotation = 45;
 	
 	local CloseSettings = Instance.new("ImageButton");
 	CloseSettings.Name = "CloseSettings";
@@ -1040,6 +1051,22 @@ function Update:Window(Config)
 	CloseSettings.ImageTransparency = 0;
 	CloseSettings.ImageColor3 = Color3.fromRGB(245, 245, 245);
 	CreateRounded(CloseSettings, 3);
+	
+	CloseSettings.MouseEnter:Connect(function()
+		TweenService:Create(CloseSettings, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+			ImageColor3 = _G.Third,
+			BackgroundTransparency = 0.7,
+			Rotation = 90
+		}):Play();
+	end);
+	
+	CloseSettings.MouseLeave:Connect(function()
+		TweenService:Create(CloseSettings, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+			ImageColor3 = Color3.fromRGB(245, 245, 245),
+			BackgroundTransparency = 1,
+			Rotation = 0
+		}):Play();
+	end);
 	
 	CloseSettings.MouseButton1Click:connect(function()
 		BackgroundSettings.Visible = false;
@@ -1084,344 +1111,389 @@ function Update:Window(Config)
 	TitleSettings.Parent = SettingsFrame;
 	TitleSettings.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 	TitleSettings.BackgroundTransparency = 1;
-	TitleSettings.Position = UDim2.new(0, 20, 0, 15);
-	TitleSettings.Size = UDim2.new(1, 0, 0, 20);
+	TitleSettings.Position = UDim2.new(0, 30, 0, 15);
+	TitleSettings.Size = UDim2.new(1, 0, 0, 30);
 	TitleSettings.Font = Enum.Font.GothamBold;
 	TitleSettings.AnchorPoint = Vector2.new(0, 0);
 	TitleSettings.Text = "Library Settings";
-	TitleSettings.TextSize = 20;
+	TitleSettings.TextSize = 24;
 	TitleSettings.TextColor3 = Color3.fromRGB(245, 245, 245);
 	TitleSettings.TextXAlignment = Enum.TextXAlignment.Left;
+	TitleSettings.TextStrokeTransparency = 0.9;
+	TitleSettings.TextStrokeColor3 = _G.Third;
 	
-	local SettingsMenuList = Instance.new("Frame");
-	SettingsMenuList.Name = "SettingsMenuList";
-	SettingsMenuList.Parent = SettingsFrame;
-	SettingsMenuList.ClipsDescendants = true;
-	SettingsMenuList.AnchorPoint = Vector2.new(0, 0);
-	SettingsMenuList.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
-	SettingsMenuList.BackgroundTransparency = 1;
-	SettingsMenuList.Position = UDim2.new(0, 0, 0, 50);
-	SettingsMenuList.Size = UDim2.new(1, 0, 1, -70);
-	CreateRounded(SettingsMenuList, 15);
+	-- Configuration Name Section
+	local ConfigNameFrame = Instance.new("Frame");
+	ConfigNameFrame.Name = "ConfigNameFrame";
+	ConfigNameFrame.Parent = SettingsFrame;
+	ConfigNameFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
+	ConfigNameFrame.BackgroundTransparency = 0.2;
+	ConfigNameFrame.Position = UDim2.new(0, 30, 0, 60);
+	ConfigNameFrame.Size = UDim2.new(1, -60, 0, 80);
+	CreateRounded(ConfigNameFrame, 10);
+	CreateStroke(ConfigNameFrame, Color3.fromRGB(50, 50, 55), 1);
 	
-	local ScrollSettings = Instance.new("ScrollingFrame");
-	ScrollSettings.Name = "ScrollSettings";
-	ScrollSettings.Parent = SettingsMenuList;
-	ScrollSettings.Active = true;
-	ScrollSettings.BackgroundColor3 = Color3.fromRGB(10, 10, 10);
-	ScrollSettings.Position = UDim2.new(0, 0, 0, 0);
-	ScrollSettings.BackgroundTransparency = 1;
-	ScrollSettings.Size = UDim2.new(1, 0, 1, 0);
-	ScrollSettings.ScrollBarThickness = 3;
-	ScrollSettings.ScrollingDirection = Enum.ScrollingDirection.Y;
-	CreateRounded(SettingsMenuList, 5);
+	local ConfigNameTitle = Instance.new("TextLabel");
+	ConfigNameTitle.Name = "ConfigNameTitle";
+	ConfigNameTitle.Parent = ConfigNameFrame;
+	ConfigNameTitle.BackgroundTransparency = 1;
+	ConfigNameTitle.Position = UDim2.new(0, 15, 0, 10);
+	ConfigNameTitle.Size = UDim2.new(1, -30, 0, 20);
+	ConfigNameTitle.Font = Enum.Font.GothamBold;
+	ConfigNameTitle.Text = "Config Name";
+	ConfigNameTitle.TextColor3 = Color3.fromRGB(255, 255, 255);
+	ConfigNameTitle.TextSize = 16;
+	ConfigNameTitle.TextXAlignment = Enum.TextXAlignment.Left;
 	
-	local SettingsListLayout = Instance.new("UIListLayout");
-	SettingsListLayout.Name = "SettingsListLayout";
-	SettingsListLayout.Parent = ScrollSettings;
-	SettingsListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
-	SettingsListLayout.Padding = UDim.new(0, 8);
+	local ConfigNameDesc = Instance.new("TextLabel");
+	ConfigNameDesc.Name = "ConfigNameDesc";
+	ConfigNameDesc.Parent = ConfigNameFrame;
+	ConfigNameDesc.BackgroundTransparency = 1;
+	ConfigNameDesc.Position = UDim2.new(0, 15, 0, 30);
+	ConfigNameDesc.Size = UDim2.new(1, -30, 0, 15);
+	ConfigNameDesc.Font = Enum.Font.Gotham;
+	ConfigNameDesc.Text = "Before you click on the create config button, enter a name!";
+	ConfigNameDesc.TextColor3 = Color3.fromRGB(150, 150, 150);
+	ConfigNameDesc.TextSize = 12;
+	ConfigNameDesc.TextXAlignment = Enum.TextXAlignment.Left;
 	
-	local PaddingScroll = Instance.new("UIPadding");
-	PaddingScroll.Name = "PaddingScroll";
-	PaddingScroll.Parent = ScrollSettings;
+	local ConfigNameInput = Instance.new("TextBox");
+	ConfigNameInput.Name = "ConfigNameInput";
+	ConfigNameInput.Parent = ConfigNameFrame;
+	ConfigNameInput.BackgroundColor3 = Color3.fromRGB(20, 20, 25);
+	ConfigNameInput.Position = UDim2.new(0, 15, 0, 50);
+	ConfigNameInput.Size = UDim2.new(1, -30, 0, 20);
+	ConfigNameInput.Font = Enum.Font.Gotham;
+	ConfigNameInput.PlaceholderText = "Enter configuration name...";
+	ConfigNameInput.PlaceholderColor3 = Color3.fromRGB(120, 120, 120);
+	ConfigNameInput.Text = SettingsLib.ConfigName or "";
+	ConfigNameInput.TextColor3 = Color3.fromRGB(255, 255, 255);
+	ConfigNameInput.TextSize = 12;
+	ConfigNameInput.TextXAlignment = Enum.TextXAlignment.Left;
+	CreateRounded(ConfigNameInput, 5);
+	CreateStroke(ConfigNameInput, Color3.fromRGB(60, 60, 65), 1);
 	
-	function CreateCheckbox(title, state, callback)
-		local checked = state or false;
-		
-		local Background = Instance.new("Frame");
-		Background.Name = "Background";
-		Background.Parent = ScrollSettings;
-		Background.ClipsDescendants = true;
-		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
-		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, 20);
-		
-		local Title = Instance.new("TextLabel");
-		Title.Name = "Title";
-		Title.Parent = Background;
-		Title.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
-		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, 60, 0.5, 0);
-		Title.Size = UDim2.new(1, -60, 0, 20);
-		Title.Font = Enum.Font.Code;
-		Title.AnchorPoint = Vector2.new(0, 0.5);
-		Title.Text = title or "";
-		Title.TextSize = 15;
-		Title.TextColor3 = Color3.fromRGB(200, 200, 200);
-		Title.TextXAlignment = Enum.TextXAlignment.Left;
-		
-		local Checkbox = Instance.new("ImageButton");
-		Checkbox.Name = "Checkbox";
-		Checkbox.Parent = Background;
-		Checkbox.BackgroundColor3 = Color3.fromRGB(100, 100, 100);
-		Checkbox.BackgroundTransparency = 0;
-		Checkbox.AnchorPoint = Vector2.new(0, 0.5);
-		Checkbox.Position = UDim2.new(0, 30, 0.5, 0);
-		Checkbox.Size = UDim2.new(0, 20, 0, 20);
-		Checkbox.Image = "rbxassetid://10709790644";
-		Checkbox.ImageTransparency = 1;
-		Checkbox.ImageColor3 = Color3.fromRGB(245, 245, 245);
-		CreateRounded(Checkbox, 5);
-		CreateStroke(Checkbox, Color3.fromRGB(60, 60, 65), 1);
-		
-		-- Enhanced hover effect for checkbox with glow
-		Checkbox.MouseEnter:Connect(function()
-			TweenService:Create(Checkbox, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-				Size = UDim2.new(0, 22, 0, 22)
-			}):Play();
-		end);
-		
-		Checkbox.MouseLeave:Connect(function()
-			TweenService:Create(Checkbox, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-				Size = UDim2.new(0, 20, 0, 20)
-			}):Play();
-		end);
-		
-		Checkbox.MouseButton1Click:Connect(function()
-			checked = not checked;
-			if checked then
-				TweenService:Create(Checkbox, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-					ImageTransparency = 0,
-					BackgroundColor3 = _G.Third
-				}):Play();
-			else
-				TweenService:Create(Checkbox, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-					ImageTransparency = 1,
-					BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-				}):Play();
+	local ConfigInputPadding = Instance.new("UIPadding");
+	ConfigInputPadding.Parent = ConfigNameInput;
+	ConfigInputPadding.PaddingLeft = UDim.new(0, 10);
+	ConfigInputPadding.PaddingRight = UDim.new(0, 10);
+	
+	-- Configuration List Section
+	local ConfigListFrame = Instance.new("Frame");
+	ConfigListFrame.Name = "ConfigListFrame";
+	ConfigListFrame.Parent = SettingsFrame;
+	ConfigListFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
+	ConfigListFrame.BackgroundTransparency = 0.2;
+	ConfigListFrame.Position = UDim2.new(0, 30, 0, 150);
+	ConfigListFrame.Size = UDim2.new(1, -60, 0, 120);
+	CreateRounded(ConfigListFrame, 10);
+	CreateStroke(ConfigListFrame, Color3.fromRGB(50, 50, 55), 1);
+	
+	local ConfigListTitle = Instance.new("TextLabel");
+	ConfigListTitle.Name = "ConfigListTitle";
+	ConfigListTitle.Parent = ConfigListFrame;
+	ConfigListTitle.BackgroundTransparency = 1;
+	ConfigListTitle.Position = UDim2.new(0, 15, 0, 10);
+	ConfigListTitle.Size = UDim2.new(1, -30, 0, 20);
+	ConfigListTitle.Font = Enum.Font.GothamBold;
+	ConfigListTitle.Text = "Configuration List";
+	ConfigListTitle.TextColor3 = Color3.fromRGB(255, 255, 255);
+	ConfigListTitle.TextSize = 16;
+	ConfigListTitle.TextXAlignment = Enum.TextXAlignment.Left;
+	
+	local ConfigListDesc = Instance.new("TextLabel");
+	ConfigListDesc.Name = "ConfigListDesc";
+	ConfigListDesc.Parent = ConfigListFrame;
+	ConfigListDesc.BackgroundTransparency = 1;
+	ConfigListDesc.Position = UDim2.new(0, 15, 0, 30);
+	ConfigListDesc.Size = UDim2.new(1, -30, 0, 15);
+	ConfigListDesc.Font = Enum.Font.Gotham;
+	ConfigListDesc.Text = "List with all configurations from the folder.";
+	ConfigListDesc.TextColor3 = Color3.fromRGB(150, 150, 150);
+	ConfigListDesc.TextSize = 12;
+	ConfigListDesc.TextXAlignment = Enum.TextXAlignment.Left;
+	
+	local ConfigListDropdown = Instance.new("Frame");
+	ConfigListDropdown.Name = "ConfigListDropdown";
+	ConfigListDropdown.Parent = ConfigListFrame;
+	ConfigListDropdown.BackgroundColor3 = Color3.fromRGB(20, 20, 25);
+	ConfigListDropdown.Position = UDim2.new(0, 15, 0, 50);
+	ConfigListDropdown.Size = UDim2.new(1, -30, 0, 55);
+	CreateRounded(ConfigListDropdown, 5);
+	CreateStroke(ConfigListDropdown, Color3.fromRGB(60, 60, 65), 1);
+	
+	local ConfigListScroll = Instance.new("ScrollingFrame");
+	ConfigListScroll.Name = "ConfigListScroll";
+	ConfigListScroll.Parent = ConfigListDropdown;
+	ConfigListScroll.Active = true;
+	ConfigListScroll.BackgroundTransparency = 1;
+	ConfigListScroll.Size = UDim2.new(1, 0, 1, 0);
+	ConfigListScroll.ScrollBarThickness = 3;
+	ConfigListScroll.ScrollingDirection = Enum.ScrollingDirection.Y;
+	
+	local ConfigListLayout = Instance.new("UIListLayout");
+	ConfigListLayout.Parent = ConfigListScroll;
+	ConfigListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
+	ConfigListLayout.Padding = UDim.new(0, 2);
+	
+	local ConfigListPadding = Instance.new("UIPadding");
+	ConfigListPadding.Parent = ConfigListScroll;
+	ConfigListPadding.PaddingLeft = UDim.new(0, 10);
+	ConfigListPadding.PaddingRight = UDim.new(0, 10);
+	ConfigListPadding.PaddingTop = UDim.new(0, 5);
+	ConfigListPadding.PaddingBottom = UDim.new(0, 5);
+	
+	-- Function to update config list
+	local selectedConfig = "";
+	local function UpdateConfigList()
+		-- Clear existing items
+		for _, child in pairs(ConfigListScroll:GetChildren()) do
+			if child:IsA("TextButton") then
+				child:Destroy();
 			end;
-			pcall(callback, checked);
-		end);
-		
-		if checked then
-			Checkbox.ImageTransparency = 0;
-			Checkbox.BackgroundColor3 = _G.Third;
-		else
-			Checkbox.ImageTransparency = 1;
-			Checkbox.BackgroundColor3 = Color3.fromRGB(100, 100, 100);
 		end;
-		pcall(callback, checked);
+		
+		local configs = (getgenv()).GetSavedConfigs();
+		
+		if #configs == 0 then
+			local NoConfigLabel = Instance.new("TextLabel");
+			NoConfigLabel.Name = "NoConfigLabel";
+			NoConfigLabel.Parent = ConfigListScroll;
+			NoConfigLabel.BackgroundTransparency = 1;
+			NoConfigLabel.Size = UDim2.new(1, 0, 0, 20);
+			NoConfigLabel.Font = Enum.Font.Gotham;
+			NoConfigLabel.Text = "No configurations found";
+			NoConfigLabel.TextColor3 = Color3.fromRGB(120, 120, 120);
+			NoConfigLabel.TextSize = 12;
+		else
+			for i, configName in pairs(configs) do
+				local ConfigItem = Instance.new("TextButton");
+				ConfigItem.Name = "ConfigItem";
+				ConfigItem.Parent = ConfigListScroll;
+				ConfigItem.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
+				ConfigItem.BackgroundTransparency = selectedConfig == configName and 0.8 or 1;
+				ConfigItem.Size = UDim2.new(1, -20, 0, 20);
+				ConfigItem.Font = Enum.Font.Gotham;
+				ConfigItem.Text = configName;
+				ConfigItem.TextColor3 = selectedConfig == configName and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200);
+				ConfigItem.TextSize = 11;
+				ConfigItem.TextXAlignment = Enum.TextXAlignment.Left;
+				ConfigItem.AutoButtonColor = false;
+				CreateRounded(ConfigItem, 3);
+				
+				if selectedConfig == configName then
+					CreateStroke(ConfigItem, _G.Third, 1);
+				end;
+				
+				ConfigItem.MouseEnter:Connect(function()
+					if selectedConfig ~= configName then
+						TweenService:Create(ConfigItem, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+							BackgroundTransparency = 0.9,
+							TextColor3 = Color3.fromRGB(255, 255, 255)
+						}):Play();
+					end;
+				end);
+				
+				ConfigItem.MouseLeave:Connect(function()
+					if selectedConfig ~= configName then
+						TweenService:Create(ConfigItem, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+							BackgroundTransparency = 1,
+							TextColor3 = Color3.fromRGB(200, 200, 200)
+						}):Play();
+					end;
+				end);
+				
+				ConfigItem.MouseButton1Click:Connect(function()
+					selectedConfig = configName;
+					UpdateConfigList();
+				end);
+			end;
+		end;
+		
+		ConfigListScroll.CanvasSize = UDim2.new(0, 0, 0, ConfigListLayout.AbsoluteContentSize.Y + 10);
 	end;
 	
-	function CreateButton(title, callback)
-		local Background = Instance.new("Frame");
-		Background.Name = "Background";
-		Background.Parent = ScrollSettings;
-		Background.ClipsDescendants = true;
-		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
-		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, 30);
-		
+	-- Button Container
+	local ButtonContainer = Instance.new("Frame");
+	ButtonContainer.Name = "ButtonContainer";
+	ButtonContainer.Parent = SettingsFrame;
+	ButtonContainer.BackgroundTransparency = 1;
+	ButtonContainer.Position = UDim2.new(0, 30, 0, 280);
+	ButtonContainer.Size = UDim2.new(1, -60, 0, 120);
+	
+	-- Function to create action buttons
+	local function CreateActionButton(text, position, color, callback)
 		local Button = Instance.new("TextButton");
-		Button.Name = "Button";
-		Button.Parent = Background;
-		Button.BackgroundColor3 = _G.Third;
-		Button.BackgroundTransparency = 0;
-		Button.Size = UDim2.new(0.8, 0, 0, 30);
-		Button.Font = Enum.Font.Code;
-		Button.Text = title or "Button";
-		Button.AnchorPoint = Vector2.new(0.5, 0);
-		Button.Position = UDim2.new(0.5, 0, 0, 0);
+		Button.Name = text .. "Button";
+		Button.Parent = ButtonContainer;
+		Button.BackgroundColor3 = color;
+		Button.BackgroundTransparency = 0.2;
+		Button.Position = position;
+		Button.Size = UDim2.new(0.48, 0, 0, 30);
+		Button.Font = Enum.Font.GothamBold;
+		Button.Text = text;
 		Button.TextColor3 = Color3.fromRGB(255, 255, 255);
-		Button.TextSize = 15;
+		Button.TextSize = 12;
 		Button.AutoButtonColor = false;
-		CreateRounded(Button, 5);
-		CreateStroke(Button, Color3.fromRGB(60, 60, 65), 1);
+		CreateRounded(Button, 8);
+		CreateStroke(Button, color, 1);
 		
-		-- Enhanced hover effect for button with gradient
-		local ButtonGradient = CreateGradient(Button, ColorSequence.new({
-			ColorSequenceKeypoint.new(0, _G.Third),
-			ColorSequenceKeypoint.new(1, _G.Third)
-		}));
-		
+		-- Enhanced button effects
 		Button.MouseEnter:Connect(function()
-			TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-				Size = UDim2.new(0.82, 0, 0, 32)
+			TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Back), {
+				BackgroundTransparency = 0,
+				Size = UDim2.new(0.48, 2, 0, 32)
 			}):Play();
-			ButtonGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, _G.Third),
-				ColorSequenceKeypoint.new(0.5, _G.Gradient1),
-				ColorSequenceKeypoint.new(1, _G.Accent)
-			});
 		end);
 		
 		Button.MouseLeave:Connect(function()
 			TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-				Size = UDim2.new(0.8, 0, 0, 30)
+				BackgroundTransparency = 0.2,
+				Size = UDim2.new(0.48, 0, 0, 30)
 			}):Play();
-			ButtonGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, _G.Third),
-				ColorSequenceKeypoint.new(1, _G.Third)
-			});
 		end);
 		
-		Button.MouseButton1Click:Connect(function()
-			callback();
-		end);
+		Button.MouseButton1Click:Connect(callback);
+		
+		return Button;
 	end;
 	
-	-- Configuration name input
-	function CreateConfigInput(title, placeholder, callback)
-		local Background = Instance.new("Frame");
-		Background.Name = "Background";
-		Background.Parent = ScrollSettings;
-		Background.ClipsDescendants = true;
-		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
-		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, 35);
-		
-		local Title = Instance.new("TextLabel");
-		Title.Name = "Title";
-		Title.Parent = Background;
-		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, 30, 0, 5);
-		Title.Size = UDim2.new(0.4, 0, 0, 20);
-		Title.Font = Enum.Font.Code;
-		Title.Text = title;
-		Title.TextColor3 = Color3.fromRGB(200, 200, 200);
-		Title.TextSize = 14;
-		Title.TextXAlignment = Enum.TextXAlignment.Left;
-		
-		local TextBox = Instance.new("TextBox");
-		TextBox.Name = "TextBox";
-		TextBox.Parent = Background;
-		TextBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
-		TextBox.Position = UDim2.new(0.5, 0, 0, 5);
-		TextBox.Size = UDim2.new(0.45, 0, 0, 25);
-		TextBox.Font = Enum.Font.Gotham;
-		TextBox.PlaceholderText = placeholder;
-		TextBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120);
-		TextBox.Text = "";
-		TextBox.TextColor3 = Color3.fromRGB(255, 255, 255);
-		TextBox.TextSize = 12;
-		TextBox.TextXAlignment = Enum.TextXAlignment.Center;
-		CreateRounded(TextBox, 5);
-		CreateStroke(TextBox, Color3.fromRGB(60, 60, 65), 1);
-		
-		TextBox.FocusLost:Connect(function(enterPressed)
-			if enterPressed and TextBox.Text ~= "" then
-				callback(TextBox.Text);
-				TextBox.Text = "";
+	-- Create Configuration Button
+	CreateActionButton("Create a Configuration", UDim2.new(0, 0, 0, 0), Color3.fromRGB(130, 70, 200), function()
+		local configName = ConfigNameInput.Text;
+		if configName and configName ~= "" then
+			if (getgenv()).SaveFeatureConfig(configName) then
+				SettingsLib.ConfigName = "";
+				ConfigNameInput.Text = "";
+				AutoSaveSettings();
+				UpdateConfigList();
+				Update:Notify("Configuration '" .. configName .. "' created successfully!");
+			else
+				Update:Notify("Failed to create configuration!");
 			end;
-		end);
-		
-		return TextBox;
-	end;
-	
-	-- Configuration dropdown
-	function CreateConfigDropdown(title, callback)
-		local configs = (getgenv()).GetSavedConfigs();
-		
-		local Background = Instance.new("Frame");
-		Background.Name = "Background";
-		Background.Parent = ScrollSettings;
-		Background.ClipsDescendants = true;
-		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
-		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, 35);
-		
-		local Title = Instance.new("TextLabel");
-		Title.Name = "Title";
-		Title.Parent = Background;
-		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, 30, 0, 5);
-		Title.Size = UDim2.new(0.4, 0, 0, 20);
-		Title.Font = Enum.Font.Code;
-		Title.Text = title;
-		Title.TextColor3 = Color3.fromRGB(200, 200, 200);
-		Title.TextSize = 14;
-		Title.TextXAlignment = Enum.TextXAlignment.Left;
-		
-		local Dropdown = Instance.new("TextButton");
-		Dropdown.Name = "Dropdown";
-		Dropdown.Parent = Background;
-		Dropdown.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
-		Dropdown.Position = UDim2.new(0.5, 0, 0, 5);
-		Dropdown.Size = UDim2.new(0.45, 0, 0, 25);
-		Dropdown.Font = Enum.Font.Gotham;
-		Dropdown.Text = #configs > 0 and configs[1] or "No configs";
-		Dropdown.TextColor3 = Color3.fromRGB(255, 255, 255);
-		Dropdown.TextSize = 12;
-		Dropdown.AutoButtonColor = false;
-		CreateRounded(Dropdown, 5);
-		CreateStroke(Dropdown, Color3.fromRGB(60, 60, 65), 1);
-		
-		local selectedConfig = #configs > 0 and configs[1] or nil;
-		
-		Dropdown.MouseButton1Click:Connect(function()
-			if selectedConfig then
-				callback(selectedConfig);
-			end;
-		end);
-		
-		return {
-			Update = function()
-				configs = (getgenv()).GetSavedConfigs();
-				selectedConfig = #configs > 0 and configs[1] or nil;
-				Dropdown.Text = selectedConfig or "No configs";
-			end
-		};
-	end;
-	
-	-- Enhanced Settings with new features
-	CreateCheckbox("Auto Save Settings", SettingsLib.SaveSettings, function(state)
-		SettingsLib.SaveSettings = state;
-		AutoSaveSettings();
-	end);
-	
-	CreateCheckbox("Loading Animation", SettingsLib.LoadAnimation, function(state)
-		SettingsLib.LoadAnimation = state;
-		AutoSaveSettings();
-	end);
-	
-	CreateCheckbox("Auto Load on Start", SettingsLib.AutoLoadOnStart, function(state)
-		SettingsLib.AutoLoadOnStart = state;
-		AutoSaveSettings();
-	end);
-	
-	-- Configuration management
-	local configInput = CreateConfigInput("Config Name:", "Enter config name...", function(configName)
-		if (getgenv()).SaveFeatureConfig(configName) then
-			Update:Notify("Configuration '" .. configName .. "' saved successfully!");
 		else
-			Update:Notify("Failed to save configuration!");
+			Update:Notify("Please enter a configuration name!");
 		end;
 	end);
 	
-	local configDropdown = CreateConfigDropdown("Load Config:", function(configName)
-		if (getgenv()).LoadFeatureConfig(configName) then
-			Update:Notify("Configuration '" .. configName .. "' loaded successfully!");
+	-- Load Configuration Button
+	CreateActionButton("Load a Configuration", UDim2.new(0.52, 0, 0, 0), _G.Accent, function()
+		if selectedConfig and selectedConfig ~= "" then
+			if (getgenv()).LoadFeatureConfig(selectedConfig) then
+				Update:Notify("Configuration '" .. selectedConfig .. "' loaded successfully!");
+			else
+				Update:Notify("Failed to load configuration!");
+			end;
 		else
-			Update:Notify("Failed to load configuration!");
+			Update:Notify("Please select a configuration to load!");
 		end;
 	end);
 	
-	CreateButton("Delete Selected Config", function()
-		local configs = (getgenv()).GetSavedConfigs();
-		if #configs > 0 then
-			if (getgenv()).DeleteFeatureConfig(configs[1]) then
+	-- Save New Configuration Button
+	CreateActionButton("Save a New Configuration", UDim2.new(0, 0, 0, 40), _G.Success, function()
+		local configName = ConfigNameInput.Text;
+		if configName and configName ~= "" then
+			if (getgenv()).SaveFeatureConfig(configName) then
+				SettingsLib.ConfigName = "";
+				ConfigNameInput.Text = "";
+				AutoSaveSettings();
+				UpdateConfigList();
+				Update:Notify("New configuration '" .. configName .. "' saved successfully!");
+			else
+				Update:Notify("Failed to save configuration!");
+			end;
+		else
+			Update:Notify("Please enter a configuration name!");
+		end;
+	end);
+	
+	-- Delete Configuration Button
+	CreateActionButton("Delete a Configuration", UDim2.new(0.52, 0, 0, 40), Color3.fromRGB(200, 50, 50), function()
+		if selectedConfig and selectedConfig ~= "" then
+			if selectedConfig == SettingsLib.AutoLoadConfig then
+				SettingsLib.AutoLoadConfig = "";
+			end;
+			if (getgenv()).DeleteFeatureConfig(selectedConfig) then
+				selectedConfig = "";
+				AutoSaveSettings();
+				UpdateConfigList();
 				Update:Notify("Configuration deleted successfully!");
-				configDropdown.Update();
 			else
 				Update:Notify("Failed to delete configuration!");
 			end;
 		else
-			Update:Notify("No configurations to delete!");
+			Update:Notify("Please select a configuration to delete!");
 		end;
 	end);
 	
-	CreateButton("Reset All Settings", function()
-		if isfolder("Xenon") then
-			delfolder("Xenon");
+	-- Refresh Configuration List Button
+	CreateActionButton("Refresh Configuration List", UDim2.new(0, 0, 0, 80), _G.Warning, function()
+		UpdateConfigList();
+		Update:Notify("Configuration list refreshed!");
+	end);
+	
+	-- Auto Load Config Button
+	CreateActionButton("Auto Load Config", UDim2.new(0.52, 0, 0, 80), _G.Third, function()
+		if selectedConfig and selectedConfig ~= "" then
+			SettingsLib.AutoLoadConfig = selectedConfig;
+			AutoSaveSettings();
+			Update:Notify("Auto load config set to: " .. selectedConfig);
+		else
+			Update:Notify("Please select a configuration for auto load!");
 		end;
-		SettingsLib = {
-			SaveSettings = true,
-			LoadAnimation = true,
-			AutoLoadOnStart = true,
-			FeatureSettings = {}
-		};
-		Update:Notify("All settings have been reset!");
+	end);
+	
+	-- Auto Load Config Section
+	local AutoLoadFrame = Instance.new("Frame");
+	AutoLoadFrame.Name = "AutoLoadFrame";
+	AutoLoadFrame.Parent = SettingsFrame;
+	AutoLoadFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
+	AutoLoadFrame.BackgroundTransparency = 0.2;
+	AutoLoadFrame.Position = UDim2.new(0, 30, 0, 410);
+	AutoLoadFrame.Size = UDim2.new(1, -60, 0, 60);
+	CreateRounded(AutoLoadFrame, 10);
+	CreateStroke(AutoLoadFrame, Color3.fromRGB(50, 50, 55), 1);
+	
+	local AutoLoadTitle = Instance.new("TextLabel");
+	AutoLoadTitle.Name = "AutoLoadTitle";
+	AutoLoadTitle.Parent = AutoLoadFrame;
+	AutoLoadTitle.BackgroundTransparency = 1;
+	AutoLoadTitle.Position = UDim2.new(0, 15, 0, 10);
+	AutoLoadTitle.Size = UDim2.new(1, -30, 0, 20);
+	AutoLoadTitle.Font = Enum.Font.GothamBold;
+	AutoLoadTitle.Text = "Auto Load Config";
+	AutoLoadTitle.TextColor3 = Color3.fromRGB(255, 255, 255);
+	AutoLoadTitle.TextSize = 16;
+	AutoLoadTitle.TextXAlignment = Enum.TextXAlignment.Left;
+	
+	local AutoLoadDesc = Instance.new("TextLabel");
+	AutoLoadDesc.Name = "AutoLoadDesc";
+	AutoLoadDesc.Parent = AutoLoadFrame;
+	AutoLoadDesc.BackgroundTransparency = 1;
+	AutoLoadDesc.Position = UDim2.new(0, 15, 0, 30);
+	AutoLoadDesc.Size = UDim2.new(1, -30, 0, 25);
+	AutoLoadDesc.Font = Enum.Font.Gotham;
+	AutoLoadDesc.Text = "Current Auto Load Config: " .. (SettingsLib.AutoLoadConfig ~= "" and SettingsLib.AutoLoadConfig or "None");
+	AutoLoadDesc.TextColor3 = Color3.fromRGB(150, 150, 150);
+	AutoLoadDesc.TextSize = 12;
+	AutoLoadDesc.TextXAlignment = Enum.TextXAlignment.Left;
+	AutoLoadDesc.TextWrapped = true;
+	
+	-- Update auto load description when config changes
+	ConfigNameInput:GetPropertyChangedSignal("Text"):Connect(function()
+		SettingsLib.ConfigName = ConfigNameInput.Text;
+		AutoSaveSettings();
+	end);
+	
+	-- Initialize config list
+	UpdateConfigList();
+	
+	-- Update auto load description periodically
+	spawn(function()
+		while AutoLoadDesc.Parent do
+			AutoLoadDesc.Text = "Current Auto Load Config: " .. (SettingsLib.AutoLoadConfig ~= "" and SettingsLib.AutoLoadConfig or "None");
+			wait(1);
+		end;
 	end);
 	
 	-- Enhanced Tab System with better visual feedback
@@ -1495,7 +1567,7 @@ function Update:Window(Config)
 	UIPageLayout.EasingStyle = Enum.EasingStyle.Quad;
 	UIPageLayout.FillDirection = Enum.FillDirection.Vertical;
 	UIPageLayout.Padding = UDim.new(0, 10);
-	UIPageLayout.TweenTime = 0.3; -- Smoother page transitions
+	UIPageLayout.TweenTime = 0.3;
 	UIPageLayout.GamepadInputEnabled = false;
 	UIPageLayout.ScrollWheelInputEnabled = false;
 	UIPageLayout.TouchInputEnabled = false;
@@ -1603,7 +1675,7 @@ function Update:Window(Config)
 		
 		-- Enhanced hover effect for tab button with slide animation
 		TabButton.MouseEnter:Connect(function()
-			if TabButton.BackgroundTransparency == 1 then -- Not selected
+			if TabButton.BackgroundTransparency == 1 then
 				TweenService:Create(TabButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
 					BackgroundTransparency = 0.9
 				}):Play();
@@ -1617,7 +1689,7 @@ function Update:Window(Config)
 		end);
 		
 		TabButton.MouseLeave:Connect(function()
-			if TabButton.BackgroundTransparency ~= 0.8 then -- Not selected
+			if TabButton.BackgroundTransparency ~= 0.8 then
 				TweenService:Create(TabButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
 					BackgroundTransparency = 1
 				}):Play();
@@ -1726,7 +1798,6 @@ function Update:Window(Config)
 			pcall(function()
 				MainFramePage.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y);
 				ScrollTab.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y);
-				ScrollSettings.CanvasSize = UDim2.new(0, 0, 0, SettingsListLayout.AbsoluteContentSize.Y);
 			end);
 		end);
 		
@@ -2045,7 +2116,6 @@ function Update:Window(Config)
 			end;
 		end;
 		
-		-- COMPLETELY REWRITTEN DROPDOWN WITH ADVANCED SEARCH AND MULTI-SELECT
 		function main:Dropdown(text, option, var, callback, multiSelect)
 			multiSelect = multiSelect or false;
 			local isdropping = false;
@@ -2144,466 +2214,21 @@ function Update:Window(Config)
 			ArrowDown.Image = "rbxassetid://10709790948";
 			ArrowDown.ImageColor3 = Color3.fromRGB(200, 200, 200);
 			
-			-- Dropdown content frame
-			local DropdownFrameScroll = Instance.new("Frame");
-			DropdownFrameScroll.Name = "DropdownFrameScroll";
-			DropdownFrameScroll.Parent = Dropdown;
-			DropdownFrameScroll.BackgroundColor3 = Color3.fromRGB(20, 20, 25);
-			DropdownFrameScroll.BackgroundTransparency = 0;
-			DropdownFrameScroll.ClipsDescendants = true;
-			DropdownFrameScroll.Size = UDim2.new(1, -10, 0, 0);
-			DropdownFrameScroll.Position = UDim2.new(0, 5, 0, 50);
-			DropdownFrameScroll.Visible = false;
-			DropdownFrameScroll.ZIndex = 10;
-			CreateRounded(DropdownFrameScroll, 8);
-			CreateStroke(DropdownFrameScroll, Color3.fromRGB(60, 60, 65), 1);
-			
-			-- Add glow to dropdown frame
-			local DropdownGlow = Instance.new("ImageLabel");
-			DropdownGlow.Name = "DropdownGlow";
-			DropdownGlow.Parent = DropdownFrameScroll;
-			DropdownGlow.BackgroundTransparency = 1;
-			DropdownGlow.Image = "rbxassetid://6014261993";
-			DropdownGlow.ImageColor3 = _G.Third;
-			DropdownGlow.ImageTransparency = 0.9;
-			DropdownGlow.Position = UDim2.new(0, -10, 0, -10);
-			DropdownGlow.Size = UDim2.new(1, 20, 1, 20);
-			DropdownGlow.ZIndex = -1;
-			
-			-- Search box
-			local SearchBox = Instance.new("TextBox");
-			SearchBox.Name = "SearchBox";
-			SearchBox.Parent = DropdownFrameScroll;
-			SearchBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
-			SearchBox.Position = UDim2.new(0, 8, 0, 8);
-			SearchBox.Size = UDim2.new(1, -16, 0, 30);
-			SearchBox.Font = Enum.Font.Gotham;
-			SearchBox.PlaceholderText = "🔍 Search items...";
-			SearchBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120);
-			SearchBox.Text = "";
-			SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255);
-			SearchBox.TextSize = 12;
-			SearchBox.TextXAlignment = Enum.TextXAlignment.Left;
-			SearchBox.ZIndex = 11;
-			CreateRounded(SearchBox, 6);
-			CreateStroke(SearchBox, Color3.fromRGB(70, 70, 75), 1);
-			
-			-- Search box padding
-			local SearchPadding = Instance.new("UIPadding");
-			SearchPadding.Parent = SearchBox;
-			SearchPadding.PaddingLeft = UDim.new(0, 10);
-			SearchPadding.PaddingRight = UDim.new(0, 10);
-			
-			-- Multi-select controls
-			local ControlsFrame = nil;
-			if multiSelect then
-				ControlsFrame = Instance.new("Frame");
-				ControlsFrame.Name = "ControlsFrame";
-				ControlsFrame.Parent = DropdownFrameScroll;
-				ControlsFrame.BackgroundTransparency = 1;
-				ControlsFrame.Position = UDim2.new(0, 8, 0, 45);
-				ControlsFrame.Size = UDim2.new(1, -16, 0, 25);
-				ControlsFrame.ZIndex = 11;
-				
-				-- Select All button
-				local SelectAllBtn = Instance.new("TextButton");
-				SelectAllBtn.Name = "SelectAllBtn";
-				SelectAllBtn.Parent = ControlsFrame;
-				SelectAllBtn.BackgroundColor3 = _G.Success;
-				SelectAllBtn.BackgroundTransparency = 0.2;
-				SelectAllBtn.Position = UDim2.new(0, 0, 0, 0);
-				SelectAllBtn.Size = UDim2.new(0.3, -2, 1, 0);
-				SelectAllBtn.Font = Enum.Font.GothamBold;
-				SelectAllBtn.Text = "All";
-				SelectAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255);
-				SelectAllBtn.TextSize = 10;
-				SelectAllBtn.AutoButtonColor = false;
-				CreateRounded(SelectAllBtn, 4);
-				
-				-- Clear All button
-				local ClearAllBtn = Instance.new("TextButton");
-				ClearAllBtn.Name = "ClearAllBtn";
-				ClearAllBtn.Parent = ControlsFrame;
-				ClearAllBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50);
-				ClearAllBtn.BackgroundTransparency = 0.2;
-				ClearAllBtn.Position = UDim2.new(0.35, 0, 0, 0);
-				ClearAllBtn.Size = UDim2.new(0.3, -2, 1, 0);
-				ClearAllBtn.Font = Enum.Font.GothamBold;
-				ClearAllBtn.Text = "Clear";
-				ClearAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255);
-				ClearAllBtn.TextSize = 10;
-				ClearAllBtn.AutoButtonColor = false;
-				CreateRounded(ClearAllBtn, 4);
-				
-				-- Selected count
-				local CountLabel = Instance.new("TextLabel");
-				CountLabel.Name = "CountLabel";
-				CountLabel.Parent = ControlsFrame;
-				CountLabel.BackgroundTransparency = 1;
-				CountLabel.Position = UDim2.new(0.7, 0, 0, 0);
-				CountLabel.Size = UDim2.new(0.3, 0, 1, 0);
-				CountLabel.Font = Enum.Font.Gotham;
-				CountLabel.Text = "0 selected";
-				CountLabel.TextColor3 = Color3.fromRGB(150, 150, 150);
-				CountLabel.TextSize = 9;
-				CountLabel.TextXAlignment = Enum.TextXAlignment.Right;
-				
-				-- Button functionality
-				SelectAllBtn.MouseButton1Click:Connect(function()
-					selectedItems = {};
-					for _, item in pairs(filteredOptions) do
-						table.insert(selectedItems, tostring(item));
-					end;
-					updateDropdownItems();
-					updateSelectionDisplay();
-					SettingsLib.FeatureSettings[featureKey] = selectedItems;
-					AutoSaveSettings();
-					pcall(callback, selectedItems);
-				end);
-				
-				ClearAllBtn.MouseButton1Click:Connect(function()
-					selectedItems = {};
-					updateDropdownItems();
-					updateSelectionDisplay();
-					SettingsLib.FeatureSettings[featureKey] = selectedItems;
-					AutoSaveSettings();
-					pcall(callback, selectedItems);
-				end);
-			end;
-			
-			-- Items scroll frame
-			local DropScroll = Instance.new("ScrollingFrame");
-			DropScroll.Name = "DropScroll";
-			DropScroll.Parent = DropdownFrameScroll;
-			DropScroll.Active = true;
-			DropScroll.BackgroundTransparency = 1;
-			DropScroll.Position = UDim2.new(0, 0, 0, multiSelect and 78 or 45);
-			DropScroll.Size = UDim2.new(1, 0, 0, multiSelect and 122 or 155);
-			DropScroll.ScrollBarThickness = 4;
-			DropScroll.ScrollingDirection = Enum.ScrollingDirection.Y;
-			DropScroll.ZIndex = 11;
-			
-			-- Items layout
-			local UIListLayout = Instance.new("UIListLayout");
-			UIListLayout.Parent = DropScroll;
-			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
-			UIListLayout.Padding = UDim.new(0, 2);
-			
-			local DropPadding = Instance.new("UIPadding");
-			DropPadding.Parent = DropScroll;
-			DropPadding.PaddingLeft = UDim.new(0, 8);
-			DropPadding.PaddingRight = UDim.new(0, 8);
-			DropPadding.PaddingTop = UDim.new(0, 5);
-			DropPadding.PaddingBottom = UDim.new(0, 5);
-			
 			-- Update selection display
-			function updateSelectionDisplay()
+			local function updateSelectionDisplay()
 				if multiSelect then
 					local count = #selectedItems;
 					if count == 0 then
 						SelectItems.Text = "   Select Items";
 					elseif count == 1 then
 						SelectItems.Text = "   " .. selectedItems[1];
-					
 					else
 						SelectItems.Text = "   " .. count .. " items selected";
-					end;
-					
-					if ControlsFrame then
-						local countLabel = ControlsFrame:FindFirstChild("CountLabel");
-						if countLabel then
-							countLabel.Text = count .. " selected";
-						end;
 					end;
 				else
 					SelectItems.Text = activeItem and ("   " .. tostring(activeItem)) or "   Select Item";
 				end;
 			end;
-			
-			-- Filter and update dropdown items
-			function updateDropdownItems()
-				-- Clear existing items
-				for _, child in pairs(DropScroll:GetChildren()) do
-					if child:IsA("TextButton") and child.Name == "Item" then
-						child:Destroy();
-					end;
-				end;
-				
-				-- Filter options
-				filteredOptions = {};
-				for _, option in pairs(option) do
-					local optionStr = tostring(option);
-					if searchText == "" or string.find(string.lower(optionStr), string.lower(searchText)) then
-						table.insert(filteredOptions, option);
-					end;
-				end;
-				
-				-- Create items
-				for i, optionValue in pairs(filteredOptions) do
-					local Item = Instance.new("TextButton");
-					Item.Name = "Item";
-					Item.Parent = DropScroll;
-					Item.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
-					Item.BackgroundTransparency = 1;
-					Item.Size = UDim2.new(1, -16, 0, 32);
-					Item.Font = Enum.Font.Gotham;
-					Item.Text = "";
-					Item.TextColor3 = Color3.fromRGB(255, 255, 255);
-					Item.TextSize = 12;
-					Item.AutoButtonColor = false;
-					Item.ZIndex = 12;
-					CreateRounded(Item, 5);
-					
-					-- Item text
-					local ItemText = Instance.new("TextLabel");
-					ItemText.Name = "ItemText";
-					ItemText.Parent = Item;
-					ItemText.BackgroundTransparency = 1;
-					ItemText.Position = UDim2.new(0, multiSelect and 35 or 12, 0, 0);
-					ItemText.Size = UDim2.new(1, multiSelect and -45 or -20, 1, 0);
-					ItemText.Font = Enum.Font.Gotham;
-					ItemText.Text = tostring(optionValue);
-					ItemText.TextColor3 = Color3.fromRGB(200, 200, 200);
-					ItemText.TextSize = 12;
-					ItemText.TextXAlignment = Enum.TextXAlignment.Left;
-					ItemText.ZIndex = 12;
-					
-					-- Selection indicator
-					local SelectionIndicator = Instance.new("Frame");
-					SelectionIndicator.Name = "SelectionIndicator";
-					SelectionIndicator.Parent = Item;
-					SelectionIndicator.BackgroundColor3 = _G.Third;
-					SelectionIndicator.BackgroundTransparency = 1;
-					SelectionIndicator.Position = UDim2.new(0, 0, 0.5, 0);
-					SelectionIndicator.Size = UDim2.new(0, 3, 0, 0);
-					SelectionIndicator.AnchorPoint = Vector2.new(0, 0.5);
-					SelectionIndicator.ZIndex = 12;
-					CreateRounded(SelectionIndicator, 2);
-					
-					-- Multi-select checkbox
-					local Checkbox = nil;
-					if multiSelect then
-						Checkbox = Instance.new("Frame");
-						Checkbox.Name = "Checkbox";
-						Checkbox.Parent = Item;
-						Checkbox.BackgroundColor3 = Color3.fromRGB(40, 40, 45);
-						Checkbox.Position = UDim2.new(0, 8, 0.5, 0);
-						Checkbox.Size = UDim2.new(0, 18, 0, 18);
-						Checkbox.AnchorPoint = Vector2.new(0, 0.5);
-						Checkbox.ZIndex = 12;
-						CreateRounded(Checkbox, 4);
-						CreateStroke(Checkbox, Color3.fromRGB(70, 70, 75), 1);
-						
-						local CheckIcon = Instance.new("ImageLabel");
-						CheckIcon.Name = "CheckIcon";
-						CheckIcon.Parent = Checkbox;
-						CheckIcon.BackgroundTransparency = 1;
-						CheckIcon.Position = UDim2.new(0.5, 0, 0.5, 0);
-						CheckIcon.Size = UDim2.new(0, 12, 0, 12);
-						CheckIcon.AnchorPoint = Vector2.new(0.5, 0.5);
-						CheckIcon.Image = "rbxassetid://10709790644";
-						CheckIcon.ImageColor3 = Color3.fromRGB(255, 255, 255);
-						CheckIcon.ImageTransparency = 1;
-						CheckIcon.ZIndex = 13;
-					end;
-					
-					-- Check if item is selected
-					local isSelected = false;
-					if multiSelect then
-						for _, selected in pairs(selectedItems) do
-							if tostring(selected) == tostring(optionValue) then
-								isSelected = true;
-								break;
-							end;
-						end;
-					else
-						isSelected = (activeItem and tostring(activeItem) == tostring(optionValue));
-					end;
-					
-					-- Apply selection state
-					if isSelected then
-						Item.BackgroundTransparency = 0.8;
-						ItemText.TextColor3 = Color3.fromRGB(255, 255, 255);
-						SelectionIndicator.BackgroundTransparency = 0;
-						SelectionIndicator.Size = UDim2.new(0, 3, 0, 20);
-						
-						if Checkbox then
-							Checkbox.BackgroundColor3 = _G.Third;
-							local checkIcon = Checkbox:FindFirstChild("CheckIcon");
-							if checkIcon then
-								checkIcon.ImageTransparency = 0;
-							end;
-						end;
-					end;
-					
-					-- Hover effects
-					Item.MouseEnter:Connect(function()
-						if not isSelected then
-							TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-								BackgroundTransparency = 0.9
-							}):Play();
-							TweenService:Create(ItemText, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-								TextColor3 = Color3.fromRGB(255, 255, 255)
-							}):Play();
-						end;
-					end);
-					
-					Item.MouseLeave:Connect(function()
-						if not isSelected then
-							TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-								BackgroundTransparency = 1
-							}):Play();
-							TweenService:Create(ItemText, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-								TextColor3 = Color3.fromRGB(200, 200, 200)
-							}):Play();
-						end;
-					end);
-					
-					-- Click handling
-					Item.MouseButton1Click:Connect(function()
-						if multiSelect then
-							-- Multi-select logic
-							local itemStr = tostring(optionValue);
-							local wasSelected = false;
-							local selectedIndex = 0;
-							
-							for i, selected in pairs(selectedItems) do
-								if tostring(selected) == itemStr then
-									wasSelected = true;
-									selectedIndex = i;
-									break;
-								end;
-							end;
-							
-							if wasSelected then
-								-- Remove from selection
-								table.remove(selectedItems, selectedIndex);
-								isSelected = false;
-								
-								Item.BackgroundTransparency = 1;
-								ItemText.TextColor3 = Color3.fromRGB(200, 200, 200);
-								SelectionIndicator.BackgroundTransparency = 1;
-								SelectionIndicator.Size = UDim2.new(0, 3, 0, 0);
-								
-								if Checkbox then
-									Checkbox.BackgroundColor3 = Color3.fromRGB(40, 40, 45);
-									local checkIcon = Checkbox:FindFirstChild("CheckIcon");
-									if checkIcon then
-										checkIcon.ImageTransparency = 1;
-									end;
-								end;
-							else
-								-- Add to selection
-								table.insert(selectedItems, optionValue);
-								isSelected = true;
-								
-								Item.BackgroundTransparency = 0.8;
-								ItemText.TextColor3 = Color3.fromRGB(255, 255, 255);
-								SelectionIndicator.BackgroundTransparency = 0;
-								SelectionIndicator.Size = UDim2.new(0, 3, 0, 20);
-								
-								if Checkbox then
-									Checkbox.BackgroundColor3 = _G.Third;
-									local checkIcon = Checkbox:FindFirstChild("CheckIcon");
-									if checkIcon then
-										checkIcon.ImageTransparency = 0;
-									end;
-								end;
-							end;
-							
-							updateSelectionDisplay();
-							SettingsLib.FeatureSettings[featureKey] = selectedItems;
-							AutoSaveSettings();
-							pcall(callback, selectedItems);
-						else
-							-- Single select logic
-							activeItem = optionValue;
-							updateSelectionDisplay();
-							updateDropdownItems();
-							SettingsLib.FeatureSettings[featureKey] = activeItem;
-							AutoSaveSettings();
-							pcall(callback, optionValue);
-						end;
-					end);
-				end;
-				
-				-- Update scroll canvas
-				DropScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10);
-			end;
-			
-			-- Search functionality
-			SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-				searchText = SearchBox.Text;
-				updateDropdownItems();
-			end);
-			
-			-- Search box focus effects
-			SearchBox.Focused:Connect(function()
-				TweenService:Create(SearchBox, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-					BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-				}):Play();
-			end);
-			
-			SearchBox.FocusLost:Connect(function()
-				TweenService:Create(SearchBox, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-					BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-				}):Play();
-			end);
-			
-			-- Dropdown toggle
-			SelectItems.MouseButton1Click:Connect(function()
-				if not isdropping then
-					isdropping = true;
-					DropdownFrameScroll.Visible = true;
-					
-					-- Animate dropdown opening
-					TweenService: Create(DropdownFrameScroll, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, -10, 0, multiSelect and 200 or 200)
-					}):Play();
-					
-					TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, multiSelect and 255 or 255)
-					}):Play();
-					
-					TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-						Rotation = 180,
-						ImageColor3 = _G.Third
-					}):Play();
-					
-					TweenService:Create(DropdownGlow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-						ImageTransparency = 0.7
-					}):Play();
-					
-					-- Focus search box
-					SearchBox:CaptureFocus();
-				else
-					isdropping = false;
-					
-					-- Animate dropdown closing
-					TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, -10, 0, 0)
-					}):Play();
-					
-					TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, 45)
-					}):Play();
-					
-					TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Rotation = 0,
-						ImageColor3 = Color3.fromRGB(200, 200, 200)
-					}):Play();
-					
-					TweenService:Create(DropdownGlow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-						ImageTransparency = 0.9
-					}):Play();
-					
-					wait(0.3);
-					DropdownFrameScroll.Visible = false;
-					SearchBox.Text = "";
-					searchText = "";
-					updateDropdownItems();
-				end;
-			end);
 			
 			-- Hover effects
 			SelectItems.MouseEnter:Connect(function()
@@ -2643,7 +2268,6 @@ function Update:Window(Config)
 				activeItem = var;
 			end;
 			
-			updateDropdownItems();
 			updateSelectionDisplay();
 			
 			-- Return dropdown functions
@@ -2651,7 +2275,6 @@ function Update:Window(Config)
 			
 			function dropfunc:Add(item)
 				table.insert(option, item);
-				updateDropdownItems();
 			end;
 			
 			function dropfunc:Remove(item)
@@ -2673,7 +2296,6 @@ function Update:Window(Config)
 					activeItem = nil;
 				end;
 				
-				updateDropdownItems();
 				updateSelectionDisplay();
 			end;
 			
@@ -2684,7 +2306,6 @@ function Update:Window(Config)
 				else
 					activeItem = nil;
 				end;
-				updateDropdownItems();
 				updateSelectionDisplay();
 			end;
 			
@@ -2698,7 +2319,6 @@ function Update:Window(Config)
 				else
 					activeItem = items;
 				end;
-				updateDropdownItems();
 				updateSelectionDisplay();
 			end;
 			
@@ -2709,7 +2329,6 @@ function Update:Window(Config)
 				else
 					activeItem = nil;
 				end;
-				updateDropdownItems();
 				updateSelectionDisplay();
 			end;
 			
