@@ -622,136 +622,206 @@ local SettingsLib = {
 -- Auto Save functionality
 local function AutoSaveSettings()
 	if SettingsLib.SaveSettings then
-		(getgenv()).SaveConfig();
+		pcall(function()
+			(getgenv()).SaveConfig();
+		end);
 	end;
 end;
 
--- Enhanced configuration system
+-- Enhanced configuration system with better error handling
 (getgenv()).LoadConfig = function()
-	if readfile and writefile and isfile and isfolder then
-		if not isfolder("Xenon") then
-			makefolder("Xenon");
-		end;
-		if not isfolder("Xenon/Library/") then
-			makefolder("Xenon/Library/");
-		end;
-		if not isfolder("Xenon/Configs/") then
-			makefolder("Xenon/Configs/");
-		end;
-		if not isfile(("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json")) then
-			writefile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json", (game:GetService("HttpService")):JSONEncode(SettingsLib));
-		else
-			local Decode = (game:GetService("HttpService")):JSONDecode(readfile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json"));
-			for i, v in pairs(Decode) do
-				SettingsLib[i] = v;
+	local success, error = pcall(function()
+		if readfile and writefile and isfile and isfolder then
+			if not isfolder("Xenon") then
+				makefolder("Xenon");
 			end;
+			if not isfolder("Xenon/Library/") then
+				makefolder("Xenon/Library/");
+			end;
+			if not isfolder("Xenon/Configs/") then
+				makefolder("Xenon/Configs/");
+			end;
+			
+			local configPath = "Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json";
+			if not isfile(configPath) then
+				writefile(configPath, (game:GetService("HttpService")):JSONEncode(SettingsLib));
+			else
+				local fileContent = readfile(configPath);
+				if fileContent and fileContent ~= "" then
+					local Decode = (game:GetService("HttpService")):JSONDecode(fileContent);
+					if Decode and type(Decode) == "table" then
+						for i, v in pairs(Decode) do
+							SettingsLib[i] = v;
+						end;
+					end;
+				end;
+			end;
+			print("Library Loaded Successfully!");
+		else
+			warn("Status : Undetected Executor - File functions not available");
 		end;
-		print("Library Loaded!");
-	else
-		return warn("Status : Undetected Executor");
+	end);
+	
+	if not success then
+		warn("Failed to load configuration: " .. tostring(error));
+		-- Reset to default settings if loading fails
+		SettingsLib = {
+			SaveSettings = true,
+			LoadAnimation = true,
+			AutoLoadOnStart = true,
+			FeatureSettings = {},
+			CurrentConfig = "Default"
+		};
 	end;
 end;
 
 (getgenv()).SaveConfig = function()
-	if readfile and writefile and isfile and isfolder then
-		if not isfile(("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json")) then
-			(getgenv()).LoadConfig();
-		else
-			local Decode = (game:GetService("HttpService")):JSONDecode(readfile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json"));
-			local Array = {};
-			for i, v in pairs(SettingsLib) do
-				Array[i] = v;
+	local success, error = pcall(function()
+		if readfile and writefile and isfile and isfolder then
+			local configPath = "Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json";
+			if not isfile(configPath) then
+				(getgenv()).LoadConfig();
+			else
+				local Array = {};
+				for i, v in pairs(SettingsLib) do
+					Array[i] = v;
+				end;
+				writefile(configPath, (game:GetService("HttpService")):JSONEncode(Array));
 			end;
-			writefile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json", (game:GetService("HttpService")):JSONEncode(Array));
+		else
+			warn("Status : Undetected Executor - File functions not available");
 		end;
-	else
-		return warn("Status : Undetected Executor");
+	end);
+	
+	if not success then
+		warn("Failed to save configuration: " .. tostring(error));
 	end;
 end;
 
--- Save specific feature configuration
+-- Save specific feature configuration with error handling
 (getgenv()).SaveFeatureConfig = function(configName)
-	if readfile and writefile and isfile and isfolder then
-		if not isfolder("Xenon/Configs/") then
-			makefolder("Xenon/Configs/");
+	local success, error = pcall(function()
+		if readfile and writefile and isfile and isfolder then
+			if not isfolder("Xenon/Configs/") then
+				makefolder("Xenon/Configs/");
+			end;
+			local configPath = "Xenon/Configs/" .. configName .. ".json";
+			local configData = {
+				FeatureSettings = SettingsLib.FeatureSettings,
+				SavedAt = os.date("%Y-%m-%d %H:%M:%S"),
+				Version = "4.0"
+			};
+			writefile(configPath, (game:GetService("HttpService")):JSONEncode(configData));
+			SettingsLib.CurrentConfig = configName;
+			AutoSaveSettings();
+			return true;
+		else
+			warn("Status : Undetected Executor - File functions not available");
+			return false;
 		end;
-		local configPath = "Xenon/Configs/" .. configName .. ".json";
-		local configData = {
-			FeatureSettings = SettingsLib.FeatureSettings,
-			SavedAt = os.date("%Y-%m-%d %H:%M:%S"),
-			Version = "4.0"
-		};
-		writefile(configPath, (game:GetService("HttpService")):JSONEncode(configData));
-		SettingsLib.CurrentConfig = configName;
-		AutoSaveSettings();
-		return true;
-	else
+	end);
+	
+	if not success then
+		warn("Failed to save feature configuration: " .. tostring(error));
 		return false;
 	end;
+	return success;
 end;
 
--- Load specific feature configuration
+-- Load specific feature configuration with error handling
 (getgenv()).LoadFeatureConfig = function(configName)
-	if readfile and writefile and isfile and isfolder then
-		local configPath = "Xenon/Configs/" .. configName .. ".json";
-		if isfile(configPath) then
-			local Decode = (game:GetService("HttpService")):JSONDecode(readfile(configPath));
-			if Decode.FeatureSettings then
-				SettingsLib.FeatureSettings = Decode.FeatureSettings;
-				SettingsLib.CurrentConfig = configName;
-				AutoSaveSettings();
+	local success, result = pcall(function()
+		if readfile and writefile and isfile and isfolder then
+			local configPath = "Xenon/Configs/" .. configName .. ".json";
+			if isfile(configPath) then
+				local fileContent = readfile(configPath);
+				if fileContent and fileContent ~= "" then
+					local Decode = (game:GetService("HttpService")):JSONDecode(fileContent);
+					if Decode and Decode.FeatureSettings then
+						SettingsLib.FeatureSettings = Decode.FeatureSettings;
+						SettingsLib.CurrentConfig = configName;
+						AutoSaveSettings();
+						return true;
+					end;
+				end;
+			end;
+		end;
+		return false;
+	end);
+	
+	if not success then
+		warn("Failed to load feature configuration: " .. tostring(result));
+		return false;
+	end;
+	return result;
+end;
+
+-- Delete specific feature configuration with error handling
+(getgenv()).DeleteFeatureConfig = function(configName)
+	local success, result = pcall(function()
+		if readfile and writefile and isfile and isfolder then
+			local configPath = "Xenon/Configs/" .. configName .. ".json";
+			if isfile(configPath) then
+				delfile(configPath);
+				if SettingsLib.CurrentConfig == configName then
+					SettingsLib.CurrentConfig = "Default";
+					AutoSaveSettings();
+				end;
 				return true;
 			end;
 		end;
+		return false;
+	end);
+	
+	if not success then
+		warn("Failed to delete feature configuration: " .. tostring(result));
+		return false;
 	end;
-	return false;
+	return result;
 end;
 
--- Delete specific feature configuration
-(getgenv()).DeleteFeatureConfig = function(configName)
-	if readfile and writefile and isfile and isfolder then
-		local configPath = "Xenon/Configs/" .. configName .. ".json";
-		if isfile(configPath) then
-			delfile(configPath);
-			if SettingsLib.CurrentConfig == configName then
-				SettingsLib.CurrentConfig = "Default";
-				AutoSaveSettings();
-			end;
-			return true;
-		end;
-	end;
-	return false;
-end;
-
--- Get list of saved configurations with metadata
+-- Get list of saved configurations with metadata and error handling
 (getgenv()).GetSavedConfigs = function()
-	if readfile and writefile and isfile and isfolder then
-		if isfolder("Xenon/Configs/") then
-			local configs = {};
-			local files = listfiles("Xenon/Configs/");
-			for _, file in pairs(files) do
-				if string.find(file, ".json") then
-					local configName = string.gsub(file, "Xenon/Configs/", "");
-					configName = string.gsub(configName, ".json", "");
-					
-					-- Try to get metadata
-					local metadata = {};
-					pcall(function()
-						local configData = (game:GetService("HttpService")):JSONDecode(readfile(file));
-						metadata.SavedAt = configData.SavedAt or "Unknown";
-						metadata.Version = configData.Version or "Unknown";
-					end);
-					
-					table.insert(configs, {
-						Name = configName,
-						Metadata = metadata
-					});
+	local success, result = pcall(function()
+		if readfile and writefile and isfile and isfolder then
+			if isfolder("Xenon/Configs/") then
+				local configs = {};
+				local files = listfiles("Xenon/Configs/");
+				for _, file in pairs(files) do
+					if string.find(file, ".json") then
+						local configName = string.gsub(file, "Xenon/Configs/", "");
+						configName = string.gsub(configName, ".json", "");
+						
+						-- Try to get metadata
+						local metadata = {};
+						pcall(function()
+							local fileContent = readfile(file);
+							if fileContent and fileContent ~= "" then
+								local configData = (game:GetService("HttpService")):JSONDecode(fileContent);
+								if configData then
+									metadata.SavedAt = configData.SavedAt or "Unknown";
+									metadata.Version = configData.Version or "Unknown";
+								end;
+							end;
+						end);
+						
+						table.insert(configs, {
+							Name = configName,
+							Metadata = metadata
+						});
+					end;
 				end;
+				return configs;
 			end;
-			return configs;
 		end;
+		return {};
+	end);
+	
+	if not success then
+		warn("Failed to get saved configurations: " .. tostring(result));
+		return {};
 	end;
-	return {};
+	return result;
 end;
 
 -- Get current config name
@@ -759,6 +829,7 @@ end;
 	return SettingsLib.CurrentConfig or "Default";
 end;
 
+-- Initialize configuration system
 (getgenv()).LoadConfig();
 
 -- Auto Load on Start
@@ -1305,7 +1376,7 @@ function Update:Window(Config)
 		end);
 		
 		Button.MouseButton1Click:Connect(function()
-			callback();
+			pcall(callback);
 		end);
 	end;
 	
@@ -1349,7 +1420,7 @@ function Update:Window(Config)
 		
 		TextBox.FocusLost:Connect(function(enterPressed)
 			if enterPressed and TextBox.Text ~= "" then
-				callback(TextBox.Text);
+				pcall(callback, TextBox.Text);
 				TextBox.Text = "";
 			end;
 		end);
@@ -1357,7 +1428,7 @@ function Update:Window(Config)
 		return TextBox;
 	end;
 	
-	-- Enhanced Configuration dropdown with metadata display
+	-- Enhanced Configuration dropdown with metadata display and error handling
 	function CreateConfigDropdown(title, callback)
 		local configs = (getgenv()).GetSavedConfigs();
 		local currentConfig = (getgenv()).GetCurrentConfig();
@@ -1433,107 +1504,109 @@ function Update:Window(Config)
 		
 		local isOpen = false;
 		
-		-- Update dropdown content
+		-- Update dropdown content with error handling
 		local function updateDropdown()
-			-- Clear existing items
-			for _, child in pairs(DropdownList:GetChildren()) do
-				if child:IsA("TextButton") then
-					child:Destroy();
-				end;
-			end;
-			
-			configs = (getgenv()).GetSavedConfigs();
-			currentConfig = (getgenv()).GetCurrentConfig();
-			
-			-- Update main button text
-			if #configs > 0 then
-				local found = false;
-				for _, config in pairs(configs) do
-					if config.Name == currentConfig then
-						Dropdown.Text = config.Name;
-						selectedConfigName = config.Name;
-						found = true;
-						break;
+			pcall(function()
+				-- Clear existing items
+				for _, child in pairs(DropdownList:GetChildren()) do
+					if child:IsA("TextButton") then
+						child:Destroy();
 					end;
 				end;
-				if not found and #configs > 0 then
-					Dropdown.Text = configs[1].Name;
-					selectedConfigName = configs[1].Name;
+				
+				configs = (getgenv()).GetSavedConfigs();
+				currentConfig = (getgenv()).GetCurrentConfig();
+				
+				-- Update main button text
+				if #configs > 0 then
+					local found = false;
+					for _, config in pairs(configs) do
+						if config.Name == currentConfig then
+							Dropdown.Text = config.Name;
+							selectedConfigName = config.Name;
+							found = true;
+							break;
+						end;
+					end;
+					if not found and #configs > 0 then
+						Dropdown.Text = configs[1].Name;
+						selectedConfigName = configs[1].Name;
+					end;
+				else
+					Dropdown.Text = "No configs";
+					selectedConfigName = "";
 				end;
-			else
-				Dropdown.Text = "No configs";
-				selectedConfigName = "";
-			end;
-			
-			-- Create dropdown items
-			for i, config in pairs(configs) do
-				local Item = Instance.new("TextButton");
-				Item.Name = "Item_" .. config.Name;
-				Item.Parent = DropdownList;
-				Item.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
-				Item.BackgroundTransparency = config.Name == currentConfig and 0.5 or 1;
-				Item.Size = UDim2.new(1, -10, 0, 30);
-				Item.Font = Enum.Font.Gotham;
-				Item.Text = config.Name;
-				Item.TextColor3 = config.Name == currentConfig and _G.Third or Color3.fromRGB(200, 200, 200);
-				Item.TextSize = 11;
-				Item.AutoButtonColor = false;
-				Item.ZIndex = 11;
-				CreateRounded(Item, 3);
 				
-				-- Metadata label
-				local MetaLabel = Instance.new("TextLabel");
-				MetaLabel.Name = "MetaLabel";
-				MetaLabel.Parent = Item;
-				MetaLabel.BackgroundTransparency = 1;
-				MetaLabel.Position = UDim2.new(0, 5, 1, -12);
-				MetaLabel.Size = UDim2.new(1, -10, 0, 10);
-				MetaLabel.Font = Enum.Font.Gotham;
-				MetaLabel.Text = config.Metadata.SavedAt or "Unknown date";
-				MetaLabel.TextColor3 = Color3.fromRGB(120, 120, 120);
-				MetaLabel.TextSize = 8;
-				MetaLabel.TextXAlignment = Enum.TextXAlignment.Left;
-				MetaLabel.ZIndex = 11;
-				
-				Item.MouseEnter:Connect(function()
-					if config.Name ~= currentConfig then
-						TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-							BackgroundTransparency = 0.8
-						}):Play();
-					end;
-				end);
-				
-				Item.MouseLeave:Connect(function()
-					if config.Name ~= currentConfig then
-						TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-							BackgroundTransparency = 1
-						}):Play();
-					end;
-				end);
-				
-				Item.MouseButton1Click:Connect(function()
-					selectedConfigName = config.Name;
-					callback(config.Name);
-					updateDropdown();
+				-- Create dropdown items
+				for i, config in pairs(configs) do
+					local Item = Instance.new("TextButton");
+					Item.Name = "Item_" .. config.Name;
+					Item.Parent = DropdownList;
+					Item.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
+					Item.BackgroundTransparency = config.Name == currentConfig and 0.5 or 1;
+					Item.Size = UDim2.new(1, -10, 0, 30);
+					Item.Font = Enum.Font.Gotham;
+					Item.Text = config.Name;
+					Item.TextColor3 = config.Name == currentConfig and _G.Third or Color3.fromRGB(200, 200, 200);
+					Item.TextSize = 11;
+					Item.AutoButtonColor = false;
+					Item.ZIndex = 11;
+					CreateRounded(Item, 3);
 					
-					-- Close dropdown
-					isOpen = false;
-					TweenService:Create(DropdownList, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-						Size = UDim2.new(0.45, 0, 0, 0)
-					}):Play();
-					TweenService:Create(Arrow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-						Rotation = 0
-					}):Play();
-					wait(0.3);
-					DropdownList.Visible = false;
-				end);
-			end;
-			
-			-- Update dropdown size
-			if isOpen then
-				local itemCount = math.min(#configs, 5);
-				DropdownList.Size = UDim2.new(0.45, 0, 0, itemCount * 32 + 10);
-			end;
+					-- Metadata label
+					local MetaLabel = Instance.new("TextLabel");
+					MetaLabel.Name = "MetaLabel";
+					MetaLabel.Parent = Item;
+					MetaLabel.BackgroundTransparency = 1;
+					MetaLabel.Position = UDim2.new(0, 5, 1, -12);
+					MetaLabel.Size = UDim2.new(1, -10, 0, 10);
+					MetaLabel.Font = Enum.Font.Gotham;
+					MetaLabel.Text = config.Metadata.SavedAt or "Unknown date";
+					MetaLabel.TextColor3 = Color3.fromRGB(120, 120, 120);
+					MetaLabel.TextSize = 8;
+					MetaLabel.TextXAlignment = Enum.TextXAlignment.Left;
+					MetaLabel.ZIndex = 11;
+					
+					Item.MouseEnter:Connect(function()
+						if config.Name ~= currentConfig then
+							TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+								BackgroundTransparency = 0.8
+							}):Play();
+						end;
+					end);
+					
+					Item.MouseLeave:Connect(function()
+						if config.Name ~= currentConfig then
+							TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+								BackgroundTransparency = 1
+							}):Play();
+						end;
+					end);
+					
+					Item.MouseButton1Click:Connect(function()
+						selectedConfigName = config.Name;
+						pcall(callback, config.Name);
+						updateDropdown();
+						
+						-- Close dropdown
+						isOpen = false;
+						TweenService:Create(DropdownList, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+							Size = UDim2.new(0.45, 0, 0, 0)
+						}):Play();
+						TweenService:Create(Arrow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+							Rotation = 0
+						}):Play();
+						wait(0.3);
+						DropdownList.Visible = false;
+					end);
+				end;
+				
+				-- Update dropdown size
+				if isOpen then
+					local itemCount = math.min(#configs, 5);
+					DropdownList.Size = UDim2.new(0.45, 0, 0, itemCount * 32 + 10);
+				end;
+			end);
 		end;
 		
 		Dropdown.MouseButton1Click:Connect(function()
@@ -1652,9 +1725,11 @@ function Update:Window(Config)
 	end);
 	
 	CreateButton("Reset All Settings", function()
-		if isfolder("Xenon") then
-			delfolder("Xenon");
-		end;
+		pcall(function()
+			if isfolder("Xenon") then
+				delfolder("Xenon");
+			end;
+		end);
 		SettingsLib = {
 			SaveSettings = true,
 			LoadAnimation = true,
@@ -2123,7 +2198,7 @@ function Update:Window(Config)
 			end);
 			
 			TextButton.MouseButton1Click:Connect(function()
-				callback();
+				pcall(callback);
 			end);
 		end;
 		
@@ -2300,14 +2375,16 @@ function Update:Window(Config)
 			local activeItem = var;
 			local featureKey = text .. "_dropdown";
 			
-			-- Load from saved settings
-			if SettingsLib.FeatureSettings[featureKey] ~= nil then
-				if multiSelect then
-					selectedItems = SettingsLib.FeatureSettings[featureKey];
-				else
-					activeItem = SettingsLib.FeatureSettings[featureKey];
+			-- Load from saved settings with error handling
+			pcall(function()
+				if SettingsLib.FeatureSettings[featureKey] ~= nil then
+					if multiSelect then
+						selectedItems = SettingsLib.FeatureSettings[featureKey];
+					else
+						activeItem = SettingsLib.FeatureSettings[featureKey];
+					end;
 				end;
-			end;
+			end);
 			
 			-- Initialize filtered options
 			for i, v in pairs(option) do
@@ -2541,239 +2618,244 @@ function Update:Window(Config)
 			DropPadding.PaddingTop = UDim.new(0, 5);
 			DropPadding.PaddingBottom = UDim.new(0, 5);
 			
-			-- Update selection display
+			-- Update selection display with error handling
 			function updateSelectionDisplay()
-				if multiSelect then
-					local count = #selectedItems;
-					if count == 0 then
-						SelectItems.Text = "   Select Items";
-					elseif count == 1 then
-						SelectItems.Text = "   " .. selectedItems[1];
-					
-					else
-						SelectItems.Text = "   " .. count .. " items selected";
-					end;
-					
-					if ControlsFrame then
-						local countLabel = ControlsFrame:FindFirstChild("CountLabel");
-						if countLabel then
-							countLabel.Text = count .. " selected";
+				pcall(function()
+					if multiSelect then
+						local count = #selectedItems;
+						if count == 0 then
+							SelectItems.Text = "   Select Items";
+						elseif count == 1 then
+							SelectItems.Text = "   " .. selectedItems[1];
+						else
+							SelectItems.Text = "   " .. count .. " items selected";
 						end;
+						
+						if ControlsFrame then
+							local countLabel = ControlsFrame:FindFirstChild("CountLabel");
+							if countLabel then
+								countLabel.Text = count .. " selected";
+							end;
+						end;
+					else
+						SelectItems.Text = activeItem and ("   " .. tostring(activeItem)) or "   Select Item";
 					end;
-				else
-					SelectItems.Text = activeItem and ("   " .. tostring(activeItem)) or "   Select Item";
-				end;
+				end);
 			end;
 			
-			-- Filter and update dropdown items
+			-- Filter and update dropdown items with error handling
 			function updateDropdownItems()
-				-- Clear existing items
-				for _, child in pairs(DropScroll:GetChildren()) do
-					if child:IsA("TextButton") and child.Name == "Item" then
-						child:Destroy();
+				pcall(function()
+					-- Clear existing items
+					for _, child in pairs(DropScroll:GetChildren()) do
+						if child:IsA("TextButton") and child.Name == "Item" then
+							child:Destroy();
+						end;
 					end;
-				end;
-				
-				-- Filter options
-				filteredOptions = {};
-				for _, option in pairs(option) do
-					local optionStr = tostring(option);
-					if searchText == "" or string.find(string.lower(optionStr), string.lower(searchText)) then
-						table.insert(filteredOptions, option);
+					
+					-- Filter options
+					filteredOptions = {};
+					for _, option in pairs(option) do
+						local optionStr = tostring(option);
+						if searchText == "" or string.find(string.lower(optionStr), string.lower(searchText)) then
+							table.insert(filteredOptions, option);
+						end;
 					end;
-				end;
-				
-				-- Create items
-				for i, optionValue in pairs(filteredOptions) do
-					local Item = Instance.new("TextButton");
-					Item.Name = "Item";
-					Item.Parent = DropScroll;
-					Item.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
-					Item.BackgroundTransparency = 1;
-					Item.Size = UDim2.new(1, -16, 0, 32);
-					Item.Font = Enum.Font.Gotham;
-					Item.Text = "";
-					Item.TextColor3 = Color3.fromRGB(255, 255, 255);
-					Item.TextSize = 12;
-					Item.AutoButtonColor = false;
-					Item.ZIndex = 12;
-					CreateRounded(Item, 5);
 					
-					-- Item text
-					local ItemText = Instance.new("TextLabel");
-					ItemText.Name = "ItemText";
-					ItemText.Parent = Item;
-					ItemText.BackgroundTransparency = 1;
-					ItemText.Position = UDim2.new(0, multiSelect and 35 or 12, 0, 0);
-					ItemText.Size = UDim2.new(1, multiSelect and -45 or -20, 1, 0);
-					ItemText.Font = Enum.Font.Gotham;
-					ItemText.Text = tostring(optionValue);
-					ItemText.TextColor3 = Color3.fromRGB(200, 200, 200);
-					ItemText.TextSize = 12;
-					ItemText.TextXAlignment = Enum.TextXAlignment.Left;
-					ItemText.ZIndex = 12;
-					
-					-- Selection indicator
-					local SelectionIndicator = Instance.new("Frame");
-					SelectionIndicator.Name = "SelectionIndicator";
-					SelectionIndicator.Parent = Item;
-					SelectionIndicator.BackgroundColor3 = _G.Third;
-					SelectionIndicator.BackgroundTransparency = 1;
-					SelectionIndicator.Position = UDim2.new(0, 0, 0.5, 0);
-					SelectionIndicator.Size = UDim2.new(0, 3, 0, 0);
-					SelectionIndicator.AnchorPoint = Vector2.new(0, 0.5);
-					SelectionIndicator.ZIndex = 12;
-					CreateRounded(SelectionIndicator, 2);
-					
-					-- Multi-select checkbox
-					local Checkbox = nil;
-					if multiSelect then
-						Checkbox = Instance.new("Frame");
-						Checkbox.Name = "Checkbox";
-						Checkbox.Parent = Item;
-						Checkbox.BackgroundColor3 = Color3.fromRGB(40, 40, 45);
-						Checkbox.Position = UDim2.new(0, 8, 0.5, 0);
-						Checkbox.Size = UDim2.new(0, 18, 0, 18);
-						Checkbox.AnchorPoint = Vector2.new(0, 0.5);
-						Checkbox.ZIndex = 12;
-						CreateRounded(Checkbox, 4);
-						CreateStroke(Checkbox, Color3.fromRGB(70, 70, 75), 1);
+					-- Create items
+					for i, optionValue in pairs(filteredOptions) do
+						local Item = Instance.new("TextButton");
+						Item.Name = "Item";
+						Item.Parent = DropScroll;
+						Item.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
+						Item.BackgroundTransparency = 1;
+						Item.Size = UDim2.new(1, -16, 0, 32);
+						Item.Font = Enum.Font.Gotham;
+						Item.Text = "";
+						Item.TextColor3 = Color3.fromRGB(255, 255, 255);
+						Item.TextSize = 12;
+						Item.AutoButtonColor = false;
+						Item.ZIndex = 12;
+						CreateRounded(Item, 5);
 						
-						local CheckIcon = Instance.new("ImageLabel");
-						CheckIcon.Name = "CheckIcon";
-						CheckIcon.Parent = Checkbox;
-						CheckIcon.BackgroundTransparency = 1;
-						CheckIcon.Position = UDim2.new(0.5, 0, 0.5, 0);
-						CheckIcon.Size = UDim2.new(0, 12, 0, 12);
-						CheckIcon.AnchorPoint = Vector2.new(0.5, 0.5);
-						CheckIcon.Image = "rbxassetid://10709790644";
-						CheckIcon.ImageColor3 = Color3.fromRGB(255, 255, 255);
-						CheckIcon.ImageTransparency = 1;
-						CheckIcon.ZIndex = 13;
-					end;
-					
-					-- Check if item is selected
-					local isSelected = false;
-					if multiSelect then
-						for _, selected in pairs(selectedItems) do
-							if tostring(selected) == tostring(optionValue) then
-								isSelected = true;
-								break;
-							end;
-						end;
-					else
-						isSelected = (activeItem and tostring(activeItem) == tostring(optionValue));
-					end;
-					
-					-- Apply selection state
-					if isSelected then
-						Item.BackgroundTransparency = 0.8;
-						ItemText.TextColor3 = Color3.fromRGB(255, 255, 255);
-						SelectionIndicator.BackgroundTransparency = 0;
-						SelectionIndicator.Size = UDim2.new(0, 3, 0, 20);
+						-- Item text
+						local ItemText = Instance.new("TextLabel");
+						ItemText.Name = "ItemText";
+						ItemText.Parent = Item;
+						ItemText.BackgroundTransparency = 1;
+						ItemText.Position = UDim2.new(0, multiSelect and 35 or 12, 0, 0);
+						ItemText.Size = UDim2.new(1, multiSelect and -45 or -20, 1, 0);
+						ItemText.Font = Enum.Font.Gotham;
+						ItemText.Text = tostring(optionValue);
+						ItemText.TextColor3 = Color3.fromRGB(200, 200, 200);
+						ItemText.TextSize = 12;
+						ItemText.TextXAlignment = Enum.TextXAlignment.Left;
+						ItemText.ZIndex = 12;
 						
-						if Checkbox then
-							Checkbox.BackgroundColor3 = _G.Third;
-							local checkIcon = Checkbox:FindFirstChild("CheckIcon");
-							if checkIcon then
-								checkIcon.ImageTransparency = 0;
-							end;
-						end;
-					end;
-					
-					-- Hover effects
-					Item.MouseEnter:Connect(function()
-						if not isSelected then
-							TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-								BackgroundTransparency = 0.9
-							}):Play();
-							TweenService:Create(ItemText, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-								TextColor3 = Color3.fromRGB(255, 255, 255)
-							}):Play();
-						end;
-					end);
-					
-					Item.MouseLeave:Connect(function()
-						if not isSelected then
-							TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-								BackgroundTransparency = 1
-							}):Play();
-							TweenService:Create(ItemText, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-								TextColor3 = Color3.fromRGB(200, 200, 200)
-							}):Play();
-						end;
-					end);
-					
-					-- Click handling
-					Item.MouseButton1Click:Connect(function()
+						-- Selection indicator
+						local SelectionIndicator = Instance.new("Frame");
+						SelectionIndicator.Name = "SelectionIndicator";
+						SelectionIndicator.Parent = Item;
+						SelectionIndicator.BackgroundColor3 = _G.Third;
+						SelectionIndicator.BackgroundTransparency = 1;
+						SelectionIndicator.Position = UDim2.new(0, 0, 0.5, 0);
+						SelectionIndicator.Size = UDim2.new(0, 3, 0, 0);
+						SelectionIndicator.AnchorPoint = Vector2.new(0, 0.5);
+						SelectionIndicator.ZIndex = 12;
+						CreateRounded(SelectionIndicator, 2);
+						
+						-- Multi-select checkbox
+						local Checkbox = nil;
 						if multiSelect then
-							-- Multi-select logic
-							local itemStr = tostring(optionValue);
-							local wasSelected = false;
-							local selectedIndex = 0;
+							Checkbox = Instance.new("Frame");
+							Checkbox.Name = "Checkbox";
+							Checkbox.Parent = Item;
+							Checkbox.BackgroundColor3 = Color3.fromRGB(40, 40, 45);
+							Checkbox.Position = UDim2.new(0, 8, 0.5, 0);
+							Checkbox.Size = UDim2.new(0, 18, 0, 18);
+							Checkbox.AnchorPoint = Vector2.new(0, 0.5);
+							Checkbox.ZIndex = 12;
+							CreateRounded(Checkbox, 4);
+							CreateStroke(Checkbox, Color3.fromRGB(70, 70, 75), 1);
 							
-							for i, selected in pairs(selectedItems) do
-								if tostring(selected) == itemStr then
-									wasSelected = true;
-									selectedIndex = i;
+							local CheckIcon = Instance.new("ImageLabel");
+							CheckIcon.Name = "CheckIcon";
+							CheckIcon.Parent = Checkbox;
+							CheckIcon.BackgroundTransparency = 1;
+							CheckIcon.Position = UDim2.new(0.5, 0, 0.5, 0);
+							CheckIcon.Size = UDim2.new(0, 12, 0, 12);
+							CheckIcon.AnchorPoint = Vector2.new(0.5, 0.5);
+							CheckIcon.Image = "rbxassetid://10709790644";
+							CheckIcon.ImageColor3 = Color3.fromRGB(255, 255, 255);
+							CheckIcon.ImageTransparency = 1;
+							CheckIcon.ZIndex = 13;
+						end;
+						
+						-- Check if item is selected
+						local isSelected = false;
+						if multiSelect then
+							for _, selected in pairs(selectedItems) do
+								if tostring(selected) == tostring(optionValue) then
+									isSelected = true;
 									break;
 								end;
 							end;
+						else
+							isSelected = (activeItem and tostring(activeItem) == tostring(optionValue));
+						end;
+						
+						-- Apply selection state
+						if isSelected then
+							Item.BackgroundTransparency = 0.8;
+							ItemText.TextColor3 = Color3.fromRGB(255, 255, 255);
+							SelectionIndicator.BackgroundTransparency = 0;
+							SelectionIndicator.Size = UDim2.new(0, 3, 0, 20);
 							
-							if wasSelected then
-								-- Remove from selection
-								table.remove(selectedItems, selectedIndex);
-								isSelected = false;
-								
-								Item.BackgroundTransparency = 1;
-								ItemText.TextColor3 = Color3.fromRGB(200, 200, 200);
-								SelectionIndicator.BackgroundTransparency = 1;
-								SelectionIndicator.Size = UDim2.new(0, 3, 0, 0);
-								
-								if Checkbox then
-									Checkbox.BackgroundColor3 = Color3.fromRGB(40, 40, 45);
-									local checkIcon = Checkbox:FindFirstChild("CheckIcon");
-									if checkIcon then
-										checkIcon.ImageTransparency = 1;
-									end;
-								end;
-							else
-								-- Add to selection
-								table.insert(selectedItems, optionValue);
-								isSelected = true;
-								
-								Item.BackgroundTransparency = 0.8;
-								ItemText.TextColor3 = Color3.fromRGB(255, 255, 255);
-								SelectionIndicator.BackgroundTransparency = 0;
-								SelectionIndicator.Size = UDim2.new(0, 3, 0, 20);
-								
-								if Checkbox then
-									Checkbox.BackgroundColor3 = _G.Third;
-									local checkIcon = Checkbox:FindFirstChild("CheckIcon");
-									if checkIcon then
-										checkIcon.ImageTransparency = 0;
-									end;
+							if Checkbox then
+								Checkbox.BackgroundColor3 = _G.Third;
+								local checkIcon = Checkbox:FindFirstChild("CheckIcon");
+								if checkIcon then
+									checkIcon.ImageTransparency = 0;
 								end;
 							end;
-							
-							updateSelectionDisplay();
-							SettingsLib.FeatureSettings[featureKey] = selectedItems;
-							AutoSaveSettings();
-							pcall(callback, selectedItems);
-						else
-							-- Single select logic
-							activeItem = optionValue;
-							updateSelectionDisplay();
-							updateDropdownItems();
-							SettingsLib.FeatureSettings[featureKey] = activeItem;
-							AutoSaveSettings();
-							pcall(callback, optionValue);
 						end;
-					end);
-				end;
-				
-				-- Update scroll canvas
-				DropScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10);
+						
+						-- Hover effects
+						Item.MouseEnter:Connect(function()
+							if not isSelected then
+								TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+									BackgroundTransparency = 0.9
+								}):Play();
+								TweenService:Create(ItemText, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+									TextColor3 = Color3.fromRGB(255, 255, 255)
+								}):Play();
+							end;
+						end);
+						
+						Item.MouseLeave:Connect(function()
+							if not isSelected then
+								TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+									BackgroundTransparency = 1
+								}):Play();
+								TweenService:Create(ItemText, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+									TextColor3 = Color3.fromRGB(200, 200, 200)
+								}):Play();
+							end;
+						end);
+						
+						-- Click handling with error handling
+						Item.MouseButton1Click:Connect(function()
+							pcall(function()
+								if multiSelect then
+									-- Multi-select logic
+									local itemStr = tostring(optionValue);
+									local wasSelected = false;
+									local selectedIndex = 0;
+									
+									for i, selected in pairs(selectedItems) do
+										if tostring(selected) == itemStr then
+											wasSelected = true;
+											selectedIndex = i;
+											break;
+										end;
+									end;
+									
+									if wasSelected then
+										-- Remove from selection
+										table.remove(selectedItems, selectedIndex);
+										isSelected = false;
+										
+										Item.BackgroundTransparency = 1;
+										ItemText.TextColor3 = Color3.fromRGB(200, 200, 200);
+										SelectionIndicator.BackgroundTransparency = 1;
+										SelectionIndicator.Size = UDim2.new(0, 3, 0, 0);
+										
+										if Checkbox then
+											Checkbox.BackgroundColor3 = Color3.fromRGB(40, 40, 45);
+											local checkIcon = Checkbox:FindFirstChild("CheckIcon");
+											if checkIcon then
+												checkIcon.ImageTransparency = 1;
+											end;
+										end;
+									else
+										-- Add to selection
+										table.insert(selectedItems, optionValue);
+										isSelected = true;
+										
+										Item.BackgroundTransparency = 0.8;
+										ItemText.TextColor3 = Color3.fromRGB(255, 255, 255);
+										SelectionIndicator.BackgroundTransparency = 0;
+										SelectionIndicator.Size = UDim2.new(0, 3, 0, 20);
+										
+										if Checkbox then
+											Checkbox.BackgroundColor3 = _G.Third;
+											local checkIcon = Checkbox:FindFirstChild("CheckIcon");
+											if checkIcon then
+												checkIcon.ImageTransparency = 0;
+											end;
+										end;
+									end;
+									
+									updateSelectionDisplay();
+									SettingsLib.FeatureSettings[featureKey] = selectedItems;
+									AutoSaveSettings();
+									pcall(callback, selectedItems);
+								else
+									-- Single select logic
+									activeItem = optionValue;
+									updateSelectionDisplay();
+									updateDropdownItems();
+									SettingsLib.FeatureSettings[featureKey] = activeItem;
+									AutoSaveSettings();
+									pcall(callback, optionValue);
+								end;
+							end);
+						end);
+					end;
+					
+					-- Update scroll canvas
+					DropScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10);
+				end);
 			end;
 			
 			-- Search functionality
@@ -2795,59 +2877,63 @@ function Update:Window(Config)
 				}):Play();
 			end);
 			
-			-- Dropdown toggle
+			-- Dropdown toggle with error handling
 			SelectItems.MouseButton1Click:Connect(function()
-				if not isdropping then
-					isdropping = true;
-					DropdownFrameScroll.Visible = true;
+				pcall(function()
+					if #configs == 0 then return end;
 					
-					-- Animate dropdown opening
-					TweenService: Create(DropdownFrameScroll, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, -10, 0, multiSelect and 200 or 200)
-					}):Play();
-					
-					TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, multiSelect and 255 or 255)
-					}):Play();
-					
-					TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-						Rotation = 180,
-						ImageColor3 = _G.Third
-					}):Play();
-					
-					TweenService:Create(DropdownGlow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-						ImageTransparency = 0.7
-					}):Play();
-					
-					-- Focus search box
-					SearchBox:CaptureFocus();
-				else
-					isdropping = false;
-					
-					-- Animate dropdown closing
-					TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, -10, 0, 0)
-					}):Play();
-					
-					TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Size = UDim2.new(1, 0, 0, 45)
-					}):Play();
-					
-					TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Rotation = 0,
-						ImageColor3 = Color3.fromRGB(200, 200, 200)
-					}):Play();
-					
-					TweenService:Create(DropdownGlow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-						ImageTransparency = 0.9
-					}):Play();
-					
-					wait(0.3);
-					DropdownFrameScroll.Visible = false;
-					SearchBox.Text = "";
-					searchText = "";
-					updateDropdownItems();
-				end;
+					if not isdropping then
+						isdropping = true;
+						DropdownFrameScroll.Visible = true;
+						
+						-- Animate dropdown opening
+						TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+							Size = UDim2.new(1, -10, 0, multiSelect and 200 or 200)
+						}):Play();
+						
+						TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							Size = UDim2.new(1, 0, 0, multiSelect and 255 or 255)
+						}):Play();
+						
+						TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+							Rotation = 180,
+							ImageColor3 = _G.Third
+						}):Play();
+						
+						TweenService:Create(DropdownGlow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+							ImageTransparency = 0.7
+						}):Play();
+						
+						-- Focus search box
+						SearchBox:CaptureFocus();
+					else
+						isdropping = false;
+						
+						-- Animate dropdown closing
+						TweenService:Create(DropdownFrameScroll, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							Size = UDim2.new(1, -10, 0, 0)
+						}):Play();
+						
+						TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							Size = UDim2.new(1, 0, 0, 45)
+						}):Play();
+						
+						TweenService:Create(ArrowDown, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							Rotation = 0,
+							ImageColor3 = Color3.fromRGB(200, 200, 200)
+						}):Play();
+						
+						TweenService:Create(DropdownGlow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+							ImageTransparency = 0.9
+						}):Play();
+						
+						wait(0.3);
+						DropdownFrameScroll.Visible = false;
+						SearchBox.Text = "";
+						searchText = "";
+						updateDropdownItems();
+					end;
+				end);
 			end);
 			
 			-- Hover effects
@@ -2891,46 +2977,52 @@ function Update:Window(Config)
 			updateDropdownItems();
 			updateSelectionDisplay();
 			
-			-- Return dropdown functions
+			-- Return dropdown functions with error handling
 			local dropfunc = {};
 			
 			function dropfunc:Add(item)
-				table.insert(option, item);
-				updateDropdownItems();
+				pcall(function()
+					table.insert(option, item);
+					updateDropdownItems();
+				end);
 			end;
 			
 			function dropfunc:Remove(item)
-				for i, v in pairs(option) do
-					if tostring(v) == tostring(item) then
-						table.remove(option, i);
-						break;
-					end;
-				end;
-				
-				if multiSelect then
-					for i, v in pairs(selectedItems) do
+				pcall(function()
+					for i, v in pairs(option) do
 						if tostring(v) == tostring(item) then
-							table.remove(selectedItems, i);
+							table.remove(option, i);
 							break;
 						end;
 					end;
-				elseif activeItem and tostring(activeItem) == tostring(item) then
-					activeItem = nil;
-				end;
-				
-				updateDropdownItems();
-				updateSelectionDisplay();
+					
+					if multiSelect then
+						for i, v in pairs(selectedItems) do
+							if tostring(v) == tostring(item) then
+								table.remove(selectedItems, i);
+								break;
+							end;
+						end;
+					elseif activeItem and tostring(activeItem) == tostring(item) then
+						activeItem = nil;
+					end;
+					
+					updateDropdownItems();
+					updateSelectionDisplay();
+				end);
 			end;
 			
 			function dropfunc:Clear()
-				option = {};
-				if multiSelect then
-					selectedItems = {};
-				else
-					activeItem = nil;
-				end;
-				updateDropdownItems();
-				updateSelectionDisplay();
+				pcall(function()
+					option = {};
+					if multiSelect then
+						selectedItems = {};
+					else
+						activeItem = nil;
+					end;
+					updateDropdownItems();
+					updateSelectionDisplay();
+				end);
 			end;
 			
 			function dropfunc:GetSelected()
@@ -2938,24 +3030,28 @@ function Update:Window(Config)
 			end;
 			
 			function dropfunc:SetSelected(items)
-				if multiSelect then
-					selectedItems = type(items) == "table" and items or {items};
-				else
-					activeItem = items;
-				end;
-				updateDropdownItems();
-				updateSelectionDisplay();
+				pcall(function()
+					if multiSelect then
+						selectedItems = type(items) == "table" and items or {items};
+					else
+						activeItem = items;
+					end;
+					updateDropdownItems();
+					updateSelectionDisplay();
+				end);
 			end;
 			
 			function dropfunc:SetOptions(newOptions)
-				option = newOptions;
-				if multiSelect then
-					selectedItems = {};
-				else
-					activeItem = nil;
-				end;
-				updateDropdownItems();
-				updateSelectionDisplay();
+				pcall(function()
+					option = newOptions;
+					if multiSelect then
+						selectedItems = {};
+					else
+						activeItem = nil;
+					end;
+					updateDropdownItems();
+					updateSelectionDisplay();
+				end);
 			end;
 			
 			return dropfunc;
@@ -3242,7 +3338,7 @@ function Update:Window(Config)
 				SettingsLib.FeatureSettings[featureKey] = RealTextbox.Text;
 				AutoSaveSettings();
 				
-				callback(RealTextbox.Text);
+				pcall(callback, RealTextbox.Text);
 			end);
 			
 			Textbox.MouseEnter:Connect(function()
