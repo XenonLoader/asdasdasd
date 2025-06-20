@@ -1,5 +1,5 @@
-if (game:GetService("CoreGui")):FindFirstChild("Xenon") and (game:GetService("CoreGui")):FindFirstChild("ScreenGui") then
-	(game:GetService("CoreGui")).Xenon:Destroy();
+if (game:GetService("CoreGui")):FindFirstChild("Avantrix") and (game:GetService("CoreGui")):FindFirstChild("ScreenGui") then
+	(game:GetService("CoreGui")).Avantrix:Destroy();
 	(game:GetService("CoreGui")).ScreenGui:Destroy();
 end;
 
@@ -188,7 +188,7 @@ ImageButton.MouseLeave:Connect(function()
 end);
 
 ImageButton.MouseButton1Click:connect(function()
-	(game.CoreGui:FindFirstChild("Xenon")).Enabled = not (game.CoreGui:FindFirstChild("Xenon")).Enabled;
+	(game.CoreGui:FindFirstChild("Avantrix")).Enabled = not (game.CoreGui:FindFirstChild("Avantrix")).Enabled;
 end);
 
 local NotificationFrame = Instance.new("ScreenGui");
@@ -257,7 +257,7 @@ function Update:Notify(desc)
 	Title.Position = UDim2.new(0, 55, 0, 14);
 	Title.Size = UDim2.new(0, 10, 0, 20);
 	Title.Font = Enum.Font.GothamBold;
-	Title.Text = "Xenon";
+	Title.Text = "Avantrix";
 	Title.TextColor3 = Color3.fromRGB(255, 255, 255);
 	Title.TextSize = 16;
 	Title.TextXAlignment = Enum.TextXAlignment.Left;
@@ -375,7 +375,7 @@ function Update:StartLoad()
 	-- Enhanced Title with gradient text effect
 	local TitleLoader = Instance.new("TextLabel");
 	TitleLoader.Parent = MainLoaderFrame;
-	TitleLoader.Text = "XENON";
+	TitleLoader.Text = "Avantrix";
 	TitleLoader.Font = Enum.Font.FredokaOne;
 	TitleLoader.TextSize = 60;
 	TitleLoader.TextColor3 = Color3.fromRGB(255, 255, 255);
@@ -628,19 +628,19 @@ end;
 -- Enhanced configuration system
 (getgenv()).LoadConfig = function()
 	if readfile and writefile and isfile and isfolder then
-		if not isfolder("Xenon") then
-			makefolder("Xenon");
+		if not isfolder("Avantrix") then
+			makefolder("Avantrix");
 		end;
-		if not isfolder("Xenon/Library/") then
-			makefolder("Xenon/Library/");
+		if not isfolder("Avantrix/Library/") then
+			makefolder("Avantrix/Library/");
 		end;
-		if not isfolder("Xenon/Configs/") then
-			makefolder("Xenon/Configs/");
+		if not isfolder("Avantrix/Configs/") then
+			makefolder("Avantrix/Configs/");
 		end;
-		if not isfile(("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json")) then
-			writefile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json", (game:GetService("HttpService")):JSONEncode(SettingsLib));
+		if not isfile(("Avantrix/Library/" .. game.Players.LocalPlayer.Name .. ".json")) then
+			writefile("Avantrix/Library/" .. game.Players.LocalPlayer.Name .. ".json", (game:GetService("HttpService")):JSONEncode(SettingsLib));
 		else
-			local Decode = (game:GetService("HttpService")):JSONDecode(readfile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json"));
+			local Decode = (game:GetService("HttpService")):JSONDecode(readfile("Avantrix/Library/" .. game.Players.LocalPlayer.Name .. ".json"));
 			for i, v in pairs(Decode) do
 				SettingsLib[i] = v;
 			end;
@@ -653,15 +653,15 @@ end;
 
 (getgenv()).SaveConfig = function()
 	if readfile and writefile and isfile and isfolder then
-		if not isfile(("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json")) then
+		if not isfile(("Avantrix/Library/" .. game.Players.LocalPlayer.Name .. ".json")) then
 			(getgenv()).LoadConfig();
 		else
-			local Decode = (game:GetService("HttpService")):JSONDecode(readfile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json"));
+			local Decode = (game:GetService("HttpService")):JSONDecode(readfile("Avantrix/Library/" .. game.Players.LocalPlayer.Name .. ".json"));
 			local Array = {};
 			for i, v in pairs(SettingsLib) do
 				Array[i] = v;
 			end;
-			writefile("Xenon/Library/" .. game.Players.LocalPlayer.Name .. ".json", (game:GetService("HttpService")):JSONEncode(Array));
+			writefile("Avantrix/Library/" .. game.Players.LocalPlayer.Name .. ".json", (game:GetService("HttpService")):JSONEncode(Array));
 		end;
 	else
 		return warn("Status : Undetected Executor");
@@ -671,10 +671,10 @@ end;
 -- Save specific feature configuration
 (getgenv()).SaveFeatureConfig = function(configName)
 	if readfile and writefile and isfile and isfolder then
-		if not isfolder("Xenon/Configs/") then
-			makefolder("Xenon/Configs/");
+		if not isfolder("Avantrix/Configs/") then
+			makefolder("Avantrix/Configs/");
 		end;
-		local configPath = "Xenon/Configs/" .. configName .. ".json";
+		local configPath = "Avantrix/Configs/" .. configName .. ".json";
 		writefile(configPath, (game:GetService("HttpService")):JSONEncode(SettingsLib.FeatureSettings));
 		return true;
 	else
@@ -685,7 +685,7 @@ end;
 -- Load specific feature configuration
 (getgenv()).LoadFeatureConfig = function(configName)
 	if readfile and writefile and isfile and isfolder then
-		local configPath = "Xenon/Configs/" .. configName .. ".json";
+		local configPath = "Avantrix/Configs/" .. configName .. ".json";
 		if isfile(configPath) then
 			local Decode = (game:GetService("HttpService")):JSONDecode(readfile(configPath));
 			SettingsLib.FeatureSettings = Decode;
@@ -698,7 +698,7 @@ end;
 -- Delete specific feature configuration
 (getgenv()).DeleteFeatureConfig = function(configName)
 	if readfile and writefile and isfile and isfolder then
-		local configPath = "Xenon/Configs/" .. configName .. ".json";
+		local configPath = "Avantrix/Configs/" .. configName .. ".json";
 		if isfile(configPath) then
 			delfile(configPath);
 			return true;
@@ -710,12 +710,12 @@ end;
 -- Get list of saved configurations
 (getgenv()).GetSavedConfigs = function()
 	if readfile and writefile and isfile and isfolder then
-		if isfolder("Xenon/Configs/") then
+		if isfolder("Avantrix/Configs/") then
 			local configs = {};
-			local files = listfiles("Xenon/Configs/");
+			local files = listfiles("Avantrix/Configs/");
 			for _, file in pairs(files) do
 				if string.find(file, ".json") then
-					local configName = string.gsub(file, "Xenon/Configs/", "");
+					local configName = string.gsub(file, "Avantrix/Configs/", "");
 					configName = string.gsub(configName, ".json", "");
 					table.insert(configs, configName);
 				end;
@@ -765,14 +765,14 @@ function Update:Window(Config)
 	local keybind = keybind or Enum.KeyCode.RightControl;
 	local yoo = string.gsub(tostring(keybind), "Enum.KeyCode.", "");
 	
-	local Xenon = Instance.new("ScreenGui");
-	Xenon.Name = "Xenon";
-	Xenon.Parent = game.CoreGui;
-	Xenon.DisplayOrder = 999;
+	local Avantrix = Instance.new("ScreenGui");
+	Avantrix.Name = "Avantrix";
+	Avantrix.Parent = game.CoreGui;
+	Avantrix.DisplayOrder = 999;
 	
 	local OutlineMain = Instance.new("Frame");
 	OutlineMain.Name = "OutlineMain";
-	OutlineMain.Parent = Xenon;
+	OutlineMain.Parent = Avantrix;
 	OutlineMain.ClipsDescendants = true;
 	OutlineMain.AnchorPoint = Vector2.new(0.5, 0.5);
 	OutlineMain.BackgroundColor3 = Color3.fromRGB(30, 30, 30);
@@ -900,7 +900,7 @@ function Update:Window(Config)
 	NameHub.AnchorPoint = Vector2.new(0, 0);
 	NameHub.Size = UDim2.new(0, 1, 0, 20);
 	NameHub.Font = Enum.Font.GothamBold;
-	NameHub.Text = "XENON";
+	NameHub.Text = "Avantrix";
 	NameHub.TextSize = 18;
 	NameHub.TextColor3 = Color3.fromRGB(255, 255, 255);
 	NameHub.TextXAlignment = Enum.TextXAlignment.Left;
@@ -970,7 +970,7 @@ function Update:Window(Config)
 	end);
 	
 	CloseButton.MouseButton1Click:connect(function()
-		(game.CoreGui:FindFirstChild("Xenon")).Enabled = not (game.CoreGui:FindFirstChild("Xenon")).Enabled;
+		(game.CoreGui:FindFirstChild("Avantrix")).Enabled = not (game.CoreGui:FindFirstChild("Avantrix")).Enabled;
 	end);
 	
 	local ResizeButton = Instance.new("ImageButton");
@@ -1693,7 +1693,7 @@ function Update:Window(Config)
 	
 	UserInputService.InputBegan:Connect(function(input)
 		if input.KeyCode == Enum.KeyCode.Insert then
-			(game.CoreGui:FindFirstChild("Xenon")).Enabled = not (game.CoreGui:FindFirstChild("Xenon")).Enabled;
+			(game.CoreGui:FindFirstChild("Avantrix")).Enabled = not (game.CoreGui:FindFirstChild("Avantrix")).Enabled;
 		end;
 	end);
 	
