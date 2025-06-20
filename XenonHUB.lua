@@ -615,8 +615,7 @@ local SettingsLib = {
 	SaveSettings = true,
 	LoadAnimation = true,
 	AutoLoadOnStart = true,
-	FeatureSettings = {},
-	CurrentConfig = "Default"
+	FeatureSettings = {}
 };
 
 -- Auto Save functionality
@@ -676,14 +675,7 @@ end;
 			makefolder("Xenon/Configs/");
 		end;
 		local configPath = "Xenon/Configs/" .. configName .. ".json";
-		local configData = {
-			FeatureSettings = SettingsLib.FeatureSettings,
-			SavedAt = os.date("%Y-%m-%d %H:%M:%S"),
-			Version = "4.0"
-		};
-		writefile(configPath, (game:GetService("HttpService")):JSONEncode(configData));
-		SettingsLib.CurrentConfig = configName;
-		AutoSaveSettings();
+		writefile(configPath, (game:GetService("HttpService")):JSONEncode(SettingsLib.FeatureSettings));
 		return true;
 	else
 		return false;
@@ -696,12 +688,8 @@ end;
 		local configPath = "Xenon/Configs/" .. configName .. ".json";
 		if isfile(configPath) then
 			local Decode = (game:GetService("HttpService")):JSONDecode(readfile(configPath));
-			if Decode.FeatureSettings then
-				SettingsLib.FeatureSettings = Decode.FeatureSettings;
-				SettingsLib.CurrentConfig = configName;
-				AutoSaveSettings();
-				return true;
-			end;
+			SettingsLib.FeatureSettings = Decode;
+			return true;
 		end;
 	end;
 	return false;
@@ -713,17 +701,13 @@ end;
 		local configPath = "Xenon/Configs/" .. configName .. ".json";
 		if isfile(configPath) then
 			delfile(configPath);
-			if SettingsLib.CurrentConfig == configName then
-				SettingsLib.CurrentConfig = "Default";
-				AutoSaveSettings();
-			end;
 			return true;
 		end;
 	end;
 	return false;
 end;
 
--- Get list of saved configurations with metadata
+-- Get list of saved configurations
 (getgenv()).GetSavedConfigs = function()
 	if readfile and writefile and isfile and isfolder then
 		if isfolder("Xenon/Configs/") then
@@ -733,19 +717,7 @@ end;
 				if string.find(file, ".json") then
 					local configName = string.gsub(file, "Xenon/Configs/", "");
 					configName = string.gsub(configName, ".json", "");
-					
-					-- Try to get metadata
-					local metadata = {};
-					pcall(function()
-						local configData = (game:GetService("HttpService")):JSONDecode(readfile(file));
-						metadata.SavedAt = configData.SavedAt or "Unknown";
-						metadata.Version = configData.Version or "Unknown";
-					end);
-					
-					table.insert(configs, {
-						Name = configName,
-						Metadata = metadata
-					});
+					table.insert(configs, configName);
 				end;
 			end;
 			return configs;
@@ -754,16 +726,14 @@ end;
 	return {};
 end;
 
--- Get current config name
-(getgenv()).GetCurrentConfig = function()
-	return SettingsLib.CurrentConfig or "Default";
-end;
-
 (getgenv()).LoadConfig();
 
 -- Auto Load on Start
-if SettingsLib.AutoLoadOnStart and SettingsLib.CurrentConfig and SettingsLib.CurrentConfig ~= "Default" then
-	(getgenv()).LoadFeatureConfig(SettingsLib.CurrentConfig);
+if SettingsLib.AutoLoadOnStart then
+	local configs = (getgenv()).GetSavedConfigs();
+	if #configs > 0 then
+		(getgenv()).LoadFeatureConfig(configs[1]); -- Load first available config
+	end;
 end;
 
 function Update:SaveSettings()
@@ -1054,7 +1024,7 @@ function Update:Window(Config)
 	SettingsFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
 	SettingsFrame.BackgroundTransparency = 0;
 	SettingsFrame.Position = UDim2.new(0.5, 0, 0.5, 0);
-	SettingsFrame.Size = UDim2.new(0.8, 0, 0.8, 0);
+	SettingsFrame.Size = UDim2.new(0.7, 0, 0.7, 0);
 	CreateRounded(SettingsFrame, 15);
 	CreateStroke(SettingsFrame, Color3.fromRGB(40, 40, 45), 1);
 	
@@ -1123,20 +1093,6 @@ function Update:Window(Config)
 	TitleSettings.TextColor3 = Color3.fromRGB(245, 245, 245);
 	TitleSettings.TextXAlignment = Enum.TextXAlignment.Left;
 	
-	-- Current config indicator
-	local CurrentConfigLabel = Instance.new("TextLabel");
-	CurrentConfigLabel.Name = "CurrentConfigLabel";
-	CurrentConfigLabel.Parent = SettingsFrame;
-	CurrentConfigLabel.BackgroundTransparency = 1;
-	CurrentConfigLabel.Position = UDim2.new(1, -20, 0, 15);
-	CurrentConfigLabel.Size = UDim2.new(0, 200, 0, 20);
-	CurrentConfigLabel.AnchorPoint = Vector2.new(1, 0);
-	CurrentConfigLabel.Font = Enum.Font.Gotham;
-	CurrentConfigLabel.Text = "Config: " .. (getgenv()).GetCurrentConfig();
-	CurrentConfigLabel.TextSize = 12;
-	CurrentConfigLabel.TextColor3 = _G.Accent;
-	CurrentConfigLabel.TextXAlignment = Enum.TextXAlignment.Right;
-	
 	local SettingsMenuList = Instance.new("Frame");
 	SettingsMenuList.Name = "SettingsMenuList";
 	SettingsMenuList.Parent = SettingsFrame;
@@ -1169,10 +1125,6 @@ function Update:Window(Config)
 	local PaddingScroll = Instance.new("UIPadding");
 	PaddingScroll.Name = "PaddingScroll";
 	PaddingScroll.Parent = ScrollSettings;
-	
-	-- Global variables for config management
-	local selectedConfigName = "";
-	local configDropdownRef = nil;
 	
 	function CreateCheckbox(title, state, callback)
 		local checked = state or false;
@@ -1357,18 +1309,17 @@ function Update:Window(Config)
 		return TextBox;
 	end;
 	
-	-- Enhanced Configuration dropdown with metadata display
+	-- Configuration dropdown
 	function CreateConfigDropdown(title, callback)
 		local configs = (getgenv()).GetSavedConfigs();
-		local currentConfig = (getgenv()).GetCurrentConfig();
 		
 		local Background = Instance.new("Frame");
 		Background.Name = "Background";
 		Background.Parent = ScrollSettings;
-		Background.ClipsDescendants = false;
+		Background.ClipsDescendants = true;
 		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
 		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, 50);
+		Background.Size = UDim2.new(1, 0, 0, 35);
 		
 		local Title = Instance.new("TextLabel");
 		Title.Name = "Title";
@@ -1389,185 +1340,27 @@ function Update:Window(Config)
 		Dropdown.Position = UDim2.new(0.5, 0, 0, 5);
 		Dropdown.Size = UDim2.new(0.45, 0, 0, 25);
 		Dropdown.Font = Enum.Font.Gotham;
-		Dropdown.Text = #configs > 0 and configs[1].Name or "No configs";
+		Dropdown.Text = #configs > 0 and configs[1] or "No configs";
 		Dropdown.TextColor3 = Color3.fromRGB(255, 255, 255);
 		Dropdown.TextSize = 12;
 		Dropdown.AutoButtonColor = false;
 		CreateRounded(Dropdown, 5);
 		CreateStroke(Dropdown, Color3.fromRGB(60, 60, 65), 1);
 		
-		-- Dropdown arrow
-		local Arrow = Instance.new("ImageLabel");
-		Arrow.Name = "Arrow";
-		Arrow.Parent = Dropdown;
-		Arrow.BackgroundTransparency = 1;
-		Arrow.Position = UDim2.new(1, -20, 0.5, 0);
-		Arrow.Size = UDim2.new(0, 12, 0, 12);
-		Arrow.AnchorPoint = Vector2.new(0.5, 0.5);
-		Arrow.Image = "rbxassetid://10709790948";
-		Arrow.ImageColor3 = Color3.fromRGB(200, 200, 200);
-		
-		-- Dropdown list
-		local DropdownList = Instance.new("Frame");
-		DropdownList.Name = "DropdownList";
-		DropdownList.Parent = Background;
-		DropdownList.BackgroundColor3 = Color3.fromRGB(20, 20, 25);
-		DropdownList.Position = UDim2.new(0.5, 0, 0, 35);
-		DropdownList.Size = UDim2.new(0.45, 0, 0, 0);
-		DropdownList.Visible = false;
-		DropdownList.ZIndex = 10;
-		CreateRounded(DropdownList, 5);
-		CreateStroke(DropdownList, Color3.fromRGB(60, 60, 65), 1);
-		
-		local ListLayout = Instance.new("UIListLayout");
-		ListLayout.Parent = DropdownList;
-		ListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
-		ListLayout.Padding = UDim.new(0, 2);
-		
-		local ListPadding = Instance.new("UIPadding");
-		ListPadding.Parent = DropdownList;
-		ListPadding.PaddingTop = UDim.new(0, 5);
-		ListPadding.PaddingBottom = UDim.new(0, 5);
-		ListPadding.PaddingLeft = UDim.new(0, 5);
-		ListPadding.PaddingRight = UDim.new(0, 5);
-		
-		local isOpen = false;
-		
-		-- Update dropdown content
-		local function updateDropdown()
-			-- Clear existing items
-			for _, child in pairs(DropdownList:GetChildren()) do
-				if child:IsA("TextButton") then
-					child:Destroy();
-				end;
-			end;
-			
-			configs = (getgenv()).GetSavedConfigs();
-			currentConfig = (getgenv()).GetCurrentConfig();
-			
-			-- Update main button text
-			if #configs > 0 then
-				local found = false;
-				for _, config in pairs(configs) do
-					if config.Name == currentConfig then
-						Dropdown.Text = config.Name;
-						selectedConfigName = config.Name;
-						found = true;
-						break;
-					end;
-				end;
-				if not found and #configs > 0 then
-					Dropdown.Text = configs[1].Name;
-					selectedConfigName = configs[1].Name;
-				end;
-			else
-				Dropdown.Text = "No configs";
-				selectedConfigName = "";
-			end;
-			
-			-- Create dropdown items
-			for i, config in pairs(configs) do
-				local Item = Instance.new("TextButton");
-				Item.Name = "Item_" .. config.Name;
-				Item.Parent = DropdownList;
-				Item.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
-				Item.BackgroundTransparency = config.Name == currentConfig and 0.5 or 1;
-				Item.Size = UDim2.new(1, -10, 0, 30);
-				Item.Font = Enum.Font.Gotham;
-				Item.Text = config.Name;
-				Item.TextColor3 = config.Name == currentConfig and _G.Third or Color3.fromRGB(200, 200, 200);
-				Item.TextSize = 11;
-				Item.AutoButtonColor = false;
-				Item.ZIndex = 11;
-				CreateRounded(Item, 3);
-				
-				-- Metadata label
-				local MetaLabel = Instance.new("TextLabel");
-				MetaLabel.Name = "MetaLabel";
-				MetaLabel.Parent = Item;
-				MetaLabel.BackgroundTransparency = 1;
-				MetaLabel.Position = UDim2.new(0, 5, 1, -12);
-				MetaLabel.Size = UDim2.new(1, -10, 0, 10);
-				MetaLabel.Font = Enum.Font.Gotham;
-				MetaLabel.Text = config.Metadata.SavedAt or "Unknown date";
-				MetaLabel.TextColor3 = Color3.fromRGB(120, 120, 120);
-				MetaLabel.TextSize = 8;
-				MetaLabel.TextXAlignment = Enum.TextXAlignment.Left;
-				MetaLabel.ZIndex = 11;
-				
-				Item.MouseEnter:Connect(function()
-					if config.Name ~= currentConfig then
-						TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-							BackgroundTransparency = 0.8
-						}):Play();
-					end;
-				end);
-				
-				Item.MouseLeave:Connect(function()
-					if config.Name ~= currentConfig then
-						TweenService:Create(Item, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-							BackgroundTransparency = 1
-						}):Play();
-					end;
-				end);
-				
-				Item.MouseButton1Click:Connect(function()
-					selectedConfigName = config.Name;
-					callback(config.Name);
-					updateDropdown();
-					
-					-- Close dropdown
-					isOpen = false;
-					TweenService:Create(DropdownList, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-						Size = UDim2.new(0.45, 0, 0, 0)
-					}):Play();
-					TweenService:Create(Arrow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-						Rotation = 0
-					}):Play();
-					wait(0.3);
-					DropdownList.Visible = false;
-				end);
-			end;
-			
-			-- Update dropdown size
-			if isOpen then
-				local itemCount = math.min(#configs, 5);
-				DropdownList.Size = UDim2.new(0.45, 0, 0, itemCount * 32 + 10);
-			end;
-		end;
+		local selectedConfig = #configs > 0 and configs[1] or nil;
 		
 		Dropdown.MouseButton1Click:Connect(function()
-			if #configs == 0 then return end;
-			
-			isOpen = not isOpen;
-			if isOpen then
-				updateDropdown();
-				DropdownList.Visible = true;
-				local itemCount = math.min(#configs, 5);
-				TweenService:Create(DropdownList, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-					Size = UDim2.new(0.45, 0, 0, itemCount * 32 + 10)
-				}):Play();
-				TweenService:Create(Arrow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-					Rotation = 180
-				}):Play();
-			else
-				TweenService:Create(DropdownList, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-					Size = UDim2.new(0.45, 0, 0, 0)
-				}):Play();
-				TweenService:Create(Arrow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-					Rotation = 0
-				}):Play();
-				wait(0.3);
-				DropdownList.Visible = false;
+			if selectedConfig then
+				callback(selectedConfig);
 			end;
 		end);
 		
-		-- Initialize
-		updateDropdown();
-		
 		return {
-			Update = updateDropdown,
-			GetSelected = function() return selectedConfigName end
+			Update = function()
+				configs = (getgenv()).GetSavedConfigs();
+				selectedConfig = #configs > 0 and configs[1] or nil;
+				Dropdown.Text = selectedConfig or "No configs";
+			end
 		};
 	end;
 	
@@ -1588,66 +1381,33 @@ function Update:Window(Config)
 	end);
 	
 	-- Configuration management
-	local configInput = CreateConfigInput("Save New Config:", "Enter config name...", function(configName)
-		if configName and configName ~= "" then
-			if (getgenv()).SaveFeatureConfig(configName) then
-				Update:Notify("Configuration '" .. configName .. "' saved successfully!");
-				if configDropdownRef then
-					configDropdownRef.Update();
-				end;
-				CurrentConfigLabel.Text = "Config: " .. configName;
-			else
-				Update:Notify("Failed to save configuration!");
-			end;
+	local configInput = CreateConfigInput("Config Name:", "Enter config name...", function(configName)
+		if (getgenv()).SaveFeatureConfig(configName) then
+			Update:Notify("Configuration '" .. configName .. "' saved successfully!");
+		else
+			Update:Notify("Failed to save configuration!");
 		end;
 	end);
 	
-	configDropdownRef = CreateConfigDropdown("Load Config:", function(configName)
+	local configDropdown = CreateConfigDropdown("Load Config:", function(configName)
 		if (getgenv()).LoadFeatureConfig(configName) then
 			Update:Notify("Configuration '" .. configName .. "' loaded successfully!");
-			CurrentConfigLabel.Text = "Config: " .. configName;
 		else
 			Update:Notify("Failed to load configuration!");
 		end;
 	end);
 	
 	CreateButton("Delete Selected Config", function()
-		local selectedConfig = configDropdownRef.GetSelected();
-		if selectedConfig and selectedConfig ~= "" then
-			if (getgenv()).DeleteFeatureConfig(selectedConfig) then
-				Update:Notify("Configuration '" .. selectedConfig .. "' deleted successfully!");
-				configDropdownRef.Update();
-				CurrentConfigLabel.Text = "Config: " .. (getgenv()).GetCurrentConfig();
+		local configs = (getgenv()).GetSavedConfigs();
+		if #configs > 0 then
+			if (getgenv()).DeleteFeatureConfig(configs[1]) then
+				Update:Notify("Configuration deleted successfully!");
+				configDropdown.Update();
 			else
 				Update:Notify("Failed to delete configuration!");
 			end;
 		else
-			Update:Notify("No configuration selected!");
-		end;
-	end);
-	
-	CreateButton("Refresh Config List", function()
-		if configDropdownRef then
-			configDropdownRef.Update();
-			Update:Notify("Configuration list refreshed!");
-		end;
-	end);
-	
-	CreateButton("Export Current Config", function()
-		local currentConfig = (getgenv()).GetCurrentConfig();
-		if currentConfig and currentConfig ~= "Default" then
-			-- Create a backup with timestamp
-			local backupName = currentConfig .. "_backup_" .. os.date("%Y%m%d_%H%M%S");
-			if (getgenv()).SaveFeatureConfig(backupName) then
-				Update:Notify("Config exported as '" .. backupName .. "'!");
-				if configDropdownRef then
-					configDropdownRef.Update();
-				end;
-			else
-				Update:Notify("Failed to export configuration!");
-			end;
-		else
-			Update:Notify("No active configuration to export!");
+			Update:Notify("No configurations to delete!");
 		end;
 	end);
 	
@@ -1659,14 +1419,9 @@ function Update:Window(Config)
 			SaveSettings = true,
 			LoadAnimation = true,
 			AutoLoadOnStart = true,
-			FeatureSettings = {},
-			CurrentConfig = "Default"
+			FeatureSettings = {}
 		};
 		Update:Notify("All settings have been reset!");
-		CurrentConfigLabel.Text = "Config: Default";
-		if configDropdownRef then
-			configDropdownRef.Update();
-		end;
 	end);
 	
 	-- Enhanced Tab System with better visual feedback
