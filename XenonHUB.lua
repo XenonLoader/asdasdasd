@@ -1024,7 +1024,7 @@ function Update:Window(Config)
 	SettingsFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
 	SettingsFrame.BackgroundTransparency = 0;
 	SettingsFrame.Position = UDim2.new(0.5, 0, 0.5, 0);
-	SettingsFrame.Size = UDim2.new(0.7, 0, 0.7, 0);
+	SettingsFrame.Size = UDim2.new(0.8, 0, 0.8, 0);
 	CreateRounded(SettingsFrame, 15);
 	CreateStroke(SettingsFrame, Color3.fromRGB(40, 40, 45), 1);
 	
@@ -1125,6 +1125,15 @@ function Update:Window(Config)
 	local PaddingScroll = Instance.new("UIPadding");
 	PaddingScroll.Name = "PaddingScroll";
 	PaddingScroll.Parent = ScrollSettings;
+	PaddingScroll.PaddingLeft = UDim.new(0, 20);
+	PaddingScroll.PaddingRight = UDim.new(0, 20);
+	PaddingScroll.PaddingTop = UDim.new(0, 10);
+	PaddingScroll.PaddingBottom = UDim.new(0, 10);
+	
+	-- Configuration Management Variables
+	local selectedConfigName = "";
+	local configListFrame = nil;
+	local configNameInput = nil;
 	
 	function CreateCheckbox(title, state, callback)
 		local checked = state or false;
@@ -1211,22 +1220,22 @@ function Update:Window(Config)
 		Background.ClipsDescendants = true;
 		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
 		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, 30);
+		Background.Size = UDim2.new(1, 0, 0, 35);
 		
 		local Button = Instance.new("TextButton");
 		Button.Name = "Button";
 		Button.Parent = Background;
 		Button.BackgroundColor3 = _G.Third;
 		Button.BackgroundTransparency = 0;
-		Button.Size = UDim2.new(0.8, 0, 0, 30);
-		Button.Font = Enum.Font.Code;
+		Button.Size = UDim2.new(1, 0, 0, 35);
+		Button.Font = Enum.Font.GothamBold;
 		Button.Text = title or "Button";
-		Button.AnchorPoint = Vector2.new(0.5, 0);
-		Button.Position = UDim2.new(0.5, 0, 0, 0);
+		Button.AnchorPoint = Vector2.new(0, 0);
+		Button.Position = UDim2.new(0, 0, 0, 0);
 		Button.TextColor3 = Color3.fromRGB(255, 255, 255);
-		Button.TextSize = 15;
+		Button.TextSize = 14;
 		Button.AutoButtonColor = false;
-		CreateRounded(Button, 5);
+		CreateRounded(Button, 8);
 		CreateStroke(Button, Color3.fromRGB(60, 60, 65), 1);
 		
 		-- Enhanced hover effect for button with gradient
@@ -1237,7 +1246,7 @@ function Update:Window(Config)
 		
 		Button.MouseEnter:Connect(function()
 			TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-				Size = UDim2.new(0.82, 0, 0, 32)
+				Size = UDim2.new(1, 2, 0, 37)
 			}):Play();
 			ButtonGradient.Color = ColorSequence.new({
 				ColorSequenceKeypoint.new(0, _G.Third),
@@ -1248,7 +1257,7 @@ function Update:Window(Config)
 		
 		Button.MouseLeave:Connect(function()
 			TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-				Size = UDim2.new(0.8, 0, 0, 30)
+				Size = UDim2.new(1, 0, 0, 35)
 			}):Play();
 			ButtonGradient.Color = ColorSequence.new({
 				ColorSequenceKeypoint.new(0, _G.Third),
@@ -1262,107 +1271,261 @@ function Update:Window(Config)
 	end;
 	
 	-- Configuration name input
-	function CreateConfigInput(title, placeholder, callback)
+	function CreateConfigInput()
 		local Background = Instance.new("Frame");
-		Background.Name = "Background";
+		Background.Name = "ConfigNameBackground";
 		Background.Parent = ScrollSettings;
 		Background.ClipsDescendants = true;
 		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
 		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, 35);
+		Background.Size = UDim2.new(1, 0, 0, 60);
 		
 		local Title = Instance.new("TextLabel");
 		Title.Name = "Title";
 		Title.Parent = Background;
 		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, 30, 0, 5);
-		Title.Size = UDim2.new(0.4, 0, 0, 20);
-		Title.Font = Enum.Font.Code;
-		Title.Text = title;
-		Title.TextColor3 = Color3.fromRGB(200, 200, 200);
-		Title.TextSize = 14;
+		Title.Position = UDim2.new(0, 0, 0, 5);
+		Title.Size = UDim2.new(1, 0, 0, 20);
+		Title.Font = Enum.Font.GothamBold;
+		Title.Text = "Config Name";
+		Title.TextColor3 = Color3.fromRGB(255, 255, 255);
+		Title.TextSize = 16;
 		Title.TextXAlignment = Enum.TextXAlignment.Left;
 		
+		local Subtitle = Instance.new("TextLabel");
+		Subtitle.Name = "Subtitle";
+		Subtitle.Parent = Background;
+		Subtitle.BackgroundTransparency = 1;
+		Subtitle.Position = UDim2.new(0, 0, 0, 25);
+		Subtitle.Size = UDim2.new(1, 0, 0, 15);
+		Subtitle.Font = Enum.Font.Gotham;
+		Subtitle.Text = "Before you click on the create config button, enter a name!";
+		Subtitle.TextColor3 = Color3.fromRGB(150, 150, 150);
+		Subtitle.TextSize = 12;
+		Subtitle.TextXAlignment = Enum.TextXAlignment.Left;
+		
 		local TextBox = Instance.new("TextBox");
-		TextBox.Name = "TextBox";
+		TextBox.Name = "ConfigNameInput";
 		TextBox.Parent = Background;
 		TextBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
-		TextBox.Position = UDim2.new(0.5, 0, 0, 5);
-		TextBox.Size = UDim2.new(0.45, 0, 0, 25);
+		TextBox.Position = UDim2.new(0, 0, 0, 40);
+		TextBox.Size = UDim2.new(1, 0, 0, 20);
 		TextBox.Font = Enum.Font.Gotham;
-		TextBox.PlaceholderText = placeholder;
+		TextBox.PlaceholderText = "Enter configuration name...";
 		TextBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120);
 		TextBox.Text = "";
 		TextBox.TextColor3 = Color3.fromRGB(255, 255, 255);
 		TextBox.TextSize = 12;
-		TextBox.TextXAlignment = Enum.TextXAlignment.Center;
+		TextBox.TextXAlignment = Enum.TextXAlignment.Left;
 		CreateRounded(TextBox, 5);
 		CreateStroke(TextBox, Color3.fromRGB(60, 60, 65), 1);
 		
-		TextBox.FocusLost:Connect(function(enterPressed)
-			if enterPressed and TextBox.Text ~= "" then
-				callback(TextBox.Text);
-				TextBox.Text = "";
-			end;
+		-- Add padding to textbox
+		local TextBoxPadding = Instance.new("UIPadding");
+		TextBoxPadding.Parent = TextBox;
+		TextBoxPadding.PaddingLeft = UDim.new(0, 10);
+		TextBoxPadding.PaddingRight = UDim.new(0, 10);
+		
+		TextBox.FocusLost:Connect(function()
+			selectedConfigName = TextBox.Text;
 		end);
 		
+		configNameInput = TextBox;
 		return TextBox;
 	end;
 	
-	-- Configuration dropdown
-	function CreateConfigDropdown(title, callback)
-		local configs = (getgenv()).GetSavedConfigs();
-		
+	-- Configuration list display
+	function CreateConfigList()
 		local Background = Instance.new("Frame");
-		Background.Name = "Background";
+		Background.Name = "ConfigListBackground";
 		Background.Parent = ScrollSettings;
 		Background.ClipsDescendants = true;
 		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
 		Background.BackgroundTransparency = 1;
-		Background.Size = UDim2.new(1, 0, 0, 35);
+		Background.Size = UDim2.new(1, 0, 0, 150);
 		
 		local Title = Instance.new("TextLabel");
 		Title.Name = "Title";
 		Title.Parent = Background;
 		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, 30, 0, 5);
-		Title.Size = UDim2.new(0.4, 0, 0, 20);
-		Title.Font = Enum.Font.Code;
-		Title.Text = title;
-		Title.TextColor3 = Color3.fromRGB(200, 200, 200);
-		Title.TextSize = 14;
+		Title.Position = UDim2.new(0, 0, 0, 5);
+		Title.Size = UDim2.new(1, 0, 0, 20);
+		Title.Font = Enum.Font.GothamBold;
+		Title.Text = "Configuration List";
+		Title.TextColor3 = Color3.fromRGB(255, 255, 255);
+		Title.TextSize = 16;
 		Title.TextXAlignment = Enum.TextXAlignment.Left;
 		
-		local Dropdown = Instance.new("TextButton");
-		Dropdown.Name = "Dropdown";
-		Dropdown.Parent = Background;
-		Dropdown.BackgroundColor3 = Color3.fromRGB(30, 30, 35);
-		Dropdown.Position = UDim2.new(0.5, 0, 0, 5);
-		Dropdown.Size = UDim2.new(0.45, 0, 0, 25);
-		Dropdown.Font = Enum.Font.Gotham;
-		Dropdown.Text = #configs > 0 and configs[1] or "No configs";
-		Dropdown.TextColor3 = Color3.fromRGB(255, 255, 255);
-		Dropdown.TextSize = 12;
-		Dropdown.AutoButtonColor = false;
-		CreateRounded(Dropdown, 5);
-		CreateStroke(Dropdown, Color3.fromRGB(60, 60, 65), 1);
+		local Subtitle = Instance.new("TextLabel");
+		Subtitle.Name = "Subtitle";
+		Subtitle.Parent = Background;
+		Subtitle.BackgroundTransparency = 1;
+		Subtitle.Position = UDim2.new(0, 0, 0, 25);
+		Subtitle.Size = UDim2.new(1, 0, 0, 15);
+		Subtitle.Font = Enum.Font.Gotham;
+		Subtitle.Text = "List with all configurations from the folder.";
+		Subtitle.TextColor3 = Color3.fromRGB(150, 150, 150);
+		Subtitle.TextSize = 12;
+		Subtitle.TextXAlignment = Enum.TextXAlignment.Left;
 		
-		local selectedConfig = #configs > 0 and configs[1] or nil;
+		local ListFrame = Instance.new("Frame");
+		ListFrame.Name = "ListFrame";
+		ListFrame.Parent = Background;
+		ListFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25);
+		ListFrame.Position = UDim2.new(0, 0, 0, 45);
+		ListFrame.Size = UDim2.new(1, 0, 0, 100);
+		CreateRounded(ListFrame, 8);
+		CreateStroke(ListFrame, Color3.fromRGB(60, 60, 65), 1);
 		
-		Dropdown.MouseButton1Click:Connect(function()
-			if selectedConfig then
-				callback(selectedConfig);
-			end;
+		local ScrollFrame = Instance.new("ScrollingFrame");
+		ScrollFrame.Name = "ConfigScrollFrame";
+		ScrollFrame.Parent = ListFrame;
+		ScrollFrame.Active = true;
+		ScrollFrame.BackgroundTransparency = 1;
+		ScrollFrame.Position = UDim2.new(0, 5, 0, 5);
+		ScrollFrame.Size = UDim2.new(1, -10, 1, -10);
+		ScrollFrame.ScrollBarThickness = 4;
+		ScrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y;
+		
+		local ListLayout = Instance.new("UIListLayout");
+		ListLayout.Parent = ScrollFrame;
+		ListLayout.SortOrder = Enum.SortOrder.LayoutOrder;
+		ListLayout.Padding = UDim.new(0, 2);
+		
+		-- Close button for list
+		local CloseListButton = Instance.new("ImageButton");
+		CloseListButton.Name = "CloseListButton";
+		CloseListButton.Parent = ListFrame;
+		CloseListButton.BackgroundTransparency = 1;
+		CloseListButton.AnchorPoint = Vector2.new(1, 0);
+		CloseListButton.Position = UDim2.new(1, -5, 0, 5);
+		CloseListButton.Size = UDim2.new(0, 15, 0, 15);
+		CloseListButton.Image = "rbxassetid://10747384394";
+		CloseListButton.ImageColor3 = Color3.fromRGB(200, 200, 200);
+		
+		CloseListButton.MouseButton1Click:Connect(function()
+			selectedConfigName = "";
+			updateConfigList();
 		end);
 		
-		return {
-			Update = function()
-				configs = (getgenv()).GetSavedConfigs();
-				selectedConfig = #configs > 0 and configs[1] or nil;
-				Dropdown.Text = selectedConfig or "No configs";
-			end
+		function updateConfigList()
+			-- Clear existing items
+			for _, child in pairs(ScrollFrame:GetChildren()) do
+				if child:IsA("TextButton") then
+					child:Destroy();
+				end;
+			end;
+			
+			local configs = (getgenv()).GetSavedConfigs();
+			
+			if #configs == 0 then
+				local NoConfigsLabel = Instance.new("TextLabel");
+				NoConfigsLabel.Name = "NoConfigsLabel";
+				NoConfigsLabel.Parent = ScrollFrame;
+				NoConfigsLabel.BackgroundTransparency = 1;
+				NoConfigsLabel.Size = UDim2.new(1, 0, 0, 30);
+				NoConfigsLabel.Font = Enum.Font.Gotham;
+				NoConfigsLabel.Text = "No configurations found";
+				NoConfigsLabel.TextColor3 = Color3.fromRGB(120, 120, 120);
+				NoConfigsLabel.TextSize = 12;
+			else
+				for i, configName in pairs(configs) do
+					local ConfigItem = Instance.new("TextButton");
+					ConfigItem.Name = "ConfigItem_" .. configName;
+					ConfigItem.Parent = ScrollFrame;
+					ConfigItem.BackgroundColor3 = Color3.fromRGB(25, 25, 30);
+					ConfigItem.BackgroundTransparency = selectedConfigName == configName and 0.5 or 1;
+					ConfigItem.Size = UDim2.new(1, 0, 0, 25);
+					ConfigItem.Font = Enum.Font.Gotham;
+					ConfigItem.Text = "  " .. configName;
+					ConfigItem.TextColor3 = selectedConfigName == configName and _G.Third or Color3.fromRGB(200, 200, 200);
+					ConfigItem.TextSize = 11;
+					ConfigItem.TextXAlignment = Enum.TextXAlignment.Left;
+					ConfigItem.AutoButtonColor = false;
+					CreateRounded(ConfigItem, 5);
+					
+					if selectedConfigName == configName then
+						CreateStroke(ConfigItem, _G.Third, 1);
+					end;
+					
+					ConfigItem.MouseEnter:Connect(function()
+						if selectedConfigName ~= configName then
+							TweenService:Create(ConfigItem, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+								BackgroundTransparency = 0.8,
+								TextColor3 = Color3.fromRGB(255, 255, 255)
+							}):Play();
+						end;
+					end);
+					
+					ConfigItem.MouseLeave:Connect(function()
+						if selectedConfigName ~= configName then
+							TweenService:Create(ConfigItem, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+								BackgroundTransparency = 1,
+								TextColor3 = Color3.fromRGB(200, 200, 200)
+							}):Play();
+						end;
+					end);
+					
+					ConfigItem.MouseButton1Click:Connect(function()
+						selectedConfigName = configName;
+						updateConfigList();
+					end);
+				end;
+			end;
+			
+			ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y);
+		end;
+		
+		updateConfigList();
+		configListFrame = {
+			Update = updateConfigList
 		};
+		
+		return configListFrame;
 	end;
+	
+	-- Auto Load Config Section
+	function CreateAutoLoadSection()
+		local Background = Instance.new("Frame");
+		Background.Name = "AutoLoadBackground";
+		Background.Parent = ScrollSettings;
+		Background.ClipsDescendants = true;
+		Background.BackgroundColor3 = Color3.fromRGB(24, 24, 26);
+		Background.BackgroundTransparency = 1;
+		Background.Size = UDim2.new(1, 0, 0, 60);
+		
+		local Title = Instance.new("TextLabel");
+		Title.Name = "Title";
+		Title.Parent = Background;
+		Title.BackgroundTransparency = 1;
+		Title.Position = UDim2.new(0, 0, 0, 5);
+		Title.Size = UDim2.new(1, 0, 0, 20);
+		Title.Font = Enum.Font.GothamBold;
+		Title.Text = "Auto Load Config";
+		Title.TextColor3 = Color3.fromRGB(255, 255, 255);
+		Title.TextSize = 16;
+		Title.TextXAlignment = Enum.TextXAlignment.Left;
+		
+		local CurrentConfigLabel = Instance.new("TextLabel");
+		CurrentConfigLabel.Name = "CurrentConfigLabel";
+		CurrentConfigLabel.Parent = Background;
+		CurrentConfigLabel.BackgroundTransparency = 1;
+		CurrentConfigLabel.Position = UDim2.new(0, 0, 0, 25);
+		CurrentConfigLabel.Size = UDim2.new(1, 0, 0, 35);
+		CurrentConfigLabel.Font = Enum.Font.Gotham;
+		CurrentConfigLabel.Text = "Current Auto Load Config: " .. (SettingsLib.AutoLoadConfig or "None");
+		CurrentConfigLabel.TextColor3 = Color3.fromRGB(150, 150, 150);
+		CurrentConfigLabel.TextSize = 12;
+		CurrentConfigLabel.TextXAlignment = Enum.TextXAlignment.Left;
+		CurrentConfigLabel.TextWrapped = true;
+		
+		return CurrentConfigLabel;
+	end;
+	
+	-- Create all configuration management elements
+	CreateConfigInput();
+	CreateConfigList();
+	CreateAutoLoadSection();
 	
 	-- Enhanced Settings with new features
 	CreateCheckbox("Auto Save Settings", SettingsLib.SaveSettings, function(state)
@@ -1380,48 +1543,74 @@ function Update:Window(Config)
 		AutoSaveSettings();
 	end);
 	
-	-- Configuration management
-	local configInput = CreateConfigInput("Config Name:", "Enter config name...", function(configName)
-		if (getgenv()).SaveFeatureConfig(configName) then
-			Update:Notify("Configuration '" .. configName .. "' saved successfully!");
+	-- Configuration management buttons
+	CreateButton("Create a Configuration", function()
+		if selectedConfigName ~= "" and selectedConfigName ~= nil then
+			if (getgenv()).SaveFeatureConfig(selectedConfigName) then
+				Update:Notify("Configuration '" .. selectedConfigName .. "' created successfully!");
+				configListFrame.Update();
+				configNameInput.Text = "";
+				selectedConfigName = "";
+			else
+				Update:Notify("Failed to create configuration!");
+			end;
 		else
-			Update:Notify("Failed to save configuration!");
+			Update:Notify("Please enter a configuration name first!");
 		end;
 	end);
 	
-	local configDropdown = CreateConfigDropdown("Load Config:", function(configName)
-		if (getgenv()).LoadFeatureConfig(configName) then
-			Update:Notify("Configuration '" .. configName .. "' loaded successfully!");
+	CreateButton("Load a Configuration", function()
+		if selectedConfigName ~= "" and selectedConfigName ~= nil then
+			if (getgenv()).LoadFeatureConfig(selectedConfigName) then
+				Update:Notify("Configuration '" .. selectedConfigName .. "' loaded successfully!");
+			else
+				Update:Notify("Failed to load configuration!");
+			end;
 		else
-			Update:Notify("Failed to load configuration!");
+			Update:Notify("Please select a configuration from the list!");
 		end;
 	end);
 	
-	CreateButton("Delete Selected Config", function()
-		local configs = (getgenv()).GetSavedConfigs();
-		if #configs > 0 then
-			if (getgenv()).DeleteFeatureConfig(configs[1]) then
-				Update:Notify("Configuration deleted successfully!");
-				configDropdown.Update();
+	CreateButton("Save a New Configuration", function()
+		if selectedConfigName ~= "" and selectedConfigName ~= nil then
+			if (getgenv()).SaveFeatureConfig(selectedConfigName) then
+				Update:Notify("Configuration '" .. selectedConfigName .. "' saved successfully!");
+				configListFrame.Update();
+			else
+				Update:Notify("Failed to save configuration!");
+			end;
+		else
+			Update:Notify("Please select or enter a configuration name!");
+		end;
+	end);
+	
+	CreateButton("Delete a Configuration", function()
+		if selectedConfigName ~= "" and selectedConfigName ~= nil then
+			if (getgenv()).DeleteFeatureConfig(selectedConfigName) then
+				Update:Notify("Configuration '" .. selectedConfigName .. "' deleted successfully!");
+				configListFrame.Update();
+				selectedConfigName = "";
 			else
 				Update:Notify("Failed to delete configuration!");
 			end;
 		else
-			Update:Notify("No configurations to delete!");
+			Update:Notify("Please select a configuration from the list!");
 		end;
 	end);
 	
-	CreateButton("Reset All Settings", function()
-		if isfolder("Xenon") then
-			delfolder("Xenon");
+	CreateButton("Refresh Configuration List", function()
+		configListFrame.Update();
+		Update:Notify("Configuration list refreshed!");
+	end);
+	
+	CreateButton("Auto Load Config", function()
+		if selectedConfigName ~= "" and selectedConfigName ~= nil then
+			SettingsLib.AutoLoadConfig = selectedConfigName;
+			AutoSaveSettings();
+			Update:Notify("Auto load config set to: " .. selectedConfigName);
+		else
+			Update:Notify("Please select a configuration from the list!");
 		end;
-		SettingsLib = {
-			SaveSettings = true,
-			LoadAnimation = true,
-			AutoLoadOnStart = true,
-			FeatureSettings = {}
-		};
-		Update:Notify("All settings have been reset!");
 	end);
 	
 	-- Enhanced Tab System with better visual feedback
