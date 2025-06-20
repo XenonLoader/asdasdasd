@@ -2269,12 +2269,10 @@ function Update:Window(Config)
 			end;
 			
 			-- Search functionality
-			SearchBox.Changed:Connect(function(property)
-				if property == "Text" then
-					searchText = SearchBox.Text;
-					updateDropdownItems();
-				end;
-			end);
+SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	searchText = SearchBox.Text;
+	updateDropdownItems();
+end);
 			
 			-- Search box focus effects
 			SearchBox.Focused:Connect(function()
