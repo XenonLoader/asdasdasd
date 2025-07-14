@@ -86,31 +86,6 @@ local function Draw(obj, props)
     return new
 end
 
--- NEW: Create Billboard GUI for text
-local function CreateBillboardGui()
-    local billboard = Instance.new("BillboardGui")
-    billboard.Size = UDim2.new(0, 200, 0, 50)
-    billboard.StudsOffset = Vector3.new(0, 2, 0)
-    billboard.AlwaysOnTop = true
-    billboard.LightInfluence = 0
-    return billboard
-end
-
--- NEW: Create Text Label
-local function CreateTextLabel(text, color)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = color
-    label.TextSize = ESP.TextSize
-    label.TextStrokeTransparency = ESP.TextOutline and 0 or 1
-    label.TextStrokeColor3 = Color3.new(0, 0, 0)
-    label.Font = Enum.Font.SourceSansBold
-    label.TextScaled = true
-    return label
-end
-
 local function GetDistance(pos1, pos2)
     return (pos1 - pos2).Magnitude
 end
@@ -507,6 +482,8 @@ function boxBase:Remove()
                 v:Destroy()
             elseif v.Remove then
                 v:Remove()
+            elseif v.Visible ~= nil then
+                v.Visible = false
             end
             self.Components[i] = nil
         end
@@ -519,24 +496,24 @@ function boxBase:SetColor(color)
     if self.Components.BoxHandle then
         self.Components.BoxHandle.Color3 = color
     end
-    -- Update text colors
-    if self.Components.NameLabel then
-        self.Components.NameLabel.TextColor3 = color
+    -- Update Drawing text colors
+    if self.Components.Name then
+        self.Components.Name.Color = color
     end
-    if self.Components.DistanceLabel then
-        self.Components.DistanceLabel.TextColor3 = color
+    if self.Components.Distance then
+        self.Components.Distance.Color = color
     end
 end
 
 function boxBase:SetName(name)
     self.Name = name
-    if self.Components.NameLabel then
-        self.Components.NameLabel.Text = name
+    if self.Components.Name then
+        self.Components.Name.Text = name
     end
 end
 
 function boxBase:Update()
-    if not self.PrimaryPart or not self.PrimaryPart.Parent then
+    if not self.PrimaryPart then
         return self:Remove()
     end
 
@@ -585,24 +562,40 @@ function boxBase:Update()
             end
         end
     end
-    
-    -- NEW: Update Name Billboard
-    if self.Components.NameBillboard then
-        self.Components.NameBillboard.Enabled = visible and ESP.Names
-        if visible and ESP.Names and self.Components.NameLabel then
-            self.Components.NameLabel.Text = self.Name
-            self.Components.NameLabel.TextColor3 = color
-            self.Components.NameLabel.TextSize = ESP.TextSize
+
+    -- ORIGINAL: Name and distance rendering (Drawing API - unchanged)
+    if ESP.Names or ESP.Distance then
+        local cf = self.PrimaryPart.CFrame
+        if ESP.FaceCamera then
+            cf = CFrame.new(cf.Position, cam.CFrame.Position)
         end
-    end
-    
-    -- NEW: Update Distance Billboard
-    if self.Components.DistanceBillboard then
-        self.Components.DistanceBillboard.Enabled = visible and ESP.Distance
-        if visible and ESP.Distance and self.Components.DistanceLabel then
-            self.Components.DistanceLabel.Text = floor(distance) .. "m"
-            self.Components.DistanceLabel.TextColor3 = color
-            self.Components.DistanceLabel.TextSize = ESP.TextSize
+        
+        local size = self.Size
+        local TagPos = cf * ESP.BoxShift * CFrame.new(0, size.Y/2, 0)
+        local TagPosScreen, Vis5 = WorldToViewportPoint(cam, TagPos.Position)
+        
+        if Vis5 and visible then
+            local yOffset = 0
+            
+            -- Name
+            if ESP.Names and self.Components.Name then
+                self.Components.Name.Visible = true
+                self.Components.Name.Position = V2new(TagPosScreen.X, TagPosScreen.Y + yOffset)
+                self.Components.Name.Text = self.Name
+                self.Components.Name.Color = color
+                yOffset = yOffset + ESP.TextSize + 2
+            end
+            
+            -- Distance
+            if ESP.Distance and self.Components.Distance then
+                self.Components.Distance.Visible = true
+                self.Components.Distance.Position = V2new(TagPosScreen.X, TagPosScreen.Y + yOffset)
+                self.Components.Distance.Text = floor(distance) .. "m"
+                self.Components.Distance.Color = color
+            end
+        else
+            if self.Components.Name then self.Components.Name.Visible = false end
+            if self.Components.Distance then self.Components.Distance.Visible = false end
         end
     end
 end
@@ -634,38 +627,34 @@ function ESP:Add(obj, options)
 
     -- NEW: Create BoxHandleAdornment instead of Drawing Quad
     if box.PrimaryPart then
-        box.Components.BoxHandle = Instance.new("BoxHandleAdornment")
-        box.Components.BoxHandle.Size = box.Size
-        box.Components.BoxHandle.Color3 = box.Color or self.Color
-        box.Components.BoxHandle.Transparency = self.Transparency
-        box.Components.BoxHandle.AlwaysOnTop = true
-        box.Components.BoxHandle.ZIndex = 1
-        box.Components.BoxHandle.Adornee = box.PrimaryPart
-        box.Components.BoxHandle.Parent = box.PrimaryPart
-        box.Components.BoxHandle.Visible = false
+        box.Components["BoxHandle"] = Instance.new("BoxHandleAdornment")
+        box.Components["BoxHandle"].Size = box.Size
+        box.Components["BoxHandle"].Color3 = box.Color or self.Color
+        box.Components["BoxHandle"].Transparency = self.Transparency
+        box.Components["BoxHandle"].AlwaysOnTop = true
+        box.Components["BoxHandle"].ZIndex = 1
+        box.Components["BoxHandle"].Adornee = box.PrimaryPart
+        box.Components["BoxHandle"].Parent = box.PrimaryPart
+        box.Components["BoxHandle"].Visible = false
     end
     
-    -- NEW: Create Name Billboard instead of Drawing Text
-    if box.PrimaryPart then
-        box.Components.NameBillboard = CreateBillboardGui()
-        box.Components.NameBillboard.StudsOffset = Vector3.new(0, box.Size.Y/2 + 1, 0)
-        box.Components.NameBillboard.Parent = box.PrimaryPart
-        box.Components.NameBillboard.Enabled = false
-        
-        box.Components.NameLabel = CreateTextLabel(box.Name, box.Color or self.Color)
-        box.Components.NameLabel.Parent = box.Components.NameBillboard
-    end
+    -- ORIGINAL: Create Drawing Text (unchanged)
+    box.Components["Name"] = Draw("Text", {
+        Text = box.Name,
+        Color = box.Color or self.Color,
+        Center = true,
+        Outline = self.TextOutline,
+        Size = self.TextSize,
+        Visible = false
+    })
     
-    -- NEW: Create Distance Billboard
-    if box.PrimaryPart then
-        box.Components.DistanceBillboard = CreateBillboardGui()
-        box.Components.DistanceBillboard.StudsOffset = Vector3.new(0, box.Size.Y/2 + 2.5, 0)
-        box.Components.DistanceBillboard.Parent = box.PrimaryPart
-        box.Components.DistanceBillboard.Enabled = false
-        
-        box.Components.DistanceLabel = CreateTextLabel("0m", box.Color or self.Color)
-        box.Components.DistanceLabel.Parent = box.Components.DistanceBillboard
-    end
+    box.Components["Distance"] = Draw("Text", {
+        Color = box.Color or self.Color,
+        Center = true,
+        Outline = self.TextOutline,
+        Size = self.TextSize,
+        Visible = false
+    })
     
     self.Objects[obj] = box
     
@@ -685,16 +674,10 @@ function ESP:Add(obj, options)
             local newPrimaryPart = GetPrimaryPart(obj)
             if newPrimaryPart ~= box.PrimaryPart then
                 box.PrimaryPart = newPrimaryPart
-                -- Update adornments
+                -- Update BoxHandleAdornment
                 if box.Components.BoxHandle then
                     box.Components.BoxHandle.Adornee = newPrimaryPart
                     box.Components.BoxHandle.Parent = newPrimaryPart
-                end
-                if box.Components.NameBillboard then
-                    box.Components.NameBillboard.Parent = newPrimaryPart
-                end
-                if box.Components.DistanceBillboard then
-                    box.Components.DistanceBillboard.Parent = newPrimaryPart
                 end
             end
         end)
@@ -733,13 +716,7 @@ return ESP
     - Proper transparency support
     - Always on top rendering
 
-    3. BILLBOARD GUI TEXT:
-    - Replaced Drawing.new("Text") with Billboard GUI
-    - Better text quality and scaling
-    - Proper text stroke/outline
-    - Better positioning
-
-    4. ENHANCED CLEANUP:
+    3. ENHANCED CLEANUP:
     - Better memory management
     - Auto cleanup of destroyed objects
     - Thread management for re-detection
@@ -761,4 +738,50 @@ return ESP
 
     4. Clear all ESP and stop re-detection:
     ESP:ClearAll()
+
+    Original Usage Examples still work:
+
+    1. ESP for NaturalPickups (original functionality):
+    ESP:Toggle(true)
+    ESP:AddNaturalPickupsListener()
+
+    2. ESP for any workspace location:
+    ESP:AddUniversalListener("SomeFolder")
+    ESP:AddUniversalListener(workspace.SomeFolder)
+
+    3. ESP for entire workspace:
+    ESP:AddWorkspaceListener()
+
+    4. ESP with specific object types:
+    ESP.ScanAllTypes = false
+    ESP:SetTargetTypes({"Part", "MeshPart"})
+    ESP:AddUniversalListener("SomeFolder")
+
+    5. ESP with custom filters:
+    ESP.Filters.Objects = function(obj, folderName, objectType)
+        return objectType == "Part" and obj.Name:find("Important")
+    end
+    ESP:AddUniversalListener("SomeFolder")
+
+    6. ESP with custom colors by object type:
+    ESP:AddUniversalListener("SomeFolder", {
+        Color = function(obj, folderName, objectName, objectType)
+            if objectType == "Model" then return Color3.fromRGB(255, 0, 0)
+            elseif objectType == "Part" then return Color3.fromRGB(0, 255, 0)
+            else return Color3.fromRGB(0, 0, 255)
+            end
+        end
+    })
+
+    7. ESP with path filtering:
+    ESP.Filters.Paths = function(fullPath)
+        return fullPath:find("Important") or fullPath:find("Loot")
+    end
+    ESP:AddUniversalListener("SomeFolder")
+
+    8. Clear all ESP:
+    ESP:ClearAll()
+
+    9. Get ESP count:
+    print("ESP Objects:", ESP:GetCount())
 ]]
