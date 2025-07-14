@@ -1,13 +1,6 @@
 --[[
-    Enhanced ESP System
-    Features:
-    - Player ESP with customizable colors
-    - Object ESP for any game objects
-    - Health bars and status indicators
-    - Distance and name display
-    - Team-based coloring
-    - Performance optimized
-    - Easy integration with UI libraries
+    Enhanced ESP System for Nested Folder Structures
+    Supports deep folder scanning and object detection
 ]]
 
 --Settings--
@@ -41,7 +34,7 @@ local ESP = {
     
     -- Tracer Settings
     Tracers = false,
-    TracerOrigin = "Bottom", -- "Bottom", "Center", "Top"
+    TracerOrigin = "Bottom",
     AttachShift = 1,
     
     -- Health Bar Settings
@@ -49,9 +42,14 @@ local ESP = {
     HealthBarSize = Vector2.new(4, 60),
     HealthBarOffset = Vector3.new(-3, 0, 0),
     
+    -- Nested Folder Settings
+    MaxDepth = 10, -- Maximum folder depth to scan
+    ScanAllFolders = true, -- Scan all folders recursively
+    TargetTypes = {"Model", "MeshPart", "BasePart", "Part", "UnionOperation"}, -- Types to ESP
+    
     -- Performance Settings
     MaxDistance = 1000,
-    UpdateRate = 60, -- FPS
+    UpdateRate = 60,
     
     -- Storage
     Objects = setmetatable({}, {__mode="kv"}),
@@ -64,7 +62,8 @@ local ESP = {
     -- Filters
     Filters = {
         Players = function(player) return true end,
-        Objects = function(object) return true end
+        Objects = function(object) return true end,
+        Folders = function(folder) return true end -- New folder filter
     }
 }
 
@@ -98,6 +97,70 @@ end
 local function IsOnScreen(pos)
     local _, onScreen = WorldToViewportPoint(cam, pos)
     return onScreen
+end
+
+-- Nested Folder Scanning Functions
+local function IsTargetType(obj)
+    for _, targetType in pairs(ESP.TargetTypes) do
+        if obj:IsA(targetType) then
+            return true
+        end
+    end
+    return false
+end
+
+local function ScanFolderRecursive(folder, depth, maxDepth, foundObjects)
+    if depth > maxDepth then return end
+    if not ESP.Filters.Folders(folder) then return end
+    
+    foundObjects = foundObjects or {}
+    
+    for _, child in pairs(folder:GetChildren()) do
+        if child:IsA("Folder") then
+            -- Recursively scan subfolders
+            ScanFolderRecursive(child, depth + 1, maxDepth, foundObjects)
+        elseif IsTargetType(child) then
+            -- Found target object
+            table.insert(foundObjects, {
+                Object = child,
+                Path = folder:GetFullName() .. "." .. child.Name,
+                Depth = depth
+            })
+        end
+    end
+    
+    return foundObjects
+end
+
+local function GetAllNestedObjects(parent)
+    local allObjects = {}
+    
+    -- Direct children first
+    for _, child in pairs(parent:GetChildren()) do
+        if IsTargetType(child) then
+            table.insert(allObjects, {
+                Object = child,
+                Path = child:GetFullName(),
+                Depth = 0
+            })
+        end
+    end
+    
+    -- Then scan folders recursively
+    if ESP.ScanAllFolders then
+        for _, child in pairs(parent:GetChildren()) do
+            if child:IsA("Folder") then
+                local nestedObjects = ScanFolderRecursive(child, 1, ESP.MaxDepth)
+                if nestedObjects then
+                    for _, objData in pairs(nestedObjects) do
+                        table.insert(allObjects, objData)
+                    end
+                end
+            end
+        end
+    end
+    
+    return allObjects
 end
 
 --ESP Core Functions--
@@ -177,13 +240,77 @@ function ESP:ClearHighlight()
     self.Highlighted = nil
 end
 
+-- Enhanced Object Listener for Nested Folders
+function ESP:AddNestedObjectListener(parent, options)
+    options = options or {}
+    
+    local function ProcessObject(objData)
+        local obj = objData.Object
+        local path = objData.Path
+        local depth = objData.Depth
+        
+        if not options.Validator or options.Validator(obj, path, depth) then
+            local box = ESP:Add(obj, {
+                PrimaryPart = type(options.PrimaryPart) == "string" and obj:WaitForChild(options.PrimaryPart) or 
+                             type(options.PrimaryPart) == "function" and options.PrimaryPart(obj) or nil,
+                Color = type(options.Color) == "function" and options.Color(obj, path, depth) or options.Color,
+                ColorDynamic = options.ColorDynamic,
+                Name = type(options.CustomName) == "function" and options.CustomName(obj, path, depth) or 
+                       options.CustomName or (obj.Name .. " (D:" .. depth .. ")"),
+                IsEnabled = options.IsEnabled,
+                RenderInNil = options.RenderInNil,
+                Size = options.Size,
+                Temporary = options.Temporary
+            })
+            
+            if options.OnAdded then
+                coroutine.wrap(options.OnAdded)(box, objData)
+            end
+        end
+    end
+    
+    local function ScanAndProcess()
+        local allObjects = GetAllNestedObjects(parent)
+        for _, objData in pairs(allObjects) do
+            ProcessObject(objData)
+        end
+    end
+    
+    -- Initial scan
+    ScanAndProcess()
+    
+    -- Listen for new objects
+    local function NewListener(c)
+        if IsTargetType(c) then
+            ProcessObject({
+                Object = c,
+                Path = c:GetFullName(),
+                Depth = 0
+            })
+        elseif c:IsA("Folder") then
+            -- New folder added, scan it
+            task.wait(0.1) -- Wait for folder to populate
+            local nestedObjects = ScanFolderRecursive(c, 1, ESP.MaxDepth)
+            if nestedObjects then
+                for _, objData in pairs(nestedObjects) do
+                    ProcessObject(objData)
+                end
+            end
+        end
+    end
+    
+    parent.DescendantAdded:Connect(NewListener)
+end
+
+-- Regular Object Listener (for compatibility)
 function ESP:AddObjectListener(parent, options)
     local function NewListener(c)
         if type(options.Type) == "string" and c:IsA(options.Type) or options.Type == nil then
             if type(options.Name) == "string" and c.Name == options.Name or options.Name == nil then
                 if not options.Validator or options.Validator(c) then
                     local box = ESP:Add(c, {
-                        PrimaryPart = type(options.PrimaryPart) == "string" and c:WaitForChild(options.PrimaryPart) or type(options.PrimaryPart) == "function" and options.PrimaryPart(c),
+                        PrimaryPart = type(options.PrimaryPart) == "string" and c:WaitForChild(options.PrimaryPart) or 
+                                     type(options.PrimaryPart) == "function" and options.PrimaryPart(c),
                         Color = type(options.Color) == "function" and options.Color(c) or options.Color,
                         ColorDynamic = options.ColorDynamic,
                         Name = type(options.CustomName) == "function" and options.CustomName(c) or options.CustomName,
@@ -260,6 +387,10 @@ function boxBase:Update()
         allow = false
     end
     
+    if not self.Player and not ESP.Filters.Objects(self.Object) then
+        allow = false
+    end
+    
     -- Override checks
     if ESP.Overrides.UpdateAllow and not ESP.Overrides.UpdateAllow(self) then
         allow = false
@@ -281,7 +412,8 @@ function boxBase:Update()
     end
     
     -- Enabled check
-    if self.IsEnabled and (type(self.IsEnabled) == "string" and not ESP[self.IsEnabled] or type(self.IsEnabled) == "function" and not self:IsEnabled()) then
+    if self.IsEnabled and (type(self.IsEnabled) == "string" and not ESP[self.IsEnabled] or 
+                          type(self.IsEnabled) == "function" and not self:IsEnabled()) then
         allow = false
     end
     
