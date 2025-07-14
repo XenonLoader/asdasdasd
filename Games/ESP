@@ -4,7 +4,6 @@
     ESP Name: Uses Object name directly
     Supports: Model, BasePart, MeshPart, Part, UnionOperation, and more
     Works with: Any folder structure in workspace
-    Enhanced with: Auto Re-detection and BoxHandleAdornment
 ]]
 
 --Settings--
@@ -12,7 +11,6 @@ local ESP = {
     -- Core Settings
     Enabled = false,
     AutoRemove = true,
-    AutoRedetect = true,    -- NEW: Auto re-detect missing/new objects
     
     -- Visual Settings
     Boxes = true,
@@ -21,7 +19,6 @@ local ESP = {
     Color = Color3.fromRGB(255, 170, 0),
     FaceCamera = false,
     Thickness = 2,
-    Transparency = 0.5,     -- NEW: For BoxHandleAdornment
     
     -- Text Settings
     Names = true,
@@ -42,7 +39,6 @@ local ESP = {
     -- Scanning Settings
     MaxDepth = 10,          -- Maximum folder depth to scan
     ScanAllFolders = true,  -- Recursively scan all folders
-    RedetectInterval = 2,   -- NEW: Seconds between re-detection scans
     
     -- Performance Settings
     MaxDistance = 1000,
@@ -51,7 +47,6 @@ local ESP = {
     -- Storage
     Objects = setmetatable({}, {__mode="kv"}),
     Overrides = {},
-    ActiveListeners = {},   -- NEW: Track active listeners for re-detection
     
     -- Highlight System
     Highlighted = nil,
@@ -198,11 +193,7 @@ function ESP:Toggle(bool)
                     v:Remove()
                 else
                     for _, component in pairs(v.Components) do
-                        if component and component.Visible ~= nil then
-                            component.Visible = false
-                        elseif component and component.Enabled ~= nil then
-                            component.Enabled = false
-                        end
+                        component.Visible = false
                     end
                 end
             end
@@ -223,103 +214,7 @@ function ESP:ClearHighlight()
     self.Highlighted = nil
 end
 
--- NEW: Auto Re-detection System
-function ESP:StartAutoRedetection(location, options)
-    if not self.AutoRedetect then return end
-    
-    local locationKey = tostring(location)
-    if self.ActiveListeners[locationKey] then return end -- Already running
-    
-    local function RedetectLoop()
-        while self.AutoRedetect and self.ActiveListeners[locationKey] do
-            local currentObjects = ScanLocation(location)
-            
-            -- Check for new objects
-            for _, objectData in pairs(currentObjects) do
-                local obj = objectData.Object
-                if not self:GetBox(obj) then
-                    -- New object found, add ESP
-                    self:ProcessSingleObject(objectData, options)
-                end
-            end
-            
-            -- Check for removed objects
-            local objectsToRemove = {}
-            for espObj, box in pairs(self.Objects) do
-                if not espObj.Parent or not workspace:IsAncestorOf(espObj) then
-                    table.insert(objectsToRemove, espObj)
-                end
-            end
-            
-            for _, obj in pairs(objectsToRemove) do
-                local box = self:GetBox(obj)
-                if box then
-                    box:Remove()
-                end
-            end
-            
-            task.wait(self.RedetectInterval)
-        end
-    end
-    
-    self.ActiveListeners[locationKey] = {
-        Location = location,
-        Options = options,
-        Thread = task.spawn(RedetectLoop)
-    }
-end
-
--- NEW: Stop Auto Re-detection
-function ESP:StopAutoRedetection(location)
-    local locationKey = tostring(location)
-    local listener = self.ActiveListeners[locationKey]
-    if listener and listener.Thread then
-        task.cancel(listener.Thread)
-        self.ActiveListeners[locationKey] = nil
-    end
-end
-
--- NEW: Process single object (helper function)
-function ESP:ProcessSingleObject(objectData, options)
-    local obj = objectData.Object
-    local folderName = objectData.FolderName
-    local objectName = objectData.ObjectName
-    local objectType = objectData.ObjectType
-    local fullPath = objectData.FullPath
-    local depth = objectData.Depth
-    
-    if not options.Validator or options.Validator(obj, folderName, objectName, objectType, fullPath, depth) then
-        local displayName = objectName
-        
-        -- Build display name based on settings
-        if ESP.ShowFullPath then
-            displayName = fullPath
-        elseif ESP.ShowFolderName and ESP.ShowObjectType then
-            displayName = folderName .. " - " .. objectName .. " (" .. objectType .. ")"
-        elseif ESP.ShowFolderName then
-            displayName = folderName .. " - " .. objectName
-        elseif ESP.ShowObjectType then
-            displayName = objectName .. " (" .. objectType .. ")"
-        end
-        
-        local box = ESP:Add(obj, {
-            PrimaryPart = GetPrimaryPart(obj),
-            Color = type(options.Color) == "function" and options.Color(obj, folderName, objectName, objectType, fullPath, depth) or options.Color,
-            ColorDynamic = options.ColorDynamic,
-            Name = type(options.CustomName) == "function" and options.CustomName(obj, folderName, objectName, objectType, fullPath, depth) or displayName,
-            IsEnabled = options.IsEnabled,
-            RenderInNil = options.RenderInNil,
-            Size = options.Size,
-            Temporary = options.Temporary
-        })
-        
-        if options.OnAdded then
-            coroutine.wrap(options.OnAdded)(box, objectData)
-        end
-    end
-end
-
--- Universal Object Listener (UPDATED)
+-- Universal Object Listener
 function ESP:AddUniversalListener(location, options)
     options = options or {}
     
@@ -333,7 +228,42 @@ function ESP:AddUniversalListener(location, options)
     end
     
     local function ProcessObject(objectData)
-        self:ProcessSingleObject(objectData, options)
+        local obj = objectData.Object
+        local folderName = objectData.FolderName
+        local objectName = objectData.ObjectName
+        local objectType = objectData.ObjectType
+        local fullPath = objectData.FullPath
+        local depth = objectData.Depth
+        
+        if not options.Validator or options.Validator(obj, folderName, objectName, objectType, fullPath, depth) then
+            local displayName = objectName
+            
+            -- Build display name based on settings
+            if ESP.ShowFullPath then
+                displayName = fullPath
+            elseif ESP.ShowFolderName and ESP.ShowObjectType then
+                displayName = folderName .. " - " .. objectName .. " (" .. objectType .. ")"
+            elseif ESP.ShowFolderName then
+                displayName = folderName .. " - " .. objectName
+            elseif ESP.ShowObjectType then
+                displayName = objectName .. " (" .. objectType .. ")"
+            end
+            
+            local box = ESP:Add(obj, {
+                PrimaryPart = GetPrimaryPart(obj),
+                Color = type(options.Color) == "function" and options.Color(obj, folderName, objectName, objectType, fullPath, depth) or options.Color,
+                ColorDynamic = options.ColorDynamic,
+                Name = type(options.CustomName) == "function" and options.CustomName(obj, folderName, objectName, objectType, fullPath, depth) or displayName,
+                IsEnabled = options.IsEnabled,
+                RenderInNil = options.RenderInNil,
+                Size = options.Size,
+                Temporary = options.Temporary
+            })
+            
+            if options.OnAdded then
+                coroutine.wrap(options.OnAdded)(box, objectData)
+            end
+        end
     end
     
     -- Initial scan
@@ -346,10 +276,7 @@ function ESP:AddUniversalListener(location, options)
     
     InitialScan()
     
-    -- NEW: Start auto re-detection
-    self:StartAutoRedetection(location, options)
-    
-    -- Listen for new objects (immediate detection)
+    -- Listen for new objects
     local function SetupListeners(parent, parentPath, depth)
         if depth > ESP.MaxDepth then return end
         
@@ -380,14 +307,6 @@ function ESP:AddUniversalListener(location, options)
                         Depth = depth
                     })
                 end
-            end
-        end)
-        
-        -- NEW: Listen for removed objects
-        parent.ChildRemoved:Connect(function(child)
-            local box = ESP:GetBox(child)
-            if box then
-                box:Remove()
             end
         end)
     end
@@ -440,17 +359,8 @@ function ESP:RemoveTargetType(typeName)
     end
 end
 
--- Method to clear all ESP (UPDATED)
+-- Method to clear all ESP
 function ESP:ClearAll()
-    -- Stop all auto re-detection
-    for locationKey, listener in pairs(self.ActiveListeners) do
-        if listener.Thread then
-            task.cancel(listener.Thread)
-        end
-    end
-    self.ActiveListeners = {}
-    
-    -- Remove all ESP objects
     for obj, box in pairs(self.Objects) do
         box:Remove()
     end
@@ -470,46 +380,25 @@ function ESP:GetCount()
     return count
 end
 
---Box Class (UPDATED with BoxHandleAdornment)--
+--Box Class--
 local boxBase = {}
 boxBase.__index = boxBase
 
 function boxBase:Remove()
     ESP.Objects[self.Object] = nil
     for i, v in pairs(self.Components) do
-        if v then
-            if v.Destroy then
-                v:Destroy()
-            elseif v.Remove then
-                v:Remove()
-            elseif v.Visible ~= nil then
-                v.Visible = false
-            end
-            self.Components[i] = nil
-        end
+        v.Visible = false
+        v:Remove()
+        self.Components[i] = nil
     end
 end
 
 function boxBase:SetColor(color)
     self.Color = color
-    -- Update BoxHandleAdornment color
-    if self.Components.BoxHandle then
-        self.Components.BoxHandle.Color3 = color
-    end
-    -- Update Drawing text colors
-    if self.Components.Name then
-        self.Components.Name.Color = color
-    end
-    if self.Components.Distance then
-        self.Components.Distance.Color = color
-    end
 end
 
 function boxBase:SetName(name)
     self.Name = name
-    if self.Components.Name then
-        self.Components.Name.Text = name
-    end
 end
 
 function boxBase:Update()
@@ -544,43 +433,65 @@ function boxBase:Update()
         allow = false
     end
 
-    local visible = allow and ESP.Enabled
+    if not allow then
+        for i, v in pairs(self.Components) do
+            v.Visible = false
+        end
+        return
+    end
 
-    -- NEW: Update BoxHandleAdornment
-    if self.Components.BoxHandle then
-        self.Components.BoxHandle.Visible = visible and ESP.Boxes
-        if visible and ESP.Boxes then
-            self.Components.BoxHandle.Color3 = color
-            self.Components.BoxHandle.Transparency = ESP.Transparency
-            self.Components.BoxHandle.Size = self.Size
-            
-            if ESP.FaceCamera then
-                local cf = CFrame.new(self.PrimaryPart.Position, cam.CFrame.Position)
-                self.Components.BoxHandle.CFrame = cf * ESP.BoxShift
+    -- Calculations
+    local cf = self.PrimaryPart.CFrame
+    if ESP.FaceCamera then
+        cf = CFrame.new(cf.Position, cam.CFrame.Position)
+    end
+    
+    local size = self.Size
+    local locs = {
+        TopLeft = cf * ESP.BoxShift * CFrame.new(size.X/2, size.Y/2, 0),
+        TopRight = cf * ESP.BoxShift * CFrame.new(-size.X/2, size.Y/2, 0),
+        BottomLeft = cf * ESP.BoxShift * CFrame.new(size.X/2, -size.Y/2, 0),
+        BottomRight = cf * ESP.BoxShift * CFrame.new(-size.X/2, -size.Y/2, 0),
+        TagPos = cf * ESP.BoxShift * CFrame.new(0, size.Y/2, 0),
+        Torso = cf * ESP.BoxShift
+    }
+
+    -- Box rendering
+    if ESP.Boxes then
+        local TopLeft, Vis1 = WorldToViewportPoint(cam, locs.TopLeft.Position)
+        local TopRight, Vis2 = WorldToViewportPoint(cam, locs.TopRight.Position)
+        local BottomLeft, Vis3 = WorldToViewportPoint(cam, locs.BottomLeft.Position)
+        local BottomRight, Vis4 = WorldToViewportPoint(cam, locs.BottomRight.Position)
+
+        if self.Components.Quad then
+            if Vis1 or Vis2 or Vis3 or Vis4 then
+                self.Components.Quad.Visible = true
+                self.Components.Quad.PointA = V2new(TopRight.X, TopRight.Y)
+                self.Components.Quad.PointB = V2new(TopLeft.X, TopLeft.Y)
+                self.Components.Quad.PointC = V2new(BottomLeft.X, BottomLeft.Y)
+                self.Components.Quad.PointD = V2new(BottomRight.X, BottomRight.Y)
+                self.Components.Quad.Color = color
             else
-                self.Components.BoxHandle.CFrame = self.PrimaryPart.CFrame * ESP.BoxShift
+                self.Components.Quad.Visible = false
             end
+        end
+    else
+        if self.Components.Quad then
+            self.Components.Quad.Visible = false
         end
     end
 
-    -- ORIGINAL: Name and distance rendering (Drawing API - unchanged)
+    -- Name and distance rendering
     if ESP.Names or ESP.Distance then
-        local cf = self.PrimaryPart.CFrame
-        if ESP.FaceCamera then
-            cf = CFrame.new(cf.Position, cam.CFrame.Position)
-        end
+        local TagPos, Vis5 = WorldToViewportPoint(cam, locs.TagPos.Position)
         
-        local size = self.Size
-        local TagPos = cf * ESP.BoxShift * CFrame.new(0, size.Y/2, 0)
-        local TagPosScreen, Vis5 = WorldToViewportPoint(cam, TagPos.Position)
-        
-        if Vis5 and visible then
+        if Vis5 then
             local yOffset = 0
             
             -- Name
             if ESP.Names and self.Components.Name then
                 self.Components.Name.Visible = true
-                self.Components.Name.Position = V2new(TagPosScreen.X, TagPosScreen.Y + yOffset)
+                self.Components.Name.Position = V2new(TagPos.X, TagPos.Y + yOffset)
                 self.Components.Name.Text = self.Name
                 self.Components.Name.Color = color
                 yOffset = yOffset + ESP.TextSize + 2
@@ -589,7 +500,7 @@ function boxBase:Update()
             -- Distance
             if ESP.Distance and self.Components.Distance then
                 self.Components.Distance.Visible = true
-                self.Components.Distance.Position = V2new(TagPosScreen.X, TagPosScreen.Y + yOffset)
+                self.Components.Distance.Position = V2new(TagPos.X, TagPos.Y + yOffset)
                 self.Components.Distance.Text = floor(distance) .. "m"
                 self.Components.Distance.Color = color
             end
@@ -625,20 +536,15 @@ function ESP:Add(obj, options)
         self:GetBox(obj):Remove()
     end
 
-    -- NEW: Create BoxHandleAdornment instead of Drawing Quad
-    if box.PrimaryPart then
-        box.Components["BoxHandle"] = Instance.new("BoxHandleAdornment")
-        box.Components["BoxHandle"].Size = box.Size
-        box.Components["BoxHandle"].Color3 = box.Color or self.Color
-        box.Components["BoxHandle"].Transparency = self.Transparency
-        box.Components["BoxHandle"].AlwaysOnTop = true
-        box.Components["BoxHandle"].ZIndex = 1
-        box.Components["BoxHandle"].Adornee = box.PrimaryPart
-        box.Components["BoxHandle"].Parent = box.PrimaryPart
-        box.Components["BoxHandle"].Visible = false
-    end
+    -- Create components
+    box.Components["Quad"] = Draw("Quad", {
+        Thickness = self.Thickness,
+        Color = box.Color or self.Color,
+        Transparency = 1,
+        Filled = false,
+        Visible = false
+    })
     
-    -- ORIGINAL: Create Drawing Text (unchanged)
     box.Components["Name"] = Draw("Text", {
         Text = box.Name,
         Color = box.Color or self.Color,
@@ -658,36 +564,24 @@ function ESP:Add(obj, options)
     
     self.Objects[obj] = box
     
-    -- Enhanced cleanup connections
-    local function cleanup()
-        if self.AutoRemove ~= false then
+    -- Cleanup connections
+    obj.AncestryChanged:Connect(function(_, parent)
+        if parent == nil and self.AutoRemove ~= false then
             box:Remove()
         end
-    end
+    end)
     
-    obj.AncestryChanged:Connect(cleanup)
-    obj:GetPropertyChangedSignal("Parent"):Connect(cleanup)
-    
-    -- Additional cleanup for models
-    if obj:IsA("Model") then
-        obj:GetPropertyChangedSignal("PrimaryPart"):Connect(function()
-            local newPrimaryPart = GetPrimaryPart(obj)
-            if newPrimaryPart ~= box.PrimaryPart then
-                box.PrimaryPart = newPrimaryPart
-                -- Update BoxHandleAdornment
-                if box.Components.BoxHandle then
-                    box.Components.BoxHandle.Adornee = newPrimaryPart
-                    box.Components.BoxHandle.Parent = newPrimaryPart
-                end
-            end
-        end)
-    end
+    obj:GetPropertyChangedSignal("Parent"):Connect(function()
+        if obj.Parent == nil and self.AutoRemove ~= false then
+            box:Remove()
+        end
+    end)
 
     return box
 end
 
--- Main update loop (UPDATED)
-runService.Heartbeat:Connect(function()
+-- Main update loop
+runService.RenderStepped:Connect(function()
     cam = workspace.CurrentCamera
     for i, v in (ESP.Enabled and pairs or ipairs)(ESP.Objects) do
         if v.Update then
@@ -702,44 +596,7 @@ end)
 return ESP
 
 --[[
-    NEW FEATURES ADDED:
-
-    1. AUTO RE-DETECTION:
-    - ESP.AutoRedetect = true/false
-    - ESP.RedetectInterval = 2 (seconds)
-    - Automatically detects new/removed objects
-    - Uses both event-based and interval-based detection
-
-    2. BOXHANDLEADORNMENT:
-    - Replaced Drawing.new("Quad") with BoxHandleAdornment
-    - Better 3D visual quality
-    - Proper transparency support
-    - Always on top rendering
-
-    3. ENHANCED CLEANUP:
-    - Better memory management
-    - Auto cleanup of destroyed objects
-    - Thread management for re-detection
-
     Usage Examples:
-
-    1. Basic usage with auto re-detection:
-    ESP:Toggle(true)
-    ESP:AddNaturalPickupsListener()
-
-    2. Custom settings:
-    ESP.RedetectInterval = 1 -- Check every 1 second
-    ESP.Transparency = 0.3   -- More opaque boxes
-    ESP:AddUniversalListener("SomeFolder")
-
-    3. Disable auto re-detection:
-    ESP.AutoRedetect = false
-    ESP:AddUniversalListener("SomeFolder")
-
-    4. Clear all ESP and stop re-detection:
-    ESP:ClearAll()
-
-    Original Usage Examples still work:
 
     1. ESP for NaturalPickups (original functionality):
     ESP:Toggle(true)
