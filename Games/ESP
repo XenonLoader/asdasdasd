@@ -1,6 +1,7 @@
 --[[
-    Enhanced ESP System for Nested Folder Structures
-    Supports deep folder scanning and object detection
+    ESP System for workspace.NaturalPickups
+    Structure: workspace.NaturalPickups -> Folder -> Model
+    ESP Name: Uses Model name directly
 ]]
 
 --Settings--
@@ -20,32 +21,13 @@ local ESP = {
     -- Text Settings
     Names = true,
     Distance = true,
-    Health = true,
+    Health = false,
     TextSize = 16,
     TextOutline = true,
     
-    -- Team Settings
-    TeamColor = true,
-    TeamMates = true,
-    
-    -- Player Settings
-    Players = true,
-    ShowSelf = false,
-    
-    -- Tracer Settings
-    Tracers = false,
-    TracerOrigin = "Bottom",
-    AttachShift = 1,
-    
-    -- Health Bar Settings
-    HealthBars = true,
-    HealthBarSize = Vector2.new(4, 60),
-    HealthBarOffset = Vector3.new(-3, 0, 0),
-    
-    -- Nested Folder Settings
-    MaxDepth = 10, -- Maximum folder depth to scan
-    ScanAllFolders = true, -- Scan all folders recursively
-    TargetTypes = {"Model", "MeshPart", "BasePart", "Part", "UnionOperation"}, -- Types to ESP
+    -- NaturalPickups Specific
+    ShowFolderName = false, -- Show folder name in ESP
+    ShowModelOnly = true,   -- Only show model name
     
     -- Performance Settings
     MaxDistance = 1000,
@@ -58,13 +40,6 @@ local ESP = {
     -- Highlight System
     Highlighted = nil,
     HighlightColor = Color3.fromRGB(255, 0, 0),
-    
-    -- Filters
-    Filters = {
-        Players = function(player) return true end,
-        Objects = function(object) return true end,
-        Folders = function(folder) return true end -- New folder filter
-    }
 }
 
 --Declarations--
@@ -72,13 +47,11 @@ local cam = workspace.CurrentCamera
 local plrs = game:GetService("Players")
 local plr = plrs.LocalPlayer
 local runService = game:GetService("RunService")
-local mouse = plr:GetMouse()
 
 local V3new = Vector3.new
 local V2new = Vector2.new
 local WorldToViewportPoint = cam.WorldToViewportPoint
 local floor = math.floor
-local huge = math.huge
 
 --Utility Functions--
 local function Draw(obj, props)
@@ -94,122 +67,37 @@ local function GetDistance(pos1, pos2)
     return (pos1 - pos2).Magnitude
 end
 
-local function IsOnScreen(pos)
-    local _, onScreen = WorldToViewportPoint(cam, pos)
-    return onScreen
-end
-
--- Nested Folder Scanning Functions
-local function IsTargetType(obj)
-    for _, targetType in pairs(ESP.TargetTypes) do
-        if obj:IsA(targetType) then
-            return true
-        end
+-- NaturalPickups Specific Functions
+local function ScanNaturalPickups()
+    local naturalPickups = workspace:FindFirstChild("NaturalPickups")
+    if not naturalPickups then
+        warn("NaturalPickups not found in workspace!")
+        return {}
     end
-    return false
-end
-
-local function ScanFolderRecursive(folder, depth, maxDepth, foundObjects)
-    if depth > maxDepth then return end
-    if not ESP.Filters.Folders(folder) then return end
     
-    foundObjects = foundObjects or {}
+    local foundObjects = {}
     
-    for _, child in pairs(folder:GetChildren()) do
-        if child:IsA("Folder") then
-            -- Recursively scan subfolders
-            ScanFolderRecursive(child, depth + 1, maxDepth, foundObjects)
-        elseif IsTargetType(child) then
-            -- Found target object
-            table.insert(foundObjects, {
-                Object = child,
-                Path = folder:GetFullName() .. "." .. child.Name,
-                Depth = depth
-            })
+    -- Scan each folder in NaturalPickups
+    for _, folder in pairs(naturalPickups:GetChildren()) do
+        if folder:IsA("Folder") then
+            -- Look for models in this folder
+            for _, model in pairs(folder:GetChildren()) do
+                if model:IsA("Model") then
+                    table.insert(foundObjects, {
+                        Object = model,
+                        FolderName = folder.Name,
+                        ModelName = model.Name,
+                        FullPath = "NaturalPickups." .. folder.Name .. "." .. model.Name
+                    })
+                end
+            end
         end
     end
     
     return foundObjects
 end
 
-local function GetAllNestedObjects(parent)
-    local allObjects = {}
-    
-    -- Direct children first
-    for _, child in pairs(parent:GetChildren()) do
-        if IsTargetType(child) then
-            table.insert(allObjects, {
-                Object = child,
-                Path = child:GetFullName(),
-                Depth = 0
-            })
-        end
-    end
-    
-    -- Then scan folders recursively
-    if ESP.ScanAllFolders then
-        for _, child in pairs(parent:GetChildren()) do
-            if child:IsA("Folder") then
-                local nestedObjects = ScanFolderRecursive(child, 1, ESP.MaxDepth)
-                if nestedObjects then
-                    for _, objData in pairs(nestedObjects) do
-                        table.insert(allObjects, objData)
-                    end
-                end
-            end
-        end
-    end
-    
-    return allObjects
-end
-
 --ESP Core Functions--
-function ESP:GetTeam(p)
-    local ov = self.Overrides.GetTeam
-    if ov then
-        return ov(p)
-    end
-    return p and p.Team
-end
-
-function ESP:IsTeamMate(p)
-    local ov = self.Overrides.IsTeamMate
-    if ov then
-        return ov(p)
-    end
-    return self:GetTeam(p) == self:GetTeam(plr)
-end
-
-function ESP:GetColor(obj)
-    local ov = self.Overrides.GetColor
-    if ov then
-        return ov(obj)
-    end
-    
-    local p = self:GetPlrFromChar(obj)
-    if p and self.TeamColor and p.Team then
-        return p.Team.TeamColor.Color
-    end
-    
-    return self.Color
-end
-
-function ESP:GetPlrFromChar(char)
-    local ov = self.Overrides.GetPlrFromChar
-    if ov then
-        return ov(char)
-    end
-    return plrs:GetPlayerFromCharacter(char)
-end
-
-function ESP:GetHealth(obj)
-    local humanoid = obj:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        return humanoid.Health, humanoid.MaxHealth
-    end
-    return 100, 100
-end
-
 function ESP:Toggle(bool)
     self.Enabled = bool
     if not bool then
@@ -240,23 +128,28 @@ function ESP:ClearHighlight()
     self.Highlighted = nil
 end
 
--- Enhanced Object Listener for Nested Folders
-function ESP:AddNestedObjectListener(parent, options)
+-- NaturalPickups Object Listener
+function ESP:AddNaturalPickupsListener(options)
     options = options or {}
     
-    local function ProcessObject(objData)
-        local obj = objData.Object
-        local path = objData.Path
-        local depth = objData.Depth
+    local function ProcessModel(modelData)
+        local model = modelData.Object
+        local folderName = modelData.FolderName
+        local modelName = modelData.ModelName
         
-        if not options.Validator or options.Validator(obj, path, depth) then
-            local box = ESP:Add(obj, {
-                PrimaryPart = type(options.PrimaryPart) == "string" and obj:WaitForChild(options.PrimaryPart) or 
-                             type(options.PrimaryPart) == "function" and options.PrimaryPart(obj) or nil,
-                Color = type(options.Color) == "function" and options.Color(obj, path, depth) or options.Color,
+        if not options.Validator or options.Validator(model, folderName, modelName) then
+            local displayName
+            if ESP.ShowFolderName then
+                displayName = folderName .. " - " .. modelName
+            else
+                displayName = modelName
+            end
+            
+            local box = ESP:Add(model, {
+                PrimaryPart = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart"),
+                Color = type(options.Color) == "function" and options.Color(model, folderName, modelName) or options.Color,
                 ColorDynamic = options.ColorDynamic,
-                Name = type(options.CustomName) == "function" and options.CustomName(obj, path, depth) or 
-                       options.CustomName or (obj.Name .. " (D:" .. depth .. ")"),
+                Name = type(options.CustomName) == "function" and options.CustomName(model, folderName, modelName) or displayName,
                 IsEnabled = options.IsEnabled,
                 RenderInNil = options.RenderInNil,
                 Size = options.Size,
@@ -264,78 +157,69 @@ function ESP:AddNestedObjectListener(parent, options)
             })
             
             if options.OnAdded then
-                coroutine.wrap(options.OnAdded)(box, objData)
+                coroutine.wrap(options.OnAdded)(box, modelData)
             end
-        end
-    end
-    
-    local function ScanAndProcess()
-        local allObjects = GetAllNestedObjects(parent)
-        for _, objData in pairs(allObjects) do
-            ProcessObject(objData)
         end
     end
     
     -- Initial scan
-    ScanAndProcess()
-    
-    -- Listen for new objects
-    local function NewListener(c)
-        if IsTargetType(c) then
-            ProcessObject({
-                Object = c,
-                Path = c:GetFullName(),
-                Depth = 0
-            })
-        elseif c:IsA("Folder") then
-            -- New folder added, scan it
-            task.wait(0.1) -- Wait for folder to populate
-            local nestedObjects = ScanFolderRecursive(c, 1, ESP.MaxDepth)
-            if nestedObjects then
-                for _, objData in pairs(nestedObjects) do
-                    ProcessObject(objData)
-                end
-            end
+    local function InitialScan()
+        local allModels = ScanNaturalPickups()
+        for _, modelData in pairs(allModels) do
+            ProcessModel(modelData)
         end
     end
     
-    parent.DescendantAdded:Connect(NewListener)
-end
-
--- Regular Object Listener (for compatibility)
-function ESP:AddObjectListener(parent, options)
-    local function NewListener(c)
-        if type(options.Type) == "string" and c:IsA(options.Type) or options.Type == nil then
-            if type(options.Name) == "string" and c.Name == options.Name or options.Name == nil then
-                if not options.Validator or options.Validator(c) then
-                    local box = ESP:Add(c, {
-                        PrimaryPart = type(options.PrimaryPart) == "string" and c:WaitForChild(options.PrimaryPart) or 
-                                     type(options.PrimaryPart) == "function" and options.PrimaryPart(c),
-                        Color = type(options.Color) == "function" and options.Color(c) or options.Color,
-                        ColorDynamic = options.ColorDynamic,
-                        Name = type(options.CustomName) == "function" and options.CustomName(c) or options.CustomName,
-                        IsEnabled = options.IsEnabled,
-                        RenderInNil = options.RenderInNil,
-                        Size = options.Size
-                    })
-                    
-                    if options.OnAdded then
-                        coroutine.wrap(options.OnAdded)(box)
+    InitialScan()
+    
+    -- Listen for new objects in NaturalPickups
+    local naturalPickups = workspace:FindFirstChild("NaturalPickups")
+    if naturalPickups then
+        -- Listen for new folders
+        naturalPickups.ChildAdded:Connect(function(folder)
+            if folder:IsA("Folder") then
+                task.wait(0.1) -- Wait for folder to populate
+                
+                -- Listen for models in this new folder
+                folder.ChildAdded:Connect(function(model)
+                    if model:IsA("Model") then
+                        ProcessModel({
+                            Object = model,
+                            FolderName = folder.Name,
+                            ModelName = model.Name,
+                            FullPath = "NaturalPickups." .. folder.Name .. "." .. model.Name
+                        })
+                    end
+                end)
+                
+                -- Process existing models in new folder
+                for _, model in pairs(folder:GetChildren()) do
+                    if model:IsA("Model") then
+                        ProcessModel({
+                            Object = model,
+                            FolderName = folder.Name,
+                            ModelName = model.Name,
+                            FullPath = "NaturalPickups." .. folder.Name .. "." .. model.Name
+                        })
                     end
                 end
             end
-        end
-    end
-
-    if options.Recursive then
-        parent.DescendantAdded:Connect(NewListener)
-        for i, v in pairs(parent:GetDescendants()) do
-            coroutine.wrap(NewListener)(v)
-        end
-    else
-        parent.ChildAdded:Connect(NewListener)
-        for i, v in pairs(parent:GetChildren()) do
-            coroutine.wrap(NewListener)(v)
+        end)
+        
+        -- Listen for models added to existing folders
+        for _, folder in pairs(naturalPickups:GetChildren()) do
+            if folder:IsA("Folder") then
+                folder.ChildAdded:Connect(function(model)
+                    if model:IsA("Model") then
+                        ProcessModel({
+                            Object = model,
+                            FolderName = folder.Name,
+                            ModelName = model.Name,
+                            FullPath = "NaturalPickups." .. folder.Name .. "." .. model.Name
+                        })
+                    end
+                end)
+            end
         end
     end
 end
@@ -366,7 +250,7 @@ function boxBase:Update()
         return self:Remove()
     end
 
-    local color = self.Color or ESP:GetColor(self.Object) or ESP.Color
+    local color = self.Color or ESP.Color
     
     -- Highlight override
     if ESP.Highlighted == self.Object then
@@ -379,35 +263,6 @@ function boxBase:Update()
     -- Distance check
     local distance = GetDistance(cam.CFrame.Position, self.PrimaryPart.Position)
     if distance > ESP.MaxDistance then
-        allow = false
-    end
-    
-    -- Custom filters
-    if self.Player and not ESP.Filters.Players(self.Player) then
-        allow = false
-    end
-    
-    if not self.Player and not ESP.Filters.Objects(self.Object) then
-        allow = false
-    end
-    
-    -- Override checks
-    if ESP.Overrides.UpdateAllow and not ESP.Overrides.UpdateAllow(self) then
-        allow = false
-    end
-    
-    -- Team check
-    if self.Player and not ESP.TeamMates and ESP:IsTeamMate(self.Player) then
-        allow = false
-    end
-    
-    -- Player check
-    if self.Player and not ESP.Players then
-        allow = false
-    end
-    
-    -- Self check
-    if self.Player == plr and not ESP.ShowSelf then
         allow = false
     end
     
@@ -442,8 +297,7 @@ function boxBase:Update()
         BottomLeft = cf * ESP.BoxShift * CFrame.new(size.X/2, -size.Y/2, 0),
         BottomRight = cf * ESP.BoxShift * CFrame.new(-size.X/2, -size.Y/2, 0),
         TagPos = cf * ESP.BoxShift * CFrame.new(0, size.Y/2, 0),
-        Torso = cf * ESP.BoxShift,
-        HealthBarPos = cf * ESP.BoxShift * CFrame.new(ESP.HealthBarOffset.X, 0, ESP.HealthBarOffset.Z)
+        Torso = cf * ESP.BoxShift
     }
 
     -- Box rendering
@@ -493,78 +347,10 @@ function boxBase:Update()
                 self.Components.Distance.Position = V2new(TagPos.X, TagPos.Y + yOffset)
                 self.Components.Distance.Text = floor(distance) .. "m"
                 self.Components.Distance.Color = color
-                yOffset = yOffset + ESP.TextSize + 2
-            end
-            
-            -- Health text
-            if ESP.Health and self.Components.HealthText then
-                local health, maxHealth = ESP:GetHealth(self.Object)
-                self.Components.HealthText.Visible = true
-                self.Components.HealthText.Position = V2new(TagPos.X, TagPos.Y + yOffset)
-                self.Components.HealthText.Text = floor(health) .. "/" .. floor(maxHealth)
-                self.Components.HealthText.Color = Color3.fromRGB(
-                    255 * (1 - health/maxHealth),
-                    255 * (health/maxHealth),
-                    0
-                )
             end
         else
             if self.Components.Name then self.Components.Name.Visible = false end
             if self.Components.Distance then self.Components.Distance.Visible = false end
-            if self.Components.HealthText then self.Components.HealthText.Visible = false end
-        end
-    end
-    
-    -- Health bar rendering
-    if ESP.HealthBars and self.Components.HealthBarBG and self.Components.HealthBarFill then
-        local HealthBarPos, Vis6 = WorldToViewportPoint(cam, locs.HealthBarPos.Position)
-        
-        if Vis6 then
-            local health, maxHealth = ESP:GetHealth(self.Object)
-            local healthPercent = health / maxHealth
-            
-            -- Background
-            self.Components.HealthBarBG.Visible = true
-            self.Components.HealthBarBG.Position = V2new(HealthBarPos.X, HealthBarPos.Y - ESP.HealthBarSize.Y/2)
-            self.Components.HealthBarBG.Size = ESP.HealthBarSize
-            self.Components.HealthBarBG.Color = Color3.fromRGB(0, 0, 0)
-            
-            -- Fill
-            self.Components.HealthBarFill.Visible = true
-            self.Components.HealthBarFill.Position = V2new(HealthBarPos.X, HealthBarPos.Y - ESP.HealthBarSize.Y/2 + ESP.HealthBarSize.Y * (1 - healthPercent))
-            self.Components.HealthBarFill.Size = V2new(ESP.HealthBarSize.X, ESP.HealthBarSize.Y * healthPercent)
-            self.Components.HealthBarFill.Color = Color3.fromRGB(
-                255 * (1 - healthPercent),
-                255 * healthPercent,
-                0
-            )
-        else
-            self.Components.HealthBarBG.Visible = false
-            self.Components.HealthBarFill.Visible = false
-        end
-    end
-    
-    -- Tracer rendering
-    if ESP.Tracers and self.Components.Tracer then
-        local TorsoPos, Vis7 = WorldToViewportPoint(cam, locs.Torso.Position)
-
-        if Vis7 then
-            self.Components.Tracer.Visible = true
-            self.Components.Tracer.From = V2new(TorsoPos.X, TorsoPos.Y)
-            
-            local tracerTo
-            if ESP.TracerOrigin == "Top" then
-                tracerTo = V2new(cam.ViewportSize.X/2, 0)
-            elseif ESP.TracerOrigin == "Center" then
-                tracerTo = V2new(cam.ViewportSize.X/2, cam.ViewportSize.Y/2)
-            else -- Bottom
-                tracerTo = V2new(cam.ViewportSize.X/2, cam.ViewportSize.Y/ESP.AttachShift)
-            end
-            
-            self.Components.Tracer.To = tracerTo
-            self.Components.Tracer.Color = color
-        else
-            self.Components.Tracer.Visible = false
         end
     end
 end
@@ -582,7 +368,6 @@ function ESP:Add(obj, options)
         Color = options.Color,
         Size = options.Size or self.BoxSize,
         Object = obj,
-        Player = options.Player or plrs:GetPlayerFromCharacter(obj),
         PrimaryPart = options.PrimaryPart or obj.ClassName == "Model" and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or obj:IsA("BasePart") and obj,
         Components = {},
         IsEnabled = options.IsEnabled,
@@ -621,33 +406,6 @@ function ESP:Add(obj, options)
         Visible = false
     })
     
-    box.Components["HealthText"] = Draw("Text", {
-        Color = Color3.fromRGB(0, 255, 0),
-        Center = true,
-        Outline = self.TextOutline,
-        Size = self.TextSize,
-        Visible = false
-    })
-    
-    box.Components["HealthBarBG"] = Draw("Square", {
-        Color = Color3.fromRGB(0, 0, 0),
-        Filled = true,
-        Visible = false
-    })
-    
-    box.Components["HealthBarFill"] = Draw("Square", {
-        Color = Color3.fromRGB(0, 255, 0),
-        Filled = true,
-        Visible = false
-    })
-    
-    box.Components["Tracer"] = Draw("Line", {
-        Thickness = self.Thickness,
-        Color = box.Color or self.Color,
-        Transparency = 1,
-        Visible = false
-    })
-    
     self.Objects[obj] = box
     
     -- Cleanup connections
@@ -663,54 +421,7 @@ function ESP:Add(obj, options)
         end
     end)
 
-    local hum = obj:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.Died:Connect(function()
-            if self.AutoRemove ~= false then
-                box:Remove()
-            end
-        end)
-    end
-
     return box
-end
-
--- Player ESP Setup
-local function CharAdded(char)
-    local p = plrs:GetPlayerFromCharacter(char)
-    if not char:FindFirstChild("HumanoidRootPart") then
-        local ev
-        ev = char.ChildAdded:Connect(function(c)
-            if c.Name == "HumanoidRootPart" then
-                ev:Disconnect()
-                ESP:Add(char, {
-                    Name = p.Name,
-                    Player = p,
-                    PrimaryPart = c
-                })
-            end
-        end)
-    else
-        ESP:Add(char, {
-            Name = p.Name,
-            Player = p,
-            PrimaryPart = char.HumanoidRootPart
-        })
-    end
-end
-
-local function PlayerAdded(p)
-    p.CharacterAdded:Connect(CharAdded)
-    if p.Character then
-        coroutine.wrap(CharAdded)(p.Character)
-    end
-end
-
-plrs.PlayerAdded:Connect(PlayerAdded)
-for i, v in pairs(plrs:GetPlayers()) do
-    if v ~= plr then
-        PlayerAdded(v)
-    end
 end
 
 -- Main update loop
