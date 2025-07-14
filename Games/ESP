@@ -1,9 +1,10 @@
 --[[
-    Universal ESP System
+    Enhanced Universal ESP System
     Structure: Any workspace location -> Folder -> Any Object Type
     ESP Name: Uses Object name directly
     Supports: Model, BasePart, MeshPart, Part, UnionOperation, and more
     Works with: Any folder structure in workspace
+    Features: Auto re-detection, BoxHandleAdornment rendering, improved performance
 ]]
 
 --Settings--
@@ -11,6 +12,7 @@ local ESP = {
     -- Core Settings
     Enabled = false,
     AutoRemove = true,
+    AutoRedetect = true,    -- Automatically re-detect missing objects
     
     -- Visual Settings
     Boxes = true,
@@ -19,6 +21,7 @@ local ESP = {
     Color = Color3.fromRGB(255, 170, 0),
     FaceCamera = false,
     Thickness = 2,
+    Transparency = 0.5,     -- For BoxHandleAdornment
     
     -- Text Settings
     Names = true,
@@ -39,6 +42,7 @@ local ESP = {
     -- Scanning Settings
     MaxDepth = 10,          -- Maximum folder depth to scan
     ScanAllFolders = true,  -- Recursively scan all folders
+    RedetectInterval = 2,   -- Seconds between re-detection scans
     
     -- Performance Settings
     MaxDistance = 1000,
@@ -47,6 +51,7 @@ local ESP = {
     -- Storage
     Objects = setmetatable({}, {__mode="kv"}),
     Overrides = {},
+    Listeners = {},         -- Store active listeners for re-detection
     
     -- Highlight System
     Highlighted = nil,
@@ -72,13 +77,27 @@ local WorldToViewportPoint = cam.WorldToViewportPoint
 local floor = math.floor
 
 --Utility Functions--
-local function Draw(obj, props)
-    local new = Drawing.new(obj)
-    props = props or {}
-    for i, v in pairs(props) do
-        new[i] = v
-    end
-    return new
+local function CreateBillboardGui()
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+    return billboard
+end
+
+local function CreateTextLabel(text, color)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = color
+    label.TextSize = ESP.TextSize
+    label.TextStrokeTransparency = ESP.TextOutline and 0 or 1
+    label.TextStrokeColor3 = Color3.new(0, 0, 0)
+    label.Font = Enum.Font.SourceSansBold
+    label.TextScaled = true
+    return label
 end
 
 local function GetDistance(pos1, pos2)
@@ -193,7 +212,9 @@ function ESP:Toggle(bool)
                     v:Remove()
                 else
                     for _, component in pairs(v.Components) do
-                        component.Visible = false
+                        if component then
+                            component.Visible = false
+                        end
                     end
                 end
             end
@@ -214,6 +235,103 @@ function ESP:ClearHighlight()
     self.Highlighted = nil
 end
 
+-- Auto Re-detection System
+function ESP:StartRedetection(location, options)
+    if not self.AutoRedetect then return end
+    
+    local listenerKey = tostring(location)
+    if self.Listeners[listenerKey] then return end -- Already has redetection
+    
+    local function RedetectObjects()
+        while self.AutoRedetect and self.Listeners[listenerKey] do
+            local allObjects = ScanLocation(location)
+            
+            -- Check for new objects that don't have ESP yet
+            for _, objectData in pairs(allObjects) do
+                local obj = objectData.Object
+                if not self:GetBox(obj) then
+                    -- New object found, add ESP
+                    self:ProcessSingleObject(objectData, options)
+                end
+            end
+            
+            -- Check for removed objects
+            local objectsToRemove = {}
+            for espObj, box in pairs(self.Objects) do
+                if not espObj.Parent or not workspace:IsAncestorOf(espObj) then
+                    table.insert(objectsToRemove, espObj)
+                end
+            end
+            
+            -- Remove ESP for deleted objects
+            for _, obj in pairs(objectsToRemove) do
+                local box = self:GetBox(obj)
+                if box then
+                    box:Remove()
+                end
+            end
+            
+            task.wait(self.RedetectInterval)
+        end
+    end
+    
+    self.Listeners[listenerKey] = {
+        Location = location,
+        Options = options,
+        Thread = task.spawn(RedetectObjects)
+    }
+end
+
+function ESP:StopRedetection(location)
+    local listenerKey = tostring(location)
+    local listener = self.Listeners[listenerKey]
+    if listener then
+        if listener.Thread then
+            task.cancel(listener.Thread)
+        end
+        self.Listeners[listenerKey] = nil
+    end
+end
+
+function ESP:ProcessSingleObject(objectData, options)
+    local obj = objectData.Object
+    local folderName = objectData.FolderName
+    local objectName = objectData.ObjectName
+    local objectType = objectData.ObjectType
+    local fullPath = objectData.FullPath
+    local depth = objectData.Depth
+    
+    if not options.Validator or options.Validator(obj, folderName, objectName, objectType, fullPath, depth) then
+        local displayName = objectName
+        
+        -- Build display name based on settings
+        if ESP.ShowFullPath then
+            displayName = fullPath
+        elseif ESP.ShowFolderName and ESP.ShowObjectType then
+            displayName = folderName .. " - " .. objectName .. " (" .. objectType .. ")"
+        elseif ESP.ShowFolderName then
+            displayName = folderName .. " - " .. objectName
+        elseif ESP.ShowObjectType then
+            displayName = objectName .. " (" .. objectType .. ")"
+        end
+        
+        local box = ESP:Add(obj, {
+            PrimaryPart = GetPrimaryPart(obj),
+            Color = type(options.Color) == "function" and options.Color(obj, folderName, objectName, objectType, fullPath, depth) or options.Color,
+            ColorDynamic = options.ColorDynamic,
+            Name = type(options.CustomName) == "function" and options.CustomName(obj, folderName, objectName, objectType, fullPath, depth) or displayName,
+            IsEnabled = options.IsEnabled,
+            RenderInNil = options.RenderInNil,
+            Size = options.Size,
+            Temporary = options.Temporary
+        })
+        
+        if options.OnAdded then
+            coroutine.wrap(options.OnAdded)(box, objectData)
+        end
+    end
+end
+
 -- Universal Object Listener
 function ESP:AddUniversalListener(location, options)
     options = options or {}
@@ -228,42 +346,7 @@ function ESP:AddUniversalListener(location, options)
     end
     
     local function ProcessObject(objectData)
-        local obj = objectData.Object
-        local folderName = objectData.FolderName
-        local objectName = objectData.ObjectName
-        local objectType = objectData.ObjectType
-        local fullPath = objectData.FullPath
-        local depth = objectData.Depth
-        
-        if not options.Validator or options.Validator(obj, folderName, objectName, objectType, fullPath, depth) then
-            local displayName = objectName
-            
-            -- Build display name based on settings
-            if ESP.ShowFullPath then
-                displayName = fullPath
-            elseif ESP.ShowFolderName and ESP.ShowObjectType then
-                displayName = folderName .. " - " .. objectName .. " (" .. objectType .. ")"
-            elseif ESP.ShowFolderName then
-                displayName = folderName .. " - " .. objectName
-            elseif ESP.ShowObjectType then
-                displayName = objectName .. " (" .. objectType .. ")"
-            end
-            
-            local box = ESP:Add(obj, {
-                PrimaryPart = GetPrimaryPart(obj),
-                Color = type(options.Color) == "function" and options.Color(obj, folderName, objectName, objectType, fullPath, depth) or options.Color,
-                ColorDynamic = options.ColorDynamic,
-                Name = type(options.CustomName) == "function" and options.CustomName(obj, folderName, objectName, objectType, fullPath, depth) or displayName,
-                IsEnabled = options.IsEnabled,
-                RenderInNil = options.RenderInNil,
-                Size = options.Size,
-                Temporary = options.Temporary
-            })
-            
-            if options.OnAdded then
-                coroutine.wrap(options.OnAdded)(box, objectData)
-            end
-        end
+        self:ProcessSingleObject(objectData, options)
     end
     
     -- Initial scan
@@ -276,7 +359,10 @@ function ESP:AddUniversalListener(location, options)
     
     InitialScan()
     
-    -- Listen for new objects
+    -- Start auto re-detection
+    self:StartRedetection(location, options)
+    
+    -- Listen for new objects (immediate detection)
     local function SetupListeners(parent, parentPath, depth)
         if depth > ESP.MaxDepth then return end
         
@@ -307,6 +393,14 @@ function ESP:AddUniversalListener(location, options)
                         Depth = depth
                     })
                 end
+            end
+        end)
+        
+        -- Listen for removed objects
+        parent.ChildRemoved:Connect(function(child)
+            local box = ESP:GetBox(child)
+            if box then
+                box:Remove()
             end
         end)
     end
@@ -361,6 +455,15 @@ end
 
 -- Method to clear all ESP
 function ESP:ClearAll()
+    -- Stop all redetection threads
+    for _, listener in pairs(self.Listeners) do
+        if listener.Thread then
+            task.cancel(listener.Thread)
+        end
+    end
+    self.Listeners = {}
+    
+    -- Remove all ESP objects
     for obj, box in pairs(self.Objects) do
         box:Remove()
     end
@@ -387,22 +490,35 @@ boxBase.__index = boxBase
 function boxBase:Remove()
     ESP.Objects[self.Object] = nil
     for i, v in pairs(self.Components) do
-        v.Visible = false
-        v:Remove()
-        self.Components[i] = nil
+        if v then
+            v:Destroy()
+            self.Components[i] = nil
+        end
     end
 end
 
 function boxBase:SetColor(color)
     self.Color = color
+    if self.Components.BoxHandle then
+        self.Components.BoxHandle.Color3 = color
+    end
+    if self.Components.NameLabel then
+        self.Components.NameLabel.TextColor3 = color
+    end
+    if self.Components.DistanceLabel then
+        self.Components.DistanceLabel.TextColor3 = color
+    end
 end
 
 function boxBase:SetName(name)
     self.Name = name
+    if self.Components.NameLabel then
+        self.Components.NameLabel.Text = name
+    end
 end
 
 function boxBase:Update()
-    if not self.PrimaryPart then
+    if not self.PrimaryPart or not self.PrimaryPart.Parent then
         return self:Remove()
     end
 
@@ -433,80 +549,43 @@ function boxBase:Update()
         allow = false
     end
 
-    if not allow then
-        for i, v in pairs(self.Components) do
-            v.Visible = false
+    -- Update visibility
+    local visible = allow and ESP.Enabled
+    
+    -- Update BoxHandleAdornment
+    if self.Components.BoxHandle then
+        self.Components.BoxHandle.Visible = visible and ESP.Boxes
+        if visible and ESP.Boxes then
+            self.Components.BoxHandle.Color3 = color
+            self.Components.BoxHandle.Transparency = ESP.Transparency
+            self.Components.BoxHandle.Size = self.Size
+            
+            if ESP.FaceCamera then
+                local cf = CFrame.new(self.PrimaryPart.Position, cam.CFrame.Position)
+                self.Components.BoxHandle.CFrame = cf * ESP.BoxShift
+            else
+                self.Components.BoxHandle.CFrame = self.PrimaryPart.CFrame * ESP.BoxShift
+            end
         end
-        return
-    end
-
-    -- Calculations
-    local cf = self.PrimaryPart.CFrame
-    if ESP.FaceCamera then
-        cf = CFrame.new(cf.Position, cam.CFrame.Position)
     end
     
-    local size = self.Size
-    local locs = {
-        TopLeft = cf * ESP.BoxShift * CFrame.new(size.X/2, size.Y/2, 0),
-        TopRight = cf * ESP.BoxShift * CFrame.new(-size.X/2, size.Y/2, 0),
-        BottomLeft = cf * ESP.BoxShift * CFrame.new(size.X/2, -size.Y/2, 0),
-        BottomRight = cf * ESP.BoxShift * CFrame.new(-size.X/2, -size.Y/2, 0),
-        TagPos = cf * ESP.BoxShift * CFrame.new(0, size.Y/2, 0),
-        Torso = cf * ESP.BoxShift
-    }
-
-    -- Box rendering
-    if ESP.Boxes then
-        local TopLeft, Vis1 = WorldToViewportPoint(cam, locs.TopLeft.Position)
-        local TopRight, Vis2 = WorldToViewportPoint(cam, locs.TopRight.Position)
-        local BottomLeft, Vis3 = WorldToViewportPoint(cam, locs.BottomLeft.Position)
-        local BottomRight, Vis4 = WorldToViewportPoint(cam, locs.BottomRight.Position)
-
-        if self.Components.Quad then
-            if Vis1 or Vis2 or Vis3 or Vis4 then
-                self.Components.Quad.Visible = true
-                self.Components.Quad.PointA = V2new(TopRight.X, TopRight.Y)
-                self.Components.Quad.PointB = V2new(TopLeft.X, TopLeft.Y)
-                self.Components.Quad.PointC = V2new(BottomLeft.X, BottomLeft.Y)
-                self.Components.Quad.PointD = V2new(BottomRight.X, BottomRight.Y)
-                self.Components.Quad.Color = color
-            else
-                self.Components.Quad.Visible = false
-            end
-        end
-    else
-        if self.Components.Quad then
-            self.Components.Quad.Visible = false
+    -- Update Name Billboard
+    if self.Components.NameBillboard then
+        self.Components.NameBillboard.Enabled = visible and ESP.Names
+        if visible and ESP.Names and self.Components.NameLabel then
+            self.Components.NameLabel.Text = self.Name
+            self.Components.NameLabel.TextColor3 = color
+            self.Components.NameLabel.TextSize = ESP.TextSize
         end
     end
-
-    -- Name and distance rendering
-    if ESP.Names or ESP.Distance then
-        local TagPos, Vis5 = WorldToViewportPoint(cam, locs.TagPos.Position)
-        
-        if Vis5 then
-            local yOffset = 0
-            
-            -- Name
-            if ESP.Names and self.Components.Name then
-                self.Components.Name.Visible = true
-                self.Components.Name.Position = V2new(TagPos.X, TagPos.Y + yOffset)
-                self.Components.Name.Text = self.Name
-                self.Components.Name.Color = color
-                yOffset = yOffset + ESP.TextSize + 2
-            end
-            
-            -- Distance
-            if ESP.Distance and self.Components.Distance then
-                self.Components.Distance.Visible = true
-                self.Components.Distance.Position = V2new(TagPos.X, TagPos.Y + yOffset)
-                self.Components.Distance.Text = floor(distance) .. "m"
-                self.Components.Distance.Color = color
-            end
-        else
-            if self.Components.Name then self.Components.Name.Visible = false end
-            if self.Components.Distance then self.Components.Distance.Visible = false end
+    
+    -- Update Distance Billboard
+    if self.Components.DistanceBillboard then
+        self.Components.DistanceBillboard.Enabled = visible and ESP.Distance
+        if visible and ESP.Distance and self.Components.DistanceLabel then
+            self.Components.DistanceLabel.Text = floor(distance) .. "m"
+            self.Components.DistanceLabel.TextColor3 = color
+            self.Components.DistanceLabel.TextSize = ESP.TextSize
         end
     end
 end
@@ -536,52 +615,88 @@ function ESP:Add(obj, options)
         self:GetBox(obj):Remove()
     end
 
-    -- Create components
-    box.Components["Quad"] = Draw("Quad", {
-        Thickness = self.Thickness,
-        Color = box.Color or self.Color,
-        Transparency = 1,
-        Filled = false,
-        Visible = false
-    })
+    -- Create BoxHandleAdornment
+    if box.PrimaryPart then
+        box.Components.BoxHandle = Instance.new("BoxHandleAdornment")
+        box.Components.BoxHandle.Size = box.Size
+        box.Components.BoxHandle.Color3 = box.Color or self.Color
+        box.Components.BoxHandle.Transparency = self.Transparency
+        box.Components.BoxHandle.AlwaysOnTop = true
+        box.Components.BoxHandle.ZIndex = 1
+        box.Components.BoxHandle.Adornee = box.PrimaryPart
+        box.Components.BoxHandle.Parent = box.PrimaryPart
+        box.Components.BoxHandle.Visible = false
+    end
     
-    box.Components["Name"] = Draw("Text", {
-        Text = box.Name,
-        Color = box.Color or self.Color,
-        Center = true,
-        Outline = self.TextOutline,
-        Size = self.TextSize,
-        Visible = false
-    })
+    -- Create Name Billboard
+    if box.PrimaryPart then
+        box.Components.NameBillboard = CreateBillboardGui()
+        box.Components.NameBillboard.StudsOffset = Vector3.new(0, box.Size.Y/2 + 1, 0)
+        box.Components.NameBillboard.Parent = box.PrimaryPart
+        box.Components.NameBillboard.Enabled = false
+        
+        box.Components.NameLabel = CreateTextLabel(box.Name, box.Color or self.Color)
+        box.Components.NameLabel.Parent = box.Components.NameBillboard
+    end
     
-    box.Components["Distance"] = Draw("Text", {
-        Color = box.Color or self.Color,
-        Center = true,
-        Outline = self.TextOutline,
-        Size = self.TextSize,
-        Visible = false
-    })
+    -- Create Distance Billboard
+    if box.PrimaryPart then
+        box.Components.DistanceBillboard = CreateBillboardGui()
+        box.Components.DistanceBillboard.StudsOffset = Vector3.new(0, box.Size.Y/2 + 2.5, 0)
+        box.Components.DistanceBillboard.Parent = box.PrimaryPart
+        box.Components.DistanceBillboard.Enabled = false
+        
+        box.Components.DistanceLabel = CreateTextLabel("0m", box.Color or self.Color)
+        box.Components.DistanceLabel.Parent = box.Components.DistanceBillboard
+    end
     
     self.Objects[obj] = box
     
-    -- Cleanup connections
-    obj.AncestryChanged:Connect(function(_, parent)
-        if parent == nil and self.AutoRemove ~= false then
+    -- Enhanced cleanup connections
+    local function cleanup()
+        if self.AutoRemove ~= false then
             box:Remove()
+        end
+    end
+    
+    obj.AncestryChanged:Connect(function(_, parent)
+        if parent == nil then
+            cleanup()
         end
     end)
     
     obj:GetPropertyChangedSignal("Parent"):Connect(function()
-        if obj.Parent == nil and self.AutoRemove ~= false then
-            box:Remove()
+        if obj.Parent == nil then
+            cleanup()
         end
     end)
+    
+    -- Additional cleanup for models
+    if obj:IsA("Model") then
+        obj:GetPropertyChangedSignal("PrimaryPart"):Connect(function()
+            local newPrimaryPart = GetPrimaryPart(obj)
+            if newPrimaryPart ~= box.PrimaryPart then
+                box.PrimaryPart = newPrimaryPart
+                -- Update adornee
+                if box.Components.BoxHandle then
+                    box.Components.BoxHandle.Adornee = newPrimaryPart
+                    box.Components.BoxHandle.Parent = newPrimaryPart
+                end
+                if box.Components.NameBillboard then
+                    box.Components.NameBillboard.Parent = newPrimaryPart
+                end
+                if box.Components.DistanceBillboard then
+                    box.Components.DistanceBillboard.Parent = newPrimaryPart
+                end
+            end
+        end)
+    end
 
     return box
 end
 
 -- Main update loop
-runService.RenderStepped:Connect(function()
+runService.Heartbeat:Connect(function()
     cam = workspace.CurrentCamera
     for i, v in (ESP.Enabled and pairs or ipairs)(ESP.Objects) do
         if v.Update then
@@ -596,49 +711,48 @@ end)
 return ESP
 
 --[[
+    Enhanced Features:
+
+    1. Auto Re-detection:
+    - Automatically detects when objects are removed or added
+    - Configurable redetection interval
+    - Immediate detection via ChildAdded/ChildRemoved events
+
+    2. BoxHandleAdornment Rendering:
+    - Better visual quality than Drawing API
+    - 3D boxes that scale with distance
+    - Always on top rendering
+    - Proper transparency support
+
+    3. Billboard GUI Text:
+    - Cleaner text rendering
+    - Better scaling and readability
+    - Proper text stroke/outline
+
+    4. Enhanced Cleanup:
+    - Better memory management
+    - Automatic cleanup of destroyed objects
+    - Thread management for redetection
+
     Usage Examples:
 
-    1. ESP for NaturalPickups (original functionality):
+    1. Basic usage with auto re-detection:
     ESP:Toggle(true)
     ESP:AddNaturalPickupsListener()
 
-    2. ESP for any workspace location:
-    ESP:AddUniversalListener("SomeFolder")
-    ESP:AddUniversalListener(workspace.SomeFolder)
-
-    3. ESP for entire workspace:
-    ESP:AddWorkspaceListener()
-
-    4. ESP with specific object types:
-    ESP.ScanAllTypes = false
-    ESP:SetTargetTypes({"Part", "MeshPart"})
+    2. Custom redetection interval:
+    ESP.RedetectInterval = 1 -- Check every 1 second
     ESP:AddUniversalListener("SomeFolder")
 
-    5. ESP with custom filters:
-    ESP.Filters.Objects = function(obj, folderName, objectType)
-        return objectType == "Part" and obj.Name:find("Important")
-    end
+    3. Disable auto re-detection:
+    ESP.AutoRedetect = false
     ESP:AddUniversalListener("SomeFolder")
 
-    6. ESP with custom colors by object type:
-    ESP:AddUniversalListener("SomeFolder", {
-        Color = function(obj, folderName, objectName, objectType)
-            if objectType == "Model" then return Color3.fromRGB(255, 0, 0)
-            elseif objectType == "Part" then return Color3.fromRGB(0, 255, 0)
-            else return Color3.fromRGB(0, 0, 255)
-            end
-        end
-    })
-
-    7. ESP with path filtering:
-    ESP.Filters.Paths = function(fullPath)
-        return fullPath:find("Important") or fullPath:find("Loot")
-    end
+    4. Custom box appearance:
+    ESP.Transparency = 0.3
+    ESP.BoxSize = Vector3.new(6, 8, 6)
     ESP:AddUniversalListener("SomeFolder")
 
-    8. Clear all ESP:
+    5. Clear all ESP and stop redetection:
     ESP:ClearAll()
-
-    9. Get ESP count:
-    print("ESP Objects:", ESP:GetCount())
 ]]
