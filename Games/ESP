@@ -1,10 +1,10 @@
 --[[
-    Enhanced Universal ESP System
+    Universal ESP System
     Structure: Any workspace location -> Folder -> Any Object Type
     ESP Name: Uses Object name directly
     Supports: Model, BasePart, MeshPart, Part, UnionOperation, and more
     Works with: Any folder structure in workspace
-    Features: Auto re-detection, BoxHandleAdornment rendering, improved performance
+    Enhanced with: Auto Re-detection and BoxHandleAdornment
 ]]
 
 --Settings--
@@ -12,7 +12,7 @@ local ESP = {
     -- Core Settings
     Enabled = false,
     AutoRemove = true,
-    AutoRedetect = true,    -- Automatically re-detect missing objects
+    AutoRedetect = true,    -- NEW: Auto re-detect missing/new objects
     
     -- Visual Settings
     Boxes = true,
@@ -21,7 +21,7 @@ local ESP = {
     Color = Color3.fromRGB(255, 170, 0),
     FaceCamera = false,
     Thickness = 2,
-    Transparency = 0.5,     -- For BoxHandleAdornment
+    Transparency = 0.5,     -- NEW: For BoxHandleAdornment
     
     -- Text Settings
     Names = true,
@@ -42,7 +42,7 @@ local ESP = {
     -- Scanning Settings
     MaxDepth = 10,          -- Maximum folder depth to scan
     ScanAllFolders = true,  -- Recursively scan all folders
-    RedetectInterval = 2,   -- Seconds between re-detection scans
+    RedetectInterval = 2,   -- NEW: Seconds between re-detection scans
     
     -- Performance Settings
     MaxDistance = 1000,
@@ -51,7 +51,7 @@ local ESP = {
     -- Storage
     Objects = setmetatable({}, {__mode="kv"}),
     Overrides = {},
-    Listeners = {},         -- Store active listeners for re-detection
+    ActiveListeners = {},   -- NEW: Track active listeners for re-detection
     
     -- Highlight System
     Highlighted = nil,
@@ -77,6 +77,16 @@ local WorldToViewportPoint = cam.WorldToViewportPoint
 local floor = math.floor
 
 --Utility Functions--
+local function Draw(obj, props)
+    local new = Drawing.new(obj)
+    props = props or {}
+    for i, v in pairs(props) do
+        new[i] = v
+    end
+    return new
+end
+
+-- NEW: Create Billboard GUI for text
 local function CreateBillboardGui()
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.new(0, 200, 0, 50)
@@ -86,6 +96,7 @@ local function CreateBillboardGui()
     return billboard
 end
 
+-- NEW: Create Text Label
 local function CreateTextLabel(text, color)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 1, 0)
@@ -212,8 +223,10 @@ function ESP:Toggle(bool)
                     v:Remove()
                 else
                     for _, component in pairs(v.Components) do
-                        if component then
+                        if component and component.Visible ~= nil then
                             component.Visible = false
+                        elseif component and component.Enabled ~= nil then
+                            component.Enabled = false
                         end
                     end
                 end
@@ -235,19 +248,19 @@ function ESP:ClearHighlight()
     self.Highlighted = nil
 end
 
--- Auto Re-detection System
-function ESP:StartRedetection(location, options)
+-- NEW: Auto Re-detection System
+function ESP:StartAutoRedetection(location, options)
     if not self.AutoRedetect then return end
     
-    local listenerKey = tostring(location)
-    if self.Listeners[listenerKey] then return end -- Already has redetection
+    local locationKey = tostring(location)
+    if self.ActiveListeners[locationKey] then return end -- Already running
     
-    local function RedetectObjects()
-        while self.AutoRedetect and self.Listeners[listenerKey] do
-            local allObjects = ScanLocation(location)
+    local function RedetectLoop()
+        while self.AutoRedetect and self.ActiveListeners[locationKey] do
+            local currentObjects = ScanLocation(location)
             
-            -- Check for new objects that don't have ESP yet
-            for _, objectData in pairs(allObjects) do
+            -- Check for new objects
+            for _, objectData in pairs(currentObjects) do
                 local obj = objectData.Object
                 if not self:GetBox(obj) then
                     -- New object found, add ESP
@@ -263,7 +276,6 @@ function ESP:StartRedetection(location, options)
                 end
             end
             
-            -- Remove ESP for deleted objects
             for _, obj in pairs(objectsToRemove) do
                 local box = self:GetBox(obj)
                 if box then
@@ -275,24 +287,24 @@ function ESP:StartRedetection(location, options)
         end
     end
     
-    self.Listeners[listenerKey] = {
+    self.ActiveListeners[locationKey] = {
         Location = location,
         Options = options,
-        Thread = task.spawn(RedetectObjects)
+        Thread = task.spawn(RedetectLoop)
     }
 end
 
-function ESP:StopRedetection(location)
-    local listenerKey = tostring(location)
-    local listener = self.Listeners[listenerKey]
-    if listener then
-        if listener.Thread then
-            task.cancel(listener.Thread)
-        end
-        self.Listeners[listenerKey] = nil
+-- NEW: Stop Auto Re-detection
+function ESP:StopAutoRedetection(location)
+    local locationKey = tostring(location)
+    local listener = self.ActiveListeners[locationKey]
+    if listener and listener.Thread then
+        task.cancel(listener.Thread)
+        self.ActiveListeners[locationKey] = nil
     end
 end
 
+-- NEW: Process single object (helper function)
 function ESP:ProcessSingleObject(objectData, options)
     local obj = objectData.Object
     local folderName = objectData.FolderName
@@ -332,7 +344,7 @@ function ESP:ProcessSingleObject(objectData, options)
     end
 end
 
--- Universal Object Listener
+-- Universal Object Listener (UPDATED)
 function ESP:AddUniversalListener(location, options)
     options = options or {}
     
@@ -359,8 +371,8 @@ function ESP:AddUniversalListener(location, options)
     
     InitialScan()
     
-    -- Start auto re-detection
-    self:StartRedetection(location, options)
+    -- NEW: Start auto re-detection
+    self:StartAutoRedetection(location, options)
     
     -- Listen for new objects (immediate detection)
     local function SetupListeners(parent, parentPath, depth)
@@ -396,7 +408,7 @@ function ESP:AddUniversalListener(location, options)
             end
         end)
         
-        -- Listen for removed objects
+        -- NEW: Listen for removed objects
         parent.ChildRemoved:Connect(function(child)
             local box = ESP:GetBox(child)
             if box then
@@ -453,15 +465,15 @@ function ESP:RemoveTargetType(typeName)
     end
 end
 
--- Method to clear all ESP
+-- Method to clear all ESP (UPDATED)
 function ESP:ClearAll()
-    -- Stop all redetection threads
-    for _, listener in pairs(self.Listeners) do
+    -- Stop all auto re-detection
+    for locationKey, listener in pairs(self.ActiveListeners) do
         if listener.Thread then
             task.cancel(listener.Thread)
         end
     end
-    self.Listeners = {}
+    self.ActiveListeners = {}
     
     -- Remove all ESP objects
     for obj, box in pairs(self.Objects) do
@@ -483,7 +495,7 @@ function ESP:GetCount()
     return count
 end
 
---Box Class--
+--Box Class (UPDATED with BoxHandleAdornment)--
 local boxBase = {}
 boxBase.__index = boxBase
 
@@ -491,7 +503,11 @@ function boxBase:Remove()
     ESP.Objects[self.Object] = nil
     for i, v in pairs(self.Components) do
         if v then
-            v:Destroy()
+            if v.Destroy then
+                v:Destroy()
+            elseif v.Remove then
+                v:Remove()
+            end
             self.Components[i] = nil
         end
     end
@@ -499,9 +515,11 @@ end
 
 function boxBase:SetColor(color)
     self.Color = color
+    -- Update BoxHandleAdornment color
     if self.Components.BoxHandle then
         self.Components.BoxHandle.Color3 = color
     end
+    -- Update text colors
     if self.Components.NameLabel then
         self.Components.NameLabel.TextColor3 = color
     end
@@ -549,10 +567,9 @@ function boxBase:Update()
         allow = false
     end
 
-    -- Update visibility
     local visible = allow and ESP.Enabled
-    
-    -- Update BoxHandleAdornment
+
+    -- NEW: Update BoxHandleAdornment
     if self.Components.BoxHandle then
         self.Components.BoxHandle.Visible = visible and ESP.Boxes
         if visible and ESP.Boxes then
@@ -569,7 +586,7 @@ function boxBase:Update()
         end
     end
     
-    -- Update Name Billboard
+    -- NEW: Update Name Billboard
     if self.Components.NameBillboard then
         self.Components.NameBillboard.Enabled = visible and ESP.Names
         if visible and ESP.Names and self.Components.NameLabel then
@@ -579,7 +596,7 @@ function boxBase:Update()
         end
     end
     
-    -- Update Distance Billboard
+    -- NEW: Update Distance Billboard
     if self.Components.DistanceBillboard then
         self.Components.DistanceBillboard.Enabled = visible and ESP.Distance
         if visible and ESP.Distance and self.Components.DistanceLabel then
@@ -615,7 +632,7 @@ function ESP:Add(obj, options)
         self:GetBox(obj):Remove()
     end
 
-    -- Create BoxHandleAdornment
+    -- NEW: Create BoxHandleAdornment instead of Drawing Quad
     if box.PrimaryPart then
         box.Components.BoxHandle = Instance.new("BoxHandleAdornment")
         box.Components.BoxHandle.Size = box.Size
@@ -628,7 +645,7 @@ function ESP:Add(obj, options)
         box.Components.BoxHandle.Visible = false
     end
     
-    -- Create Name Billboard
+    -- NEW: Create Name Billboard instead of Drawing Text
     if box.PrimaryPart then
         box.Components.NameBillboard = CreateBillboardGui()
         box.Components.NameBillboard.StudsOffset = Vector3.new(0, box.Size.Y/2 + 1, 0)
@@ -639,7 +656,7 @@ function ESP:Add(obj, options)
         box.Components.NameLabel.Parent = box.Components.NameBillboard
     end
     
-    -- Create Distance Billboard
+    -- NEW: Create Distance Billboard
     if box.PrimaryPart then
         box.Components.DistanceBillboard = CreateBillboardGui()
         box.Components.DistanceBillboard.StudsOffset = Vector3.new(0, box.Size.Y/2 + 2.5, 0)
@@ -659,17 +676,8 @@ function ESP:Add(obj, options)
         end
     end
     
-    obj.AncestryChanged:Connect(function(_, parent)
-        if parent == nil then
-            cleanup()
-        end
-    end)
-    
-    obj:GetPropertyChangedSignal("Parent"):Connect(function()
-        if obj.Parent == nil then
-            cleanup()
-        end
-    end)
+    obj.AncestryChanged:Connect(cleanup)
+    obj:GetPropertyChangedSignal("Parent"):Connect(cleanup)
     
     -- Additional cleanup for models
     if obj:IsA("Model") then
@@ -677,7 +685,7 @@ function ESP:Add(obj, options)
             local newPrimaryPart = GetPrimaryPart(obj)
             if newPrimaryPart ~= box.PrimaryPart then
                 box.PrimaryPart = newPrimaryPart
-                -- Update adornee
+                -- Update adornments
                 if box.Components.BoxHandle then
                     box.Components.BoxHandle.Adornee = newPrimaryPart
                     box.Components.BoxHandle.Parent = newPrimaryPart
@@ -695,7 +703,7 @@ function ESP:Add(obj, options)
     return box
 end
 
--- Main update loop
+-- Main update loop (UPDATED)
 runService.Heartbeat:Connect(function()
     cam = workspace.CurrentCamera
     for i, v in (ESP.Enabled and pairs or ipairs)(ESP.Objects) do
@@ -711,28 +719,30 @@ end)
 return ESP
 
 --[[
-    Enhanced Features:
+    NEW FEATURES ADDED:
 
-    1. Auto Re-detection:
-    - Automatically detects when objects are removed or added
-    - Configurable redetection interval
-    - Immediate detection via ChildAdded/ChildRemoved events
+    1. AUTO RE-DETECTION:
+    - ESP.AutoRedetect = true/false
+    - ESP.RedetectInterval = 2 (seconds)
+    - Automatically detects new/removed objects
+    - Uses both event-based and interval-based detection
 
-    2. BoxHandleAdornment Rendering:
-    - Better visual quality than Drawing API
-    - 3D boxes that scale with distance
-    - Always on top rendering
+    2. BOXHANDLEADORNMENT:
+    - Replaced Drawing.new("Quad") with BoxHandleAdornment
+    - Better 3D visual quality
     - Proper transparency support
+    - Always on top rendering
 
-    3. Billboard GUI Text:
-    - Cleaner text rendering
-    - Better scaling and readability
+    3. BILLBOARD GUI TEXT:
+    - Replaced Drawing.new("Text") with Billboard GUI
+    - Better text quality and scaling
     - Proper text stroke/outline
+    - Better positioning
 
-    4. Enhanced Cleanup:
+    4. ENHANCED CLEANUP:
     - Better memory management
-    - Automatic cleanup of destroyed objects
-    - Thread management for redetection
+    - Auto cleanup of destroyed objects
+    - Thread management for re-detection
 
     Usage Examples:
 
@@ -740,19 +750,15 @@ return ESP
     ESP:Toggle(true)
     ESP:AddNaturalPickupsListener()
 
-    2. Custom redetection interval:
+    2. Custom settings:
     ESP.RedetectInterval = 1 -- Check every 1 second
+    ESP.Transparency = 0.3   -- More opaque boxes
     ESP:AddUniversalListener("SomeFolder")
 
     3. Disable auto re-detection:
     ESP.AutoRedetect = false
     ESP:AddUniversalListener("SomeFolder")
 
-    4. Custom box appearance:
-    ESP.Transparency = 0.3
-    ESP.BoxSize = Vector3.new(6, 8, 6)
-    ESP:AddUniversalListener("SomeFolder")
-
-    5. Clear all ESP and stop redetection:
+    4. Clear all ESP and stop re-detection:
     ESP:ClearAll()
 ]]
