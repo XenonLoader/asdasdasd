@@ -1,7 +1,9 @@
 --[[
-    ESP System for workspace.NaturalPickups
-    Structure: workspace.NaturalPickups -> Folder -> Model
-    ESP Name: Uses Model name directly
+    Universal ESP System
+    Structure: Any workspace location -> Folder -> Any Object Type
+    ESP Name: Uses Object name directly
+    Supports: Model, BasePart, MeshPart, Part, UnionOperation, and more
+    Works with: Any folder structure in workspace
 ]]
 
 --Settings--
@@ -25,9 +27,18 @@ local ESP = {
     TextSize = 16,
     TextOutline = true,
     
-    -- NaturalPickups Specific
+    -- Universal Settings
     ShowFolderName = false, -- Show folder name in ESP
-    ShowModelOnly = true,   -- Only show model name
+    ShowObjectType = true,  -- Show object type in ESP
+    ShowFullPath = false,   -- Show full path in ESP
+    
+    -- Object Type Settings
+    TargetTypes = {"Model", "BasePart", "MeshPart", "Part", "UnionOperation", "WedgePart", "CornerWedgePart", "TrussPart", "SpawnLocation"}, -- Types to ESP
+    ScanAllTypes = true,    -- Scan all object types (overrides TargetTypes)
+    
+    -- Scanning Settings
+    MaxDepth = 10,          -- Maximum folder depth to scan
+    ScanAllFolders = true,  -- Recursively scan all folders
     
     -- Performance Settings
     MaxDistance = 1000,
@@ -40,6 +51,13 @@ local ESP = {
     -- Highlight System
     Highlighted = nil,
     HighlightColor = Color3.fromRGB(255, 0, 0),
+    
+    -- Filters
+    Filters = {
+        Objects = function(object, folderName, objectType) return true end,
+        Folders = function(folder) return true end,
+        Paths = function(fullPath) return true end
+    }
 }
 
 --Declarations--
@@ -67,28 +85,96 @@ local function GetDistance(pos1, pos2)
     return (pos1 - pos2).Magnitude
 end
 
--- NaturalPickups Specific Functions
-local function ScanNaturalPickups()
-    local naturalPickups = workspace:FindFirstChild("NaturalPickups")
-    if not naturalPickups then
-        warn("NaturalPickups not found in workspace!")
+-- Check if object is a target type
+local function IsTargetType(obj)
+    if ESP.ScanAllTypes then
+        -- Check if it's any kind of part or model
+        return obj:IsA("BasePart") or obj:IsA("Model")
+    else
+        -- Check specific target types
+        for _, targetType in pairs(ESP.TargetTypes) do
+            if obj:IsA(targetType) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Get appropriate PrimaryPart for different object types
+local function GetPrimaryPart(obj)
+    if obj:IsA("Model") then
+        return obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
+    elseif obj:IsA("BasePart") then
+        return obj
+    end
+    return nil
+end
+
+-- Universal Scanning Functions
+local function ScanFolderRecursive(parent, parentPath, depth, maxDepth, foundObjects)
+    if depth > maxDepth then return end
+    if not ESP.Filters.Folders(parent) then return end
+    
+    foundObjects = foundObjects or {}
+    
+    for _, child in pairs(parent:GetChildren()) do
+        local currentPath = parentPath .. "." .. child.Name
+        
+        if child:IsA("Folder") then
+            -- Recursively scan subfolders
+            ScanFolderRecursive(child, currentPath, depth + 1, maxDepth, foundObjects)
+        elseif IsTargetType(child) then
+            -- Found target object
+            if ESP.Filters.Objects(child, parent.Name, child.ClassName) and ESP.Filters.Paths(currentPath) then
+                table.insert(foundObjects, {
+                    Object = child,
+                    FolderName = parent.Name,
+                    ObjectName = child.Name,
+                    ObjectType = child.ClassName,
+                    FullPath = currentPath,
+                    Depth = depth
+                })
+            end
+        end
+    end
+    
+    return foundObjects
+end
+
+local function ScanLocation(location)
+    if not location then
+        warn("Location not found!")
         return {}
     end
     
     local foundObjects = {}
     
-    -- Scan each folder in NaturalPickups
-    for _, folder in pairs(naturalPickups:GetChildren()) do
-        if folder:IsA("Folder") then
-            -- Look for models in this folder
-            for _, model in pairs(folder:GetChildren()) do
-                if model:IsA("Model") then
-                    table.insert(foundObjects, {
-                        Object = model,
-                        FolderName = folder.Name,
-                        ModelName = model.Name,
-                        FullPath = "NaturalPickups." .. folder.Name .. "." .. model.Name
-                    })
+    -- Direct children first
+    for _, child in pairs(location:GetChildren()) do
+        if IsTargetType(child) then
+            if ESP.Filters.Objects(child, location.Name, child.ClassName) then
+                table.insert(foundObjects, {
+                    Object = child,
+                    FolderName = location.Name,
+                    ObjectName = child.Name,
+                    ObjectType = child.ClassName,
+                    FullPath = location.Name .. "." .. child.Name,
+                    Depth = 0
+                })
+            end
+        end
+    end
+    
+    -- Then scan folders recursively
+    if ESP.ScanAllFolders then
+        for _, child in pairs(location:GetChildren()) do
+            if child:IsA("Folder") then
+                local nestedObjects = ScanFolderRecursive(child, location.Name .. "." .. child.Name, 1, ESP.MaxDepth)
+                if nestedObjects then
+                    for _, objData in pairs(nestedObjects) do
+                        table.insert(foundObjects, objData)
+                    end
                 end
             end
         end
@@ -128,28 +214,46 @@ function ESP:ClearHighlight()
     self.Highlighted = nil
 end
 
--- NaturalPickups Object Listener
-function ESP:AddNaturalPickupsListener(options)
+-- Universal Object Listener
+function ESP:AddUniversalListener(location, options)
     options = options or {}
     
-    local function ProcessModel(modelData)
-        local model = modelData.Object
-        local folderName = modelData.FolderName
-        local modelName = modelData.ModelName
+    -- If location is a string, find it in workspace
+    if type(location) == "string" then
+        location = workspace:FindFirstChild(location)
+        if not location then
+            warn("Location '" .. tostring(location) .. "' not found in workspace!")
+            return
+        end
+    end
+    
+    local function ProcessObject(objectData)
+        local obj = objectData.Object
+        local folderName = objectData.FolderName
+        local objectName = objectData.ObjectName
+        local objectType = objectData.ObjectType
+        local fullPath = objectData.FullPath
+        local depth = objectData.Depth
         
-        if not options.Validator or options.Validator(model, folderName, modelName) then
-            local displayName
-            if ESP.ShowFolderName then
-                displayName = folderName .. " - " .. modelName
-            else
-                displayName = modelName
+        if not options.Validator or options.Validator(obj, folderName, objectName, objectType, fullPath, depth) then
+            local displayName = objectName
+            
+            -- Build display name based on settings
+            if ESP.ShowFullPath then
+                displayName = fullPath
+            elseif ESP.ShowFolderName and ESP.ShowObjectType then
+                displayName = folderName .. " - " .. objectName .. " (" .. objectType .. ")"
+            elseif ESP.ShowFolderName then
+                displayName = folderName .. " - " .. objectName
+            elseif ESP.ShowObjectType then
+                displayName = objectName .. " (" .. objectType .. ")"
             end
             
-            local box = ESP:Add(model, {
-                PrimaryPart = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart"),
-                Color = type(options.Color) == "function" and options.Color(model, folderName, modelName) or options.Color,
+            local box = ESP:Add(obj, {
+                PrimaryPart = GetPrimaryPart(obj),
+                Color = type(options.Color) == "function" and options.Color(obj, folderName, objectName, objectType, fullPath, depth) or options.Color,
                 ColorDynamic = options.ColorDynamic,
-                Name = type(options.CustomName) == "function" and options.CustomName(model, folderName, modelName) or displayName,
+                Name = type(options.CustomName) == "function" and options.CustomName(obj, folderName, objectName, objectType, fullPath, depth) or displayName,
                 IsEnabled = options.IsEnabled,
                 RenderInNil = options.RenderInNil,
                 Size = options.Size,
@@ -157,71 +261,123 @@ function ESP:AddNaturalPickupsListener(options)
             })
             
             if options.OnAdded then
-                coroutine.wrap(options.OnAdded)(box, modelData)
+                coroutine.wrap(options.OnAdded)(box, objectData)
             end
         end
     end
     
     -- Initial scan
     local function InitialScan()
-        local allModels = ScanNaturalPickups()
-        for _, modelData in pairs(allModels) do
-            ProcessModel(modelData)
+        local allObjects = ScanLocation(location)
+        for _, objectData in pairs(allObjects) do
+            ProcessObject(objectData)
         end
     end
     
     InitialScan()
     
-    -- Listen for new objects in NaturalPickups
-    local naturalPickups = workspace:FindFirstChild("NaturalPickups")
-    if naturalPickups then
-        -- Listen for new folders
-        naturalPickups.ChildAdded:Connect(function(folder)
-            if folder:IsA("Folder") then
+    -- Listen for new objects
+    local function SetupListeners(parent, parentPath, depth)
+        if depth > ESP.MaxDepth then return end
+        
+        parent.ChildAdded:Connect(function(child)
+            local currentPath = parentPath .. "." .. child.Name
+            
+            if child:IsA("Folder") then
                 task.wait(0.1) -- Wait for folder to populate
                 
-                -- Listen for models in this new folder
-                folder.ChildAdded:Connect(function(model)
-                    if model:IsA("Model") then
-                        ProcessModel({
-                            Object = model,
-                            FolderName = folder.Name,
-                            ModelName = model.Name,
-                            FullPath = "NaturalPickups." .. folder.Name .. "." .. model.Name
-                        })
-                    end
-                end)
+                -- Set up listeners for new folder
+                SetupListeners(child, currentPath, depth + 1)
                 
-                -- Process existing models in new folder
-                for _, model in pairs(folder:GetChildren()) do
-                    if model:IsA("Model") then
-                        ProcessModel({
-                            Object = model,
-                            FolderName = folder.Name,
-                            ModelName = model.Name,
-                            FullPath = "NaturalPickups." .. folder.Name .. "." .. model.Name
-                        })
+                -- Process existing objects in new folder
+                local nestedObjects = ScanFolderRecursive(child, currentPath, depth + 1, ESP.MaxDepth)
+                if nestedObjects then
+                    for _, objData in pairs(nestedObjects) do
+                        ProcessObject(objData)
                     end
+                end
+            elseif IsTargetType(child) then
+                if ESP.Filters.Objects(child, parent.Name, child.ClassName) and ESP.Filters.Paths(currentPath) then
+                    ProcessObject({
+                        Object = child,
+                        FolderName = parent.Name,
+                        ObjectName = child.Name,
+                        ObjectType = child.ClassName,
+                        FullPath = currentPath,
+                        Depth = depth
+                    })
                 end
             end
         end)
+    end
+    
+    -- Set up listeners for the main location
+    SetupListeners(location, location.Name, 0)
+    
+    -- Set up listeners for existing folders
+    local function SetupExistingFolders(parent, parentPath, depth)
+        if depth > ESP.MaxDepth then return end
         
-        -- Listen for models added to existing folders
-        for _, folder in pairs(naturalPickups:GetChildren()) do
-            if folder:IsA("Folder") then
-                folder.ChildAdded:Connect(function(model)
-                    if model:IsA("Model") then
-                        ProcessModel({
-                            Object = model,
-                            FolderName = folder.Name,
-                            ModelName = model.Name,
-                            FullPath = "NaturalPickups." .. folder.Name .. "." .. model.Name
-                        })
-                    end
-                end)
+        for _, child in pairs(parent:GetChildren()) do
+            if child:IsA("Folder") then
+                local currentPath = parentPath .. "." .. child.Name
+                SetupListeners(child, currentPath, depth + 1)
+                SetupExistingFolders(child, currentPath, depth + 1)
             end
         end
     end
+    
+    SetupExistingFolders(location, location.Name, 0)
+end
+
+-- Convenience methods for common locations
+function ESP:AddNaturalPickupsListener(options)
+    return self:AddUniversalListener("NaturalPickups", options)
+end
+
+function ESP:AddWorkspaceListener(options)
+    return self:AddUniversalListener(workspace, options)
+end
+
+-- Add method to set target types
+function ESP:SetTargetTypes(types)
+    self.TargetTypes = types
+end
+
+-- Add method to add target type
+function ESP:AddTargetType(typeName)
+    if not table.find(self.TargetTypes, typeName) then
+        table.insert(self.TargetTypes, typeName)
+    end
+end
+
+-- Add method to remove target type
+function ESP:RemoveTargetType(typeName)
+    local index = table.find(self.TargetTypes, typeName)
+    if index then
+        table.remove(self.TargetTypes, index)
+    end
+end
+
+-- Method to clear all ESP
+function ESP:ClearAll()
+    for obj, box in pairs(self.Objects) do
+        box:Remove()
+    end
+end
+
+-- Method to get all ESP objects
+function ESP:GetAllObjects()
+    return self.Objects
+end
+
+-- Method to get ESP count
+function ESP:GetCount()
+    local count = 0
+    for _ in pairs(self.Objects) do
+        count = count + 1
+    end
+    return count
 end
 
 --Box Class--
@@ -438,3 +594,51 @@ runService.RenderStepped:Connect(function()
 end)
 
 return ESP
+
+--[[
+    Usage Examples:
+
+    1. ESP for NaturalPickups (original functionality):
+    ESP:Toggle(true)
+    ESP:AddNaturalPickupsListener()
+
+    2. ESP for any workspace location:
+    ESP:AddUniversalListener("SomeFolder")
+    ESP:AddUniversalListener(workspace.SomeFolder)
+
+    3. ESP for entire workspace:
+    ESP:AddWorkspaceListener()
+
+    4. ESP with specific object types:
+    ESP.ScanAllTypes = false
+    ESP:SetTargetTypes({"Part", "MeshPart"})
+    ESP:AddUniversalListener("SomeFolder")
+
+    5. ESP with custom filters:
+    ESP.Filters.Objects = function(obj, folderName, objectType)
+        return objectType == "Part" and obj.Name:find("Important")
+    end
+    ESP:AddUniversalListener("SomeFolder")
+
+    6. ESP with custom colors by object type:
+    ESP:AddUniversalListener("SomeFolder", {
+        Color = function(obj, folderName, objectName, objectType)
+            if objectType == "Model" then return Color3.fromRGB(255, 0, 0)
+            elseif objectType == "Part" then return Color3.fromRGB(0, 255, 0)
+            else return Color3.fromRGB(0, 0, 255)
+            end
+        end
+    })
+
+    7. ESP with path filtering:
+    ESP.Filters.Paths = function(fullPath)
+        return fullPath:find("Important") or fullPath:find("Loot")
+    end
+    ESP:AddUniversalListener("SomeFolder")
+
+    8. Clear all ESP:
+    ESP:ClearAll()
+
+    9. Get ESP count:
+    print("ESP Objects:", ESP:GetCount())
+]]
