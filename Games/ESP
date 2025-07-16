@@ -1,9 +1,9 @@
 --[[
-    Universal ESP System
+    Universal ESP System with Enhanced Auto-Detection
     Structure: Any workspace location -> Folder -> Any Object Type
     ESP Name: Uses Object name directly
     Supports: Model, BasePart, MeshPart, Part, UnionOperation, and more
-    Works with: Any folder structure in workspace
+    Works with: Any folder structure in workspace with intelligent monitoring
 ]]
 
 --Settings--
@@ -36,27 +36,37 @@ local ESP = {
     TargetTypes = {"Model", "BasePart", "MeshPart", "Part", "UnionOperation", "WedgePart", "CornerWedgePart", "TrussPart", "SpawnLocation"}, -- Types to ESP
     ScanAllTypes = true,    -- Scan all object types (overrides TargetTypes)
     
-    -- Scanning Settings
-    MaxDepth = 10,          -- Maximum folder depth to scan
+    -- Enhanced Auto-Detection Settings
+    MaxDepth = 15,          -- Maximum folder depth to scan
     ScanAllFolders = true,  -- Recursively scan all folders
+    AutoRefresh = true,     -- Automatically refresh when folders change
+    RefreshDelay = 0.1,     -- Delay before processing new folders (reduced for faster detection)
+    SmartDetection = true,  -- Use intelligent detection patterns
+    DeepScan = true,        -- Enable deep nested folder scanning
+    InstantDetection = true, -- Immediate detection of new objects
     
     -- Performance Settings
     MaxDistance = 1000,
     UpdateRate = 60,
+    BatchSize = 100,        -- Increased batch size for better performance
     
     -- Storage
     Objects = setmetatable({}, {__mode="kv"}),
     Overrides = {},
+    Listeners = {},         -- Store active listeners
+    MonitoredFolders = {},  -- Track monitored folders
+    FolderCache = {},       -- Cache folder structures for faster access
     
     -- Highlight System
     Highlighted = nil,
     HighlightColor = Color3.fromRGB(255, 0, 0),
     
-    -- Filters
+    -- Enhanced Filters
     Filters = {
-        Objects = function(object, folderName, objectType) return true end,
-        Folders = function(folder) return true end,
-        Paths = function(fullPath) return true end
+        Objects = function(object, folderName, objectType, fullPath, depth) return true end,
+        Folders = function(folder, folderPath, depth) return true end,
+        Paths = function(fullPath) return true end,
+        Names = function(objectName) return true end
     }
 }
 
@@ -85,13 +95,23 @@ local function GetDistance(pos1, pos2)
     return (pos1 - pos2).Magnitude
 end
 
--- Check if object is a target type
+-- Enhanced object type checking with immediate detection
 local function IsTargetType(obj)
+    if not obj or not obj.Parent then return false end
+    
     if ESP.ScanAllTypes then
-        -- Check if it's any kind of part or model
-        return obj:IsA("BasePart") or obj:IsA("Model")
+        -- Comprehensive type checking for immediate detection
+        return obj:IsA("BasePart") or 
+               obj:IsA("Model") or 
+               obj:IsA("Attachment") or 
+               obj:IsA("Tool") or
+               obj:IsA("Accessory") or
+               obj:IsA("Hat") or
+               obj:IsA("Humanoid") or
+               obj:IsA("ClickDetector") or
+               obj:IsA("ProximityPrompt")
     else
-        -- Check specific target types
+        -- Fast lookup for specific target types
         for _, targetType in pairs(ESP.TargetTypes) do
             if obj:IsA(targetType) then
                 return true
@@ -101,40 +121,141 @@ local function IsTargetType(obj)
     return false
 end
 
--- Get appropriate PrimaryPart for different object types
+-- Enhanced PrimaryPart detection with multiple fallbacks
 local function GetPrimaryPart(obj)
+    if not obj or not obj.Parent then return nil end
+    
     if obj:IsA("Model") then
-        return obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
+        -- Multiple fallback methods for models
+        local part = obj.PrimaryPart or 
+                    obj:FindFirstChild("HumanoidRootPart") or 
+                    obj:FindFirstChild("Torso") or 
+                    obj:FindFirstChild("UpperTorso") or 
+                    obj:FindFirstChild("Head") or 
+                    obj:FindFirstChild("Handle") or
+                    obj:FindFirstChildWhichIsA("BasePart")
+        return part
     elseif obj:IsA("BasePart") then
         return obj
+    elseif obj:IsA("Tool") then
+        return obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart")
+    elseif obj:IsA("Attachment") and obj.Parent then
+        return obj.Parent:IsA("BasePart") and obj.Parent or nil
+    elseif obj:IsA("Accessory") or obj:IsA("Hat") then
+        return obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart")
     end
     return nil
 end
 
--- Universal Scanning Functions
-local function ScanFolderRecursive(parent, parentPath, depth, maxDepth, foundObjects)
-    if depth > maxDepth then return end
-    if not ESP.Filters.Folders(parent) then return end
+-- Smart folder detection with enhanced patterns
+local function IsImportantFolder(folder)
+    if not ESP.SmartDetection then return true end
+    if not folder or not folder.Parent then return false end
     
+    local name = folder.Name:lower()
+    
+    -- Enhanced detection patterns
+    local importantPatterns = {
+        -- Common game objects
+        "pickup", "loot", "item", "chest", "boss", "enemy", "npc", "player", 
+        "spawn", "active", "current", "live", "mob", "monster", "treasure",
+        "collectible", "resource", "ore", "gem", "coin", "weapon", "tool",
+        
+        -- Specific game types
+        "natural", "world", "zone", "area", "region", "dungeon", "raid",
+        "quest", "mission", "objective", "target", "goal", "reward",
+        
+        -- Interactive elements
+        "interactive", "clickable", "usable", "touchable", "proximity",
+        "trigger", "detector", "sensor", "button", "lever", "switch",
+        
+        -- Containers and storage
+        "inventory", "storage", "container", "bag", "backpack", "vault",
+        "shop", "store", "merchant", "vendor", "trader", "market",
+        
+        -- Special objects
+        "vehicle", "mount", "pet", "companion", "summon", "familiar",
+        "portal", "teleport", "warp", "gate", "door", "entrance"
+    }
+    
+    -- Check name patterns
+    for _, pattern in pairs(importantPatterns) do
+        if name:find(pattern) then
+            return true
+        end
+    end
+    
+    -- Check if folder has target objects (deep scan)
+    local function hasTargetObjects(parent, depth)
+        if depth > 3 then return false end -- Limit depth for performance
+        
+        for _, child in pairs(parent:GetChildren()) do
+            if IsTargetType(child) then
+                return true
+            elseif child:IsA("Folder") then
+                if hasTargetObjects(child, depth + 1) then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+    
+    return hasTargetObjects(folder, 0)
+end
+
+-- Enhanced recursive scanning with deep folder detection
+local function ScanFolderRecursive(parent, parentPath, depth, maxDepth, foundObjects, processedFolders)
+    if depth > maxDepth then return foundObjects end
+    if not parent or not parent.Parent then return foundObjects end
+    if processedFolders[parent] then return foundObjects end -- Prevent infinite loops
+    
+    processedFolders = processedFolders or {}
+    processedFolders[parent] = true
     foundObjects = foundObjects or {}
     
-    for _, child in pairs(parent:GetChildren()) do
+    -- Filter folder before processing
+    if not ESP.Filters.Folders(parent, parentPath, depth) then 
+        return foundObjects 
+    end
+    
+    -- Cache folder structure for faster future access
+    if not ESP.FolderCache[parent] then
+        ESP.FolderCache[parent] = {
+            children = parent:GetChildren(),
+            lastUpdate = tick(),
+            hasTargets = false
+        }
+    end
+    
+    local children = ESP.FolderCache[parent].children
+    
+    -- Process all children with enhanced detection
+    for _, child in pairs(children) do
         local currentPath = parentPath .. "." .. child.Name
         
         if child:IsA("Folder") then
-            -- Recursively scan subfolders
-            ScanFolderRecursive(child, currentPath, depth + 1, maxDepth, foundObjects)
+            -- Enhanced folder detection - scan even nested folders
+            if ESP.DeepScan or IsImportantFolder(child) then
+                ScanFolderRecursive(child, currentPath, depth + 1, maxDepth, foundObjects, processedFolders)
+            end
         elseif IsTargetType(child) then
-            -- Found target object
-            if ESP.Filters.Objects(child, parent.Name, child.ClassName) and ESP.Filters.Paths(currentPath) then
+            -- Apply all filters with enhanced validation
+            if ESP.Filters.Objects(child, parent.Name, child.ClassName, currentPath, depth) and 
+               ESP.Filters.Paths(currentPath) and 
+               ESP.Filters.Names(child.Name) then
+                
                 table.insert(foundObjects, {
                     Object = child,
                     FolderName = parent.Name,
                     ObjectName = child.Name,
                     ObjectType = child.ClassName,
                     FullPath = currentPath,
-                    Depth = depth
+                    Depth = depth,
+                    ParentFolder = parent
                 })
+                
+                ESP.FolderCache[parent].hasTargets = true
             end
         end
     end
@@ -142,35 +263,43 @@ local function ScanFolderRecursive(parent, parentPath, depth, maxDepth, foundObj
     return foundObjects
 end
 
+-- Enhanced location scanning with deep detection
 local function ScanLocation(location)
-    if not location then
-        warn("Location not found!")
+    if not location or not location.Parent then
+        warn("Location not found or has no parent!")
         return {}
     end
     
     local foundObjects = {}
+    local processedFolders = {}
     
-    -- Direct children first
+    -- Direct children first (immediate objects)
     for _, child in pairs(location:GetChildren()) do
         if IsTargetType(child) then
-            if ESP.Filters.Objects(child, location.Name, child.ClassName) then
+            local currentPath = location.Name .. "." .. child.Name
+            if ESP.Filters.Objects(child, location.Name, child.ClassName, currentPath, 0) and 
+               ESP.Filters.Paths(currentPath) and 
+               ESP.Filters.Names(child.Name) then
+                
                 table.insert(foundObjects, {
                     Object = child,
                     FolderName = location.Name,
                     ObjectName = child.Name,
                     ObjectType = child.ClassName,
-                    FullPath = location.Name .. "." .. child.Name,
-                    Depth = 0
+                    FullPath = currentPath,
+                    Depth = 0,
+                    ParentFolder = location
                 })
             end
         end
     end
     
-    -- Then scan folders recursively
+    -- Enhanced deep folder scanning
     if ESP.ScanAllFolders then
         for _, child in pairs(location:GetChildren()) do
             if child:IsA("Folder") then
-                local nestedObjects = ScanFolderRecursive(child, location.Name .. "." .. child.Name, 1, ESP.MaxDepth)
+                -- Scan all folders, not just "important" ones for deep detection
+                local nestedObjects = ScanFolderRecursive(child, location.Name .. "." .. child.Name, 1, ESP.MaxDepth, nil, processedFolders)
                 if nestedObjects then
                     for _, objData in pairs(nestedObjects) do
                         table.insert(foundObjects, objData)
@@ -214,7 +343,19 @@ function ESP:ClearHighlight()
     self.Highlighted = nil
 end
 
--- Universal Object Listener
+-- Enhanced cleanup system
+function ESP:CleanupListeners()
+    for _, connection in pairs(self.Listeners) do
+        if connection and connection.Connected then
+            connection:Disconnect()
+        end
+    end
+    self.Listeners = {}
+    self.MonitoredFolders = {}
+    self.FolderCache = {}
+end
+
+-- Enhanced Universal Object Listener with instant detection
 function ESP:AddUniversalListener(location, options)
     options = options or {}
     
@@ -226,6 +367,16 @@ function ESP:AddUniversalListener(location, options)
             return
         end
     end
+    
+    -- Clean up existing listeners for this location
+    if self.MonitoredFolders[location] then
+        for _, connection in pairs(self.MonitoredFolders[location]) do
+            if connection and connection.Connected then
+                connection:Disconnect()
+            end
+        end
+    end
+    self.MonitoredFolders[location] = {}
     
     local function ProcessObject(objectData)
         local obj = objectData.Object
@@ -266,55 +417,107 @@ function ESP:AddUniversalListener(location, options)
         end
     end
     
-    -- Initial scan
+    -- Enhanced initial scan with progress tracking
     local function InitialScan()
         local allObjects = ScanLocation(location)
-        for _, objectData in pairs(allObjects) do
-            ProcessObject(objectData)
+        
+        -- Process in batches for better performance
+        for i = 1, #allObjects, ESP.BatchSize do
+            local batch = {}
+            for j = i, math.min(i + ESP.BatchSize - 1, #allObjects) do
+                table.insert(batch, allObjects[j])
+            end
+            
+            for _, objectData in pairs(batch) do
+                ProcessObject(objectData)
+            end
+            
+            if i + ESP.BatchSize < #allObjects then
+                task.wait() -- Yield between batches
+            end
         end
     end
     
     InitialScan()
     
-    -- Listen for new objects
+    -- Enhanced listener setup with instant detection
     local function SetupListeners(parent, parentPath, depth)
         if depth > ESP.MaxDepth then return end
+        if self.MonitoredFolders[location][parent] then return end -- Already monitoring
         
-        parent.ChildAdded:Connect(function(child)
-            local currentPath = parentPath .. "." .. child.Name
+        local connections = {}
+        
+        -- Enhanced child added listener with instant processing
+        local addedConnection = parent.ChildAdded:Connect(function(child)
+            if not ESP.AutoRefresh then return end
             
-            if child:IsA("Folder") then
-                task.wait(0.1) -- Wait for folder to populate
-                
-                -- Set up listeners for new folder
-                SetupListeners(child, currentPath, depth + 1)
-                
-                -- Process existing objects in new folder
-                local nestedObjects = ScanFolderRecursive(child, currentPath, depth + 1, ESP.MaxDepth)
-                if nestedObjects then
-                    for _, objData in pairs(nestedObjects) do
-                        ProcessObject(objData)
-                    end
-                end
-            elseif IsTargetType(child) then
-                if ESP.Filters.Objects(child, parent.Name, child.ClassName) and ESP.Filters.Paths(currentPath) then
+            -- Instant detection for target objects
+            if ESP.InstantDetection and IsTargetType(child) then
+                local currentPath = parentPath .. "." .. child.Name
+                if ESP.Filters.Objects(child, parent.Name, child.ClassName, currentPath, depth) and 
+                   ESP.Filters.Paths(currentPath) and 
+                   ESP.Filters.Names(child.Name) then
+                    
                     ProcessObject({
                         Object = child,
                         FolderName = parent.Name,
                         ObjectName = child.Name,
                         ObjectType = child.ClassName,
                         FullPath = currentPath,
-                        Depth = depth
+                        Depth = depth,
+                        ParentFolder = parent
                     })
                 end
             end
+            
+            -- Small delay for folder processing to allow population
+            task.wait(ESP.RefreshDelay)
+            
+            local currentPath = parentPath .. "." .. child.Name
+            
+            if child:IsA("Folder") then
+                -- Set up listeners for new folder immediately
+                SetupListeners(child, currentPath, depth + 1)
+                
+                -- Process existing objects in new folder with deep scan
+                task.spawn(function()
+                    local nestedObjects = ScanFolderRecursive(child, currentPath, depth + 1, ESP.MaxDepth)
+                    if nestedObjects then
+                        for _, objData in pairs(nestedObjects) do
+                            ProcessObject(objData)
+                        end
+                    end
+                end)
+            end
         end)
+        
+        -- Enhanced child removed listener for cleanup
+        local removedConnection = parent.ChildRemoved:Connect(function(child)
+            if ESP.Objects[child] then
+                ESP.Objects[child]:Remove()
+            end
+            
+            -- Clear cache for removed folders
+            if child:IsA("Folder") and ESP.FolderCache[child] then
+                ESP.FolderCache[child] = nil
+            end
+        end)
+        
+        connections[#connections + 1] = addedConnection
+        connections[#connections + 1] = removedConnection
+        
+        self.MonitoredFolders[location][parent] = connections
+        
+        -- Store in main listeners table
+        for _, connection in pairs(connections) do
+            table.insert(self.Listeners, connection)
+        end
     end
     
     -- Set up listeners for the main location
     SetupListeners(location, location.Name, 0)
     
-    -- Set up listeners for existing folders
+    -- Enhanced setup for existing folders with deep recursion
     local function SetupExistingFolders(parent, parentPath, depth)
         if depth > ESP.MaxDepth then return end
         
@@ -328,9 +531,11 @@ function ESP:AddUniversalListener(location, options)
     end
     
     SetupExistingFolders(location, location.Name, 0)
+    
+    return location -- Return location for chaining
 end
 
--- Convenience methods for common locations
+-- Enhanced convenience methods
 function ESP:AddNaturalPickupsListener(options)
     return self:AddUniversalListener("NaturalPickups", options)
 end
@@ -339,19 +544,172 @@ function ESP:AddWorkspaceListener(options)
     return self:AddUniversalListener(workspace, options)
 end
 
--- Add method to set target types
-function ESP:SetTargetTypes(types)
-    self.TargetTypes = types
+function ESP:AddActiveListener(options)
+    return self:AddUniversalListener("Active", options)
 end
 
--- Add method to add target type
+function ESP:AddSpawnsListener(options)
+    return self:AddUniversalListener("Spawns", options)
+end
+
+-- SIMPLE FUNCTION: Add ESP for any folder by name only with deep search
+function ESP:AddFolderByName(folderName, options)
+    options = options or {}
+    
+    -- Function to find folder anywhere in workspace recursively
+    local function findFolder(parent, name, depth)
+        if depth > 15 then return nil end -- Prevent infinite recursion
+        
+        for _, child in pairs(parent:GetChildren()) do
+            if child.Name == name and child:IsA("Folder") then
+                return child
+            elseif child:IsA("Folder") then
+                local found = findFolder(child, name, depth + 1)
+                if found then return found end
+            end
+        end
+        return nil
+    end
+    
+    -- Find the folder
+    local targetFolder = findFolder(workspace, folderName, 0)
+    if not targetFolder then
+        warn("Folder '" .. folderName .. "' not found in workspace!")
+        return false
+    end
+    
+    print("Found folder:", targetFolder:GetFullName())
+    
+    -- Add ESP listener for the found folder with enhanced options
+    self:AddUniversalListener(targetFolder, {
+        Color = options.Color or self.Color,
+        CustomName = options.CustomName or function(obj, folderName, objectName, objectType, fullPath, depth)
+            -- Default naming: show folder context and object info
+            local displayName = objectName
+            if self.ShowFolderName and self.ShowObjectType then
+                displayName = folderName .. " - " .. objectName .. " (" .. objectType .. ")"
+            elseif self.ShowFolderName then
+                displayName = folderName .. " - " .. objectName
+            elseif self.ShowObjectType then
+                displayName = objectName .. " (" .. objectType .. ")"
+            end
+            return displayName
+        end,
+        Validator = options.Validator or function(obj, folderName, objectName, objectType, fullPath, depth)
+            -- Default validator: accept all objects
+            return true
+        end,
+        OnAdded = options.OnAdded or function(box, objectData)
+            -- Default callback: print detection info
+            print("Object detected:", objectData.ObjectName, "Type:", objectData.ObjectType, "Path:", objectData.FullPath)
+        end,
+        ColorDynamic = options.ColorDynamic,
+        IsEnabled = options.IsEnabled,
+        RenderInNil = options.RenderInNil,
+        Size = options.Size,
+        Temporary = options.Temporary
+    })
+    
+    return targetFolder
+end
+
+-- SIMPLE FUNCTION: Add ESP for multiple folders by names
+function ESP:AddFoldersByNames(folderNames, options)
+    options = options or {}
+    local foundFolders = {}
+    
+    for _, folderName in pairs(folderNames) do
+        local folder = self:AddFolderByName(folderName, options)
+        if folder then
+            table.insert(foundFolders, folder)
+        end
+    end
+    
+    return foundFolders
+end
+
+-- SIMPLE FUNCTION: Quick setup for common game folders
+function ESP:AddCommonGameFolders(options)
+    local commonFolders = {
+        "SimpleMonsterAI",
+        "NaturalPickups", 
+        "Active",
+        "Spawns",
+        "Mobs",
+        "Enemies",
+        "Items",
+        "Pickups",
+        "Loot",
+        "Chests",
+        "NPCs",
+        "Bosses"
+    }
+    
+    return self:AddFoldersByNames(commonFolders, options)
+end
+
+-- SIMPLE FUNCTION: Add ESP with automatic folder detection patterns
+function ESP:AddSmartFolderDetection(patterns, options)
+    patterns = patterns or {"Monster", "Enemy", "Pickup", "Item", "Loot", "Chest", "NPC", "Boss"}
+    options = options or {}
+    
+    local function findFoldersByPattern(parent, patterns, depth, foundFolders)
+        if depth > 15 then return foundFolders end
+        foundFolders = foundFolders or {}
+        
+        for _, child in pairs(parent:GetChildren()) do
+            if child:IsA("Folder") then
+                -- Check if folder name matches any pattern
+                for _, pattern in pairs(patterns) do
+                    if child.Name:lower():find(pattern:lower()) then
+                        table.insert(foundFolders, child)
+                        print("Smart detection found:", child:GetFullName())
+                        break
+                    end
+                end
+                
+                -- Continue searching in subfolders
+                findFoldersByPattern(child, patterns, depth + 1, foundFolders)
+            end
+        end
+        
+        return foundFolders
+    end
+    
+    local foundFolders = findFoldersByPattern(workspace, patterns, 0)
+    
+    -- Add ESP listeners for all found folders
+    for _, folder in pairs(foundFolders) do
+        self:AddUniversalListener(folder, {
+            Color = options.Color or self.Color,
+            CustomName = options.CustomName or function(obj, folderName, objectName, objectType, fullPath, depth)
+                return "[" .. folderName .. "] " .. objectName .. " (" .. objectType .. ")"
+            end,
+            Validator = options.Validator,
+            OnAdded = options.OnAdded,
+            ColorDynamic = options.ColorDynamic,
+            IsEnabled = options.IsEnabled,
+            RenderInNil = options.RenderInNil,
+            Size = options.Size,
+            Temporary = options.Temporary
+        })
+    end
+    
+    return foundFolders
+end
+
+-- Enhanced configuration methods
+function ESP:SetTargetTypes(types)
+    self.TargetTypes = types
+    self.ScanAllTypes = false
+end
+
 function ESP:AddTargetType(typeName)
     if not table.find(self.TargetTypes, typeName) then
         table.insert(self.TargetTypes, typeName)
     end
 end
 
--- Add method to remove target type
 function ESP:RemoveTargetType(typeName)
     local index = table.find(self.TargetTypes, typeName)
     if index then
@@ -359,19 +717,18 @@ function ESP:RemoveTargetType(typeName)
     end
 end
 
--- Method to clear all ESP
+-- Enhanced management methods
 function ESP:ClearAll()
     for obj, box in pairs(self.Objects) do
         box:Remove()
     end
+    self:CleanupListeners()
 end
 
--- Method to get all ESP objects
 function ESP:GetAllObjects()
     return self.Objects
 end
 
--- Method to get ESP count
 function ESP:GetCount()
     local count = 0
     for _ in pairs(self.Objects) do
@@ -380,7 +737,53 @@ function ESP:GetCount()
     return count
 end
 
---Box Class--
+function ESP:GetObjectsByType(objectType)
+    local objects = {}
+    for obj, box in pairs(self.Objects) do
+        if obj.ClassName == objectType then
+            table.insert(objects, {object = obj, box = box})
+        end
+    end
+    return objects
+end
+
+function ESP:GetObjectsByFolder(folderName)
+    local objects = {}
+    for obj, box in pairs(self.Objects) do
+        if box.FolderName == folderName then
+            table.insert(objects, {object = obj, box = box})
+        end
+    end
+    return objects
+end
+
+-- Performance monitoring
+function ESP:GetPerformanceStats()
+    return {
+        ObjectCount = self:GetCount(),
+        ListenerCount = #self.Listeners,
+        MonitoredFolders = #self.MonitoredFolders,
+        CachedFolders = #self.FolderCache
+    }
+end
+
+-- Cache management
+function ESP:ClearCache()
+    self.FolderCache = {}
+end
+
+function ESP:RefreshCache()
+    self:ClearCache()
+    -- Trigger re-scan of all monitored locations
+    for location, _ in pairs(self.MonitoredFolders) do
+        if location and location.Parent then
+            local allObjects = ScanLocation(location)
+            -- Process new objects found in refresh
+        end
+    end
+end
+
+--Enhanced Box Class--
 local boxBase = {}
 boxBase.__index = boxBase
 
@@ -402,11 +805,16 @@ function boxBase:SetName(name)
 end
 
 function boxBase:Update()
-    if not self.PrimaryPart then
+    if not self.PrimaryPart or not self.PrimaryPart.Parent then
         return self:Remove()
     end
 
     local color = self.Color or ESP.Color
+    
+    -- Dynamic color support
+    if self.ColorDynamic and type(self.ColorDynamic) == "function" then
+        color = self.ColorDynamic(self.Object) or color
+    end
     
     -- Highlight override
     if ESP.Highlighted == self.Object then
@@ -416,7 +824,7 @@ function boxBase:Update()
     -- Check if should render
     local allow = true
     
-    -- Distance check
+    -- Distance check with optimization
     local distance = GetDistance(cam.CFrame.Position, self.PrimaryPart.Position)
     if distance > ESP.MaxDistance then
         allow = false
@@ -428,9 +836,11 @@ function boxBase:Update()
         allow = false
     end
     
-    -- Parent check
-    if not workspace:IsAncestorOf(self.PrimaryPart) and not self.RenderInNil then
-        allow = false
+    -- Parent check with better validation
+    if not self.RenderInNil then
+        if not self.PrimaryPart.Parent or not workspace:IsAncestorOf(self.PrimaryPart) then
+            allow = false
+        end
     end
 
     if not allow then
@@ -440,7 +850,7 @@ function boxBase:Update()
         return
     end
 
-    -- Calculations
+    -- Enhanced calculations
     local cf = self.PrimaryPart.CFrame
     if ESP.FaceCamera then
         cf = CFrame.new(cf.Position, cam.CFrame.Position)
@@ -456,7 +866,7 @@ function boxBase:Update()
         Torso = cf * ESP.BoxShift
     }
 
-    -- Box rendering
+    -- Enhanced box rendering
     if ESP.Boxes then
         local TopLeft, Vis1 = WorldToViewportPoint(cam, locs.TopLeft.Position)
         local TopRight, Vis2 = WorldToViewportPoint(cam, locs.TopRight.Position)
@@ -481,7 +891,7 @@ function boxBase:Update()
         end
     end
 
-    -- Name and distance rendering
+    -- Enhanced text rendering
     if ESP.Names or ESP.Distance then
         local TagPos, Vis5 = WorldToViewportPoint(cam, locs.TagPos.Position)
         
@@ -524,19 +934,20 @@ function ESP:Add(obj, options)
         Color = options.Color,
         Size = options.Size or self.BoxSize,
         Object = obj,
-        PrimaryPart = options.PrimaryPart or obj.ClassName == "Model" and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or obj:IsA("BasePart") and obj,
+        PrimaryPart = options.PrimaryPart or GetPrimaryPart(obj),
         Components = {},
         IsEnabled = options.IsEnabled,
         Temporary = options.Temporary,
         ColorDynamic = options.ColorDynamic,
-        RenderInNil = options.RenderInNil
+        RenderInNil = options.RenderInNil,
+        FolderName = options.FolderName
     }, boxBase)
 
     if self:GetBox(obj) then
         self:GetBox(obj):Remove()
     end
 
-    -- Create components
+    -- Create enhanced components
     box.Components["Quad"] = Draw("Quad", {
         Thickness = self.Thickness,
         Color = box.Color or self.Color,
@@ -564,31 +975,52 @@ function ESP:Add(obj, options)
     
     self.Objects[obj] = box
     
-    -- Cleanup connections
-    obj.AncestryChanged:Connect(function(_, parent)
+    -- Enhanced cleanup connections
+    local connections = {}
+    
+    connections[#connections + 1] = obj.AncestryChanged:Connect(function(_, parent)
         if parent == nil and self.AutoRemove ~= false then
             box:Remove()
         end
     end)
     
-    obj:GetPropertyChangedSignal("Parent"):Connect(function()
+    connections[#connections + 1] = obj:GetPropertyChangedSignal("Parent"):Connect(function()
         if obj.Parent == nil and self.AutoRemove ~= false then
             box:Remove()
         end
     end)
+    
+    -- Store connections for cleanup
+    box.Connections = connections
 
     return box
 end
 
--- Main update loop
+-- Enhanced main update loop with performance optimization
+local lastUpdate = 0
 runService.RenderStepped:Connect(function()
+    if not ESP.Enabled then return end
+    
+    local now = tick()
+    if now - lastUpdate < (1 / ESP.UpdateRate) then return end
+    lastUpdate = now
+    
     cam = workspace.CurrentCamera
-    for i, v in (ESP.Enabled and pairs or ipairs)(ESP.Objects) do
+    
+    local objectCount = 0
+    for i, v in pairs(ESP.Objects) do
         if v.Update then
             local s, e = pcall(v.Update, v)
             if not s then 
                 warn("[ESP Error]", e, v.Object:GetFullName()) 
             end
+        end
+        
+        objectCount = objectCount + 1
+        
+        -- Yield periodically for performance
+        if objectCount % ESP.BatchSize == 0 then
+            task.wait()
         end
     end
 end)
@@ -596,49 +1028,58 @@ end)
 return ESP
 
 --[[
-    Usage Examples:
+    Enhanced Usage Examples:
 
-    1. ESP for NaturalPickups (original functionality):
+    1. Basic ESP with deep folder detection:
     ESP:Toggle(true)
+    ESP.DeepScan = true
+    ESP.InstantDetection = true
+    ESP:AddUniversalListener("NaturalPickups")
+
+    2. ESP with enhanced nested folder scanning:
+    ESP.MaxDepth = 20
+    ESP.ScanAllFolders = true
+    ESP:AddUniversalListener("SomeFolder")
+
+    3. ESP with instant target detection:
+    ESP.InstantDetection = true
+    ESP.RefreshDelay = 0.05
+    ESP:AddUniversalListener("SomeFolder")
+
+    4. ESP with enhanced filters for deep structures:
+    ESP.Filters.Objects = function(obj, folderName, objectType, fullPath, depth)
+        return depth <= 10 and objectType == "Part" and obj.Name:find("Important")
+    end
+    ESP.Filters.Folders = function(folder, folderPath, depth)
+        return depth <= 15 and not folder.Name:find("Ignore")
+    end
+    ESP:AddUniversalListener("SomeFolder")
+
+    5. ESP with performance optimization for deep scanning:
+    ESP.BatchSize = 50
+    ESP.UpdateRate = 30
+    ESP.MaxDepth = 25
+    ESP:AddUniversalListener("LargeNestedFolder")
+
+    6. ESP with enhanced target types:
+    ESP:SetTargetTypes({"Model", "Part", "MeshPart", "UnionOperation"})
+    ESP.ScanAllTypes = false
+    ESP:AddUniversalListener("SomeFolder")
+
+    7. Multiple deep location monitoring:
+    ESP:AddUniversalListener("Active")
+    ESP:AddUniversalListener("Spawns")
+    ESP:AddUniversalListener("World")
     ESP:AddNaturalPickupsListener()
 
-    2. ESP for any workspace location:
-    ESP:AddUniversalListener("SomeFolder")
-    ESP:AddUniversalListener(workspace.SomeFolder)
+    8. Performance monitoring for deep scans:
+    local stats = ESP:GetPerformanceStats()
+    print("Objects:", stats.ObjectCount, "Listeners:", stats.ListenerCount, "Cached:", stats.CachedFolders)
 
-    3. ESP for entire workspace:
-    ESP:AddWorkspaceListener()
+    9. Cache management for better performance:
+    ESP:ClearCache() -- Clear folder cache
+    ESP:RefreshCache() -- Refresh all cached data
 
-    4. ESP with specific object types:
-    ESP.ScanAllTypes = false
-    ESP:SetTargetTypes({"Part", "MeshPart"})
-    ESP:AddUniversalListener("SomeFolder")
-
-    5. ESP with custom filters:
-    ESP.Filters.Objects = function(obj, folderName, objectType)
-        return objectType == "Part" and obj.Name:find("Important")
-    end
-    ESP:AddUniversalListener("SomeFolder")
-
-    6. ESP with custom colors by object type:
-    ESP:AddUniversalListener("SomeFolder", {
-        Color = function(obj, folderName, objectName, objectType)
-            if objectType == "Model" then return Color3.fromRGB(255, 0, 0)
-            elseif objectType == "Part" then return Color3.fromRGB(0, 255, 0)
-            else return Color3.fromRGB(0, 0, 255)
-            end
-        end
-    })
-
-    7. ESP with path filtering:
-    ESP.Filters.Paths = function(fullPath)
-        return fullPath:find("Important") or fullPath:find("Loot")
-    end
-    ESP:AddUniversalListener("SomeFolder")
-
-    8. Clear all ESP:
-    ESP:ClearAll()
-
-    9. Get ESP count:
-    print("ESP Objects:", ESP:GetCount())
+    10. Enhanced cleanup:
+    ESP:ClearAll() -- Cleans objects, listeners, and cache
 ]]
