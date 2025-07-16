@@ -575,40 +575,149 @@ function ESP:AddFolderByName(folderName, options)
     local targetFolder = findFolder(workspace, folderName, 0)
     if not targetFolder then
         warn("Folder '" .. folderName .. "' not found in workspace!")
-        return false
+        return nil
     end
     
     print("Found folder:", targetFolder:GetFullName())
     
     -- Add ESP listener for the found folder with enhanced options
-    self:AddUniversalListener(targetFolder, {
-        Color = options.Color or self.Color,
-        CustomName = options.CustomName or function(obj, folderName, objectName, objectType, fullPath, depth)
-            -- Default naming: show folder context and object info
-            local displayName = objectName
-            if self.ShowFolderName and self.ShowObjectType then
-                displayName = folderName .. " - " .. objectName .. " (" .. objectType .. ")"
-            elseif self.ShowFolderName then
-                displayName = folderName .. " - " .. objectName
-            elseif self.ShowObjectType then
-                displayName = objectName .. " (" .. objectType .. ")"
+    local success = pcall(function()
+        self:AddUniversalListener(targetFolder, {
+            Color = options.Color or self.Color,
+            CustomName = options.CustomName or function(obj, folderName, objectName, objectType, fullPath, depth)
+                -- Default naming: show folder context and object info
+                local displayName = objectName
+                if self.ShowFolderName and self.ShowObjectType then
+                    displayName = folderName .. " - " .. objectName .. " (" .. objectType .. ")"
+                elseif self.ShowFolderName then
+                    displayName = folderName .. " - " .. objectName
+                elseif self.ShowObjectType then
+                    displayName = objectName .. " (" .. objectType .. ")"
+                end
+                return displayName
+            end,
+            Validator = options.Validator or function(obj, folderName, objectName, objectType, fullPath, depth)
+                -- Default validator: accept all objects
+                return true
+            end,
+            OnAdded = options.OnAdded or function(box, objectData)
+                -- Default callback: print detection info
+                print("Object detected:", objectData.ObjectName, "Type:", objectData.ObjectType, "Path:", objectData.FullPath)
+            end,
+            ColorDynamic = options.ColorDynamic,
+            IsEnabled = options.IsEnabled,
+            RenderInNil = options.RenderInNil,
+            Size = options.Size,
+            Temporary = options.Temporary
+        })
+    end)
+    
+    if success then
+        return targetFolder
+    else
+        warn("Failed to add ESP listener for folder:", folderName)
+        return nil
+    end
+end
+
+-- Enhanced AddFolderByName with better error handling and compatibility
+function ESP:AddFolderByNameSafe(folderName, options)
+    options = options or {}
+    
+    -- Enhanced folder search with multiple attempts
+    local function findFolderEnhanced(parent, name, depth, visited)
+        if depth > 15 then return nil end
+        visited = visited or {}
+        if visited[parent] then return nil end -- Prevent cycles
+        visited[parent] = true
+        
+        -- Direct match first
+        local directMatch = parent:FindFirstChild(name)
+        if directMatch and directMatch:IsA("Folder") then
+            return directMatch
+        end
+        
+        -- Recursive search
+        for _, child in pairs(parent:GetChildren()) do
+            if child:IsA("Folder") then
+                if child.Name == name then
+                    return child
+                end
+                
+                local found = findFolderEnhanced(child, name, depth + 1, visited)
+                if found then return found end
             end
-            return displayName
-        end,
-        Validator = options.Validator or function(obj, folderName, objectName, objectType, fullPath, depth)
-            -- Default validator: accept all objects
-            return true
-        end,
-        OnAdded = options.OnAdded or function(box, objectData)
-            -- Default callback: print detection info
-            print("Object detected:", objectData.ObjectName, "Type:", objectData.ObjectType, "Path:", objectData.FullPath)
-        end,
-        ColorDynamic = options.ColorDynamic,
-        IsEnabled = options.IsEnabled,
-        RenderInNil = options.RenderInNil,
-        Size = options.Size,
-        Temporary = options.Temporary
-    })
+        end
+        return nil
+    end
+    
+    -- Try multiple search strategies
+    local targetFolder = nil
+    
+    -- Strategy 1: Direct workspace search
+    targetFolder = workspace:FindFirstChild(folderName, true)
+    if targetFolder and targetFolder:IsA("Folder") then
+        print("Found folder (direct):", targetFolder:GetFullName())
+    else
+        -- Strategy 2: Enhanced recursive search
+        targetFolder = findFolderEnhanced(workspace, folderName, 0)
+        if targetFolder then
+            print("Found folder (recursive):", targetFolder:GetFullName())
+        end
+    end
+    
+    if not targetFolder then
+        warn("Folder '" .. folderName .. "' not found in workspace!")
+        -- Debug: List some folders to help troubleshooting
+        print("Available folders in workspace:")
+        for _, child in pairs(workspace:GetChildren()) do
+            if child:IsA("Folder") then
+                print("  - " .. child.Name)
+            end
+        end
+        return nil
+    end
+    
+    -- Enhanced ESP setup with better error handling
+    local success, result = pcall(function()
+        return self:AddUniversalListener(targetFolder, {
+            Color = options.Color or self.Color,
+            CustomName = options.CustomName or function(obj, folderName, objectName, objectType, fullPath, depth)
+                local displayName = objectName
+                if self.ShowFolderName and self.ShowObjectType then
+                    displayName = folderName .. " - " .. objectName .. " (" .. objectType .. ")"
+                elseif self.ShowFolderName then
+                    displayName = folderName .. " - " .. objectName
+                elseif self.ShowObjectType then
+                    displayName = objectName .. " (" .. objectType .. ")"
+                end
+                return displayName
+            end,
+            Validator = options.Validator or function(obj, folderName, objectName, objectType, fullPath, depth)
+                return true
+            end,
+            OnAdded = options.OnAdded or function(box, objectData)
+                print("Object detected:", objectData.ObjectName, "Type:", objectData.ObjectType)
+            end,
+            ColorDynamic = options.ColorDynamic,
+            IsEnabled = options.IsEnabled,
+            RenderInNil = options.RenderInNil,
+            Size = options.Size,
+            Temporary = options.Temporary
+        })
+    end)
+    
+    if success and result then
+        print("Successfully added ESP for folder:", folderName)
+        return targetFolder
+    else
+        warn("Failed to add ESP listener for folder:", folderName, "Error:", result)
+        return nil
+    end
+end
+
+-- Compatibility alias - use the safer version by default
+ESP.AddFolderByName = ESP.AddFolderByNameSafe
     
     return targetFolder
 end
@@ -1028,58 +1137,42 @@ end)
 return ESP
 
 --[[
-    Enhanced Usage Examples:
+    SIMPLE USAGE EXAMPLES FOR FOLDER DETECTION:
 
-    1. Basic ESP with deep folder detection:
+    1. Basic ESP for SimpleMonsterAI folder:
     ESP:Toggle(true)
-    ESP.DeepScan = true
-    ESP.InstantDetection = true
-    ESP:AddUniversalListener("NaturalPickups")
+    ESP:AddFolderByName("SimpleMonsterAI")
 
-    2. ESP with enhanced nested folder scanning:
-    ESP.MaxDepth = 20
-    ESP.ScanAllFolders = true
-    ESP:AddUniversalListener("SomeFolder")
+    2. ESP with custom options:
+    ESP:AddFolderByName("SimpleMonsterAI", {
+        Color = Color3.fromRGB(255, 0, 0),
+        CustomName = function(obj, folderName, objectName, objectType)
+            return "[Monster] " .. objectName .. " (" .. objectType .. ")"
+        end,
+        OnAdded = function(box, objectData)
+            print("Monster detected:", objectData.ObjectName)
+        end
+    })
 
-    3. ESP with instant target detection:
-    ESP.InstantDetection = true
-    ESP.RefreshDelay = 0.05
-    ESP:AddUniversalListener("SomeFolder")
+    3. ESP for multiple folders:
+    ESP:AddFoldersByNames({"SimpleMonsterAI", "NaturalPickups", "Active"})
 
-    4. ESP with enhanced filters for deep structures:
-    ESP.Filters.Objects = function(obj, folderName, objectType, fullPath, depth)
-        return depth <= 10 and objectType == "Part" and obj.Name:find("Important")
+    4. Smart detection by patterns:
+    ESP:AddSmartFolderDetection({"Monster", "Enemy", "AI", "Mob", "Boss"})
+
+    5. Common game folders:
+    ESP:AddCommonGameFolders()
+
+    6. Enhanced filters:
+    ESP.Filters.Names = function(objectName) 
+        return objectName:lower():find("boss") 
     end
-    ESP.Filters.Folders = function(folder, folderPath, depth)
-        return depth <= 15 and not folder.Name:find("Ignore")
-    end
-    ESP:AddUniversalListener("SomeFolder")
+    ESP:AddFolderByName("SimpleMonsterAI")
 
-    5. ESP with performance optimization for deep scanning:
-    ESP.BatchSize = 50
-    ESP.UpdateRate = 30
-    ESP.MaxDepth = 25
-    ESP:AddUniversalListener("LargeNestedFolder")
-
-    6. ESP with enhanced target types:
-    ESP:SetTargetTypes({"Model", "Part", "MeshPart", "UnionOperation"})
-    ESP.ScanAllTypes = false
-    ESP:AddUniversalListener("SomeFolder")
-
-    7. Multiple deep location monitoring:
-    ESP:AddUniversalListener("Active")
-    ESP:AddUniversalListener("Spawns")
-    ESP:AddUniversalListener("World")
-    ESP:AddNaturalPickupsListener()
-
-    8. Performance monitoring for deep scans:
+    7. Performance monitoring:
     local stats = ESP:GetPerformanceStats()
-    print("Objects:", stats.ObjectCount, "Listeners:", stats.ListenerCount, "Cached:", stats.CachedFolders)
+    print("Objects:", stats.ObjectCount, "Listeners:", stats.ListenerCount)
 
-    9. Cache management for better performance:
-    ESP:ClearCache() -- Clear folder cache
-    ESP:RefreshCache() -- Refresh all cached data
-
-    10. Enhanced cleanup:
-    ESP:ClearAll() -- Cleans objects, listeners, and cache
+    8. Clear all ESP:
+    ESP:ClearAll()
 ]]
