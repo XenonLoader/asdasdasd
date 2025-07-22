@@ -74,10 +74,9 @@ local sections = {
     Teleport = tabs.Main:AddSection({Title = "Teleport", Description = "Teleportation utilities", Defualt = true, Locked = false}),
     Fruit = tabs.Main:AddSection({Title = "Fruit Management", Description = "Fruit collection and selling", Defualt = false, Locked = false}),
     AutoHarvest = tabs.Main:AddSection({Title = "Selective Auto Harvest", Description = "Choose specific fruits to harvest", Defualt = false, Locked = false}),
-    AntiAfk = tabs.Main:AddSection({Title = "Anti-AFK", Description = "Prevent being kicked for inactivity", Defualt = false, Locked = false}),
     MovePlants = tabs.Auto:AddSection({Title = "Move Plants", Description = "Automatically move all plants to selected pet", Defualt = true, Locked = false}),
     UIControls = tabs.Shop:AddSection({Title = "UI Controls", Description = "Toggle game UIs", Defualt = true, Locked = false}),
-    SummerEvent = tabs.Event:AddSection({Title = "Summer Event", Description = "Summer event automation", Defualt = true, Locked = false}),
+    NPCSubmission = tabs.Event:AddSection({Title = "Zen Event", Description = "Submit plants to NPCs", Defualt = true, Locked = false}),
 }
 
 -- Variables
@@ -153,6 +152,10 @@ local selectedPlants = {} -- Plants selected from dropdown
 local selectedPetName = nil -- Selected pet name from dropdown
 local movePlantsEnabled = false
 
+-- NPC Submission Variables
+local selectedNPC = nil
+local autoSubmitToNPC = false
+
 -- Seed Buying Variables
 local validSeeds = {
     "Carrot", "Strawberry", "Blueberry", "Tomato", "Orange Tulip", "Corn", 
@@ -179,10 +182,23 @@ local availableFruits = {
     "Cactus", "Dragon Fruit", "Mango", "Grape","Mushroom","Pepper","Cacao","Beanstalk","Ember Lily","Sugar Apple","Burning Bud"
 }
 
+-- Available NPCs for submission
+local availableNPCs = {
+    "Channeller",
+    "Zen Shop"
+}
+
 -- Get RemoteEvents
 local rs = ReplicatedStorage
 local buyEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuySeedStock")
 local buyGearEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuyGearStock")
+
+-- NPC RemoteEvents
+local ZenQuestRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("ZenQuestRemoteEvent")
+local ZenAuraRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("ZenAuraRemoteEvent")
+
+game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Gear.Visible = true
+game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Pets.Visible = true
 
 -- Helper Functions using GetFarm module
 local function getPlayerFarm()
@@ -194,7 +210,6 @@ local function getPlayerFarm()
     if success and result then
         return result
     else
-        print("Error getting player farm:", result)
         return nil
     end
 end
@@ -268,9 +283,7 @@ local function getAllPetNames()
     else
     end
     
-    print("Total pet names found:", #petNames)
     for i, name in pairs(petNames) do
-        print("Pet name " .. i .. ":", name)
     end
     
     return petNames
@@ -294,7 +307,6 @@ local function getUUIDToPetNameMapping()
                             local petType = child:FindFirstChild("PET_TYPE")
                             if petType and petType:IsA("TextLabel") and petType.Text ~= "" then
                                 mapping[child.Name] = petType.Text
-                                print("UUID Mapping:", child.Name, "->", petType.Text)
                             end
                         end
                     end
@@ -313,43 +325,32 @@ local function getAvailablePetsInPhysical()
     local uuidMapping = getUUIDToPetNameMapping()
     
     if petsPhysical then
-        print("PetsPhysical found, checking pets...")
         for _, pet in pairs(petsPhysical:GetChildren()) do
-            print("Checking pet:", pet.Name, "ClassName:", pet.ClassName)
             
             -- Check if it's a BasePart or Part and belongs to the player
             if (pet:IsA("BasePart") or pet:IsA("Part")) and pet:GetAttribute("OWNER") == LocalPlayer.Name then
-                print("Pet belongs to player:", pet.Name)
                 
                 -- Get UUID from attributes
                 local petUUID = pet:GetAttribute("UUID")
                 if petUUID then
-                    print("Pet UUID found:", petUUID)
                     
                     -- Match UUID with ActivePetUI to get real pet name
                     local realPetName = uuidMapping[petUUID]
                     if realPetName then
-                        print("Matched UUID to pet name:", petUUID, "->", realPetName)
                         if not table.find(pets, realPetName) then
                             table.insert(pets, realPetName)
                         end
                     else
-                        print("No matching pet name found for UUID:", petUUID)
                     end
                 else
-                    print("No UUID attribute found for pet:", pet.Name)
                 end
             else
-                print("Pet doesn't belong to player or not BasePart/Part:", pet.Name, "Owner:", pet:GetAttribute("OWNER"))
             end
         end
     else
-        print("PetsPhysical not found in workspace")
     end
     
-    print("Total pets in physical:", #pets)
     for i, name in pairs(pets) do
-        print("Physical pet " .. i .. ":", name)
     end
     
     return pets
@@ -365,7 +366,6 @@ local function movePetsToPlant(selectedPetName)
     local local_farm = get_farm(local_player)
 
     if not local_farm or not local_farm.Important or not local_farm.Important:FindFirstChild("Plants_Physical") then
-        print("Could not find player farm!")
         return false
     end
 
@@ -388,7 +388,6 @@ local function movePetsToPlant(selectedPetName)
     end
 
     if not position then
-        print("No plants found in farm!")
         return false
     end
 
@@ -405,7 +404,6 @@ local function movePetsToPlant(selectedPetName)
     end
     
     if not targetUUID and selectedPetName then
-        print("Could not find UUID for selected pet:", selectedPetName)
         return false
     end
 
@@ -430,16 +428,41 @@ local function movePetsToPlant(selectedPetName)
                     v.Anchored = false
                     movedCount = movedCount + 1
                     
-                    print("Moved pet with UUID:", petUUID, "to position:", position)
                 end
             else
-                print("Pet has no UUID attribute:", v.Name)
             end
         end
     end
     
-    print("Moved " .. movedCount .. " pets to plant position")
     return movedCount > 0
+end
+
+-- NPC Submission Functions
+local function submitToNPC(npcName)
+    if npcName == "Channeller" then
+        if ZenQuestRemoteEvent then
+            ZenQuestRemoteEvent:FireServer("SubmitAllPlants")
+            return true
+        end
+    elseif npcName == "Zen Shop" then
+        if ZenAuraRemoteEvent then
+            ZenAuraRemoteEvent:FireServer("SubmitAllPlants")
+            return true
+        end
+    end
+    return false
+end
+
+local function autoSubmitToNPCLoop()
+    while autoSubmitToNPC do
+        if selectedNPC then
+            local success = submitToNPC(selectedNPC)
+            if success then
+            else
+            end
+        end
+        task.wait(0.1)
+    end
 end
 
 local function getFruitsInBackpack()
@@ -1161,221 +1184,6 @@ sections.AutoHarvest:AddButton({
     end,
 })
 
--- -- Anti-AFK Section
--- sections.AntiAfk:AddToggle("AntiAfk", {
---     Title = "Anti-AFK",
---     Default = false,
---     Description = "Prevent being kicked when AFK",
---     Callback = function(value)
---         antiAfkEnabled = value
---         if antiAfkEnabled then
---             afkConnection = LocalPlayer.Idled:Connect(function()
---                 local VirtualUser = game:GetService("VirtualUser")
---                 VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
---                 task.wait(1)
---                 VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
---             end)
---             lib:Notification('Success', 'Anti-AFK enabled!', 3)
---         else
---             if afkConnection then
---                 afkConnection:Disconnect()
---                 afkConnection = nil
---             end
---             lib:Notification('Info', 'Anti-AFK disabled!', 3)
---         end
---     end,
--- })
-
--- -- MOVE PLANTS SECTION - Using FIXED UUID-based pet detection system
--- sections.MovePlants:AddDropdown("PlantSelect", {
---     Title = "Select Plants",
---     Description = "Choose which plants to move (multiple selection)",
---     Options = getAllPlants(),
---     Default = {},
---     PlaceHolder = "Select plants",
---     Multiple = true,
---     Callback = function(selected)
---         selectedPlants = selected
---         if #selectedPlants > 0 then
---             local plantList = table.concat(selectedPlants, ", ")
---             lib:Notification('Info', 'Selected plants: ' .. plantList, 5)
---         else
---             lib:Notification('Info', 'No plants selected - will move all plants', 3)
---         end
---     end
--- })
-
--- sections.MovePlants:AddDropdown("PetSelect", {
---     Title = "Select Pet",
---     Description = "Choose which pet to move plants to (from ActivePetUI PET_TYPE)",
---     Options = getAllPetNames(),
---     Default = "",
---     PlaceHolder = "Select pet",
---     Multiple = true,
---     Callback = function(selected)
---         if selected and type(selected) == "table" and #selected > 0 then
---             selectedPetName = selected[1]
---         elseif selected and type(selected) == "string" then
---             selectedPetName = selected
---         end
---         if selectedPetName then
---             lib:Notification('Info', 'Selected pet: ' .. selectedPetName, 3)
---         end
---     end
--- })
-
--- sections.MovePlants:AddToggle("MovePlants", {
---     Title = "Move Plants to Pet",
---     Default = false,
---     Description = "Automatically move plants to selected pet using UUID matching system",
---     Callback = function(value)
---         movePlantsEnabled = value
---         if value then
---             if not selectedPetName then
---                 lib:Notification('Warning', 'Please select a pet first!', 3)
---                 movePlantsEnabled = false
---                 return
---             end
-            
---             lib:Notification('Success', 'Move Plants enabled! Pet: ' .. selectedPetName, 3)
---             task.spawn(function()
---                 while movePlantsEnabled do
---                     local success = movePetsToPlant(selectedPetName)
---                     if success then
---                         lib:Notification('Success', 'Moved pets to plants for ' .. selectedPetName, 3)
---                     else
---                         lib:Notification('Warning', 'Failed to move pets. Check if pet exists.', 3)
---                     end
-                    
---                     task.wait(5)
---                 end
---                 lib:Notification('Info', 'Move Plants disabled!', 3)
---             end)
---         else
---             lib:Notification('Info', 'Move Plants disabled!', 3)
---         end
---     end,
--- })
-
--- sections.MovePlants:AddButton({
---     Title = "Debug UUID System",
---     Description = "Check UUID matching between PetsPhysical and ActivePetUI",
---     Callback = function()
---         local petsFromUI = getAllPetNames()
---         local petsFromPhysical = getAvailablePetsInPhysical()
---         local uuidMapping = getUUIDToPetNameMapping()
-        
---         local debugInfo = "🔍 UUID-BASED PET DETECTION DEBUG:\n\n"
-        
---         debugInfo = debugInfo .. "📱 ActivePetUI Pet Names (" .. #petsFromUI .. " pets):\n"
---         if #petsFromUI > 0 then
---             for i, pet in pairs(petsFromUI) do
---                 debugInfo = debugInfo .. "  " .. i .. ". " .. pet .. "\n"
---             end
---         else
---             debugInfo = debugInfo .. "  ❌ No pets found in ActivePetUI!\n"
---         end
-        
---         debugInfo = debugInfo .. "\n🔗 UUID Mapping (" .. table.getn(uuidMapping) .. " mappings):\n"
---         for uuid, petName in pairs(uuidMapping) do
---             debugInfo = debugInfo .. "  " .. uuid:sub(1, 8) .. "... -> " .. petName .. "\n"
---         end
-        
---         debugInfo = debugInfo .. "\n🎮 PetsPhysical Matched (" .. #petsFromPhysical .. " pets):\n"
---         if #petsFromPhysical > 0 then
---             for i, pet in pairs(petsFromPhysical) do
---                 debugInfo = debugInfo .. "  " .. i .. ". " .. pet .. "\n"
---             end
---         else
---             debugInfo = debugInfo .. "  ❌ No pets found in PetsPhysical!\n"
---         end
-        
---         debugInfo = debugInfo .. "\n💡 How UUID System Works:\n"
---         debugInfo = debugInfo .. "• Gets pet names from ActivePetUI PET_TYPE.Text\n"
---         debugInfo = debugInfo .. "• Maps UUID frames to pet names\n"
---         debugInfo = debugInfo .. "• Matches PetsPhysical UUID attributes\n"
---         debugInfo = debugInfo .. "• Moves pets using exact UUID matching"
-        
---         lib:Dialog({
---             Title = "Debug UUID System",
---             Content = debugInfo,
---             Buttons = {
---                 {
---                     Title = "OK",
---                     Variant = "Primary",
---                     Callback = function() end,
---                 }
---             }
---         })
---     end,
--- })
-
--- sections.MovePlants:AddButton({
---     Title = "Manual Move Once",
---     Description = "Perform one move sequence manually",
---     Callback = function()
---         if not selectedPetName then
---             lib:Dialog({
---                 Title = "Error",
---                 Content = "Please select a pet first!",
---                 Buttons = {
---                     {
---                         Title = "OK",
---                         Variant = "Primary",
---                         Callback = function() end,
---                     }
---                 }
---             })
---             return
---         end
-        
---         local success = movePetsToPlant(selectedPetName)
---         if success then
---             lib:Dialog({
---                 Title = "Manual Move Complete",
---                 Content = "Successfully moved pets to plants for " .. selectedPetName .. "!\n\nUsing UUID matching system:\n• ActivePetUI PET_TYPE.Text\n• UUID attribute matching\n• BasePart/Part detection",
---                 Buttons = {
---                     {
---                         Title = "OK",
---                         Variant = "Primary",
---                         Callback = function() end,
---                     }
---                 }
---             })
---         else
---             lib:Dialog({
---                 Title = "Error",
---                 Content = "Failed to move pets. Check if:\n• The pet exists in PetsPhysical\n• UUID attributes match\n• You have plants in your farm\n• The pet belongs to you",
---                 Buttons = {
---                     {
---                         Title = "OK",
---                         Variant = "Primary",
---                         Callback = function() end,
---                     }
---                 }
---             })
---         end
---     end,
--- })
-
--- sections.MovePlants:AddButton({
---     Title = "Refresh Lists",
---     Description = "Update plant and pet dropdowns",
---     Callback = function()
---         lib:Dialog({
---             Title = "Info",
---             Content = "Please re-execute the script to refresh the plant and pet lists with current data.",
---             Buttons = {
---                 {
---                     Title = "OK",
---                     Variant = "Primary",
---                     Callback = function() end,
---                 }
---             }
---         })
---     end,
--- })
-
 -- UI Controls Section
 sections.UIControls:AddButton({
     Title = "Seed Shop",
@@ -1437,33 +1245,46 @@ sections.UIControls:AddButton({
     end,
 })
 
--- Summer Event Section
-sections.SummerEvent:AddToggle("AutoSubmitSummer", {
-    Title = "Auto Submit Plant",
-    Default = false,
-    Description = "Automatically submit held plants for summer event",
-    Callback = function(value)
-        autoSubmit = value
-        if autoSubmit then
-            lib:Notification('Success', 'Auto Submit Hold Plants enabled', 3)
-            task.spawn(submitSummer)
+-- NPC Submission Section (moved to Event tab)
+sections.NPCSubmission:AddDropdown("NPCSelect", {
+    Title = "Select Give to NPC",
+    Description = "Choose which NPC to submit plants to",
+    Options = {"Channeller", "Zen Shop"},
+    Default = "",
+    PlaceHolder = "Select NPC",
+    Multiple = false,
+    Callback = function(selected)
+        if type(selected) == "table" and #selected > 0 then
+            selectedNPC = selected[1]
+        elseif type(selected) == "string" then
+            selectedNPC = selected
         else
-            lib:Notification('Info', 'Auto Submit disabled', 3)
+            selectedNPC = nil
         end
-    end,
+        
+        if selectedNPC then
+            lib:Notification('Info', 'Selected NPC: ' .. selectedNPC, 3)
+        else
+            lib:Notification('Info', 'No NPC selected', 3)
+        end
+    end
 })
 
-sections.SummerEvent:AddToggle("AutoSubmitAllHarvest", {
-    Title = "Submit All Harvest Fruit",
+sections.NPCSubmission:AddToggle("AutoSubmitNPC", {
+    Title = "Auto Submit to NPC",
     Default = false,
-    Description = "Automatically submit all harvest fruits for summer event",
+    Description = "Automatically submit plants to selected NPC",
     Callback = function(value)
-        autoSubmitAllHarvest = value
-        if autoSubmitAllHarvest then
-            lib:Notification('Success', 'Submit All Harvest Fruit enabled', 3)
-            task.spawn(submitAllHarvestFruit)
+        autoSubmitToNPC = value
+        if value then
+            if selectedNPC then
+                task.spawn(autoSubmitToNPCLoop)
+            else
+                lib:Notification('Warning', 'Please select an NPC first!', 3)
+                autoSubmitToNPC = false
+            end
         else
-            lib:Notification('Info', 'Submit All Harvest Fruit disabled', 3)
+            lib:Notification('Info', 'Auto submit to NPC disabled!', 3)
         end
     end,
 })
@@ -1473,37 +1294,3 @@ FlagsManager:SetLibrary(lib)
 FlagsManager:SetIgnoreIndexes({})
 FlagsManager:SetFolder("Avantrix/GAG")
 FlagsManager:InitSaveSystem(tabs.Settings)
-
--- Initial notification
-lib:Dialog({
-    Title = "Avantrix",
-    Content = "GAG script v20 has been loaded successfully!\n\n✅ FIXED UUID-BASED PET DETECTION:\n• Pet names from ActivePetUI PET_TYPE.Text (" .. #getAllPetNames() .. " pets)\n• UUID matching between systems (" .. #getAvailablePetsInPhysical() .. " matched)\n• BasePart/Part detection in PetsPhysical\n• OWNER and UUID attribute validation\n\nUUID system working perfectly!",
-    Buttons = {
-        {
-            Title = "OK",
-            Variant = "Primary",
-            Callback = function() end,
-        }
-    }
-})
-
-task.wait(3)
-
-lib:Dialog({
-    Title = "Avantrix",
-    Content = "Join the discord for more updates\ndiscord.gg/cF8YeDPt2G",
-    Buttons = {
-        {
-            Title = "Copy Discord",
-            Variant = "Primary",
-            Callback = function()
-                setclipboard("https://discord.gg/cF8YeDPt2G")
-            end,
-        },
-        {
-            Title = "OK",
-            Variant = "Ghost",
-            Callback = function() end,
-        }
-    }
-})
