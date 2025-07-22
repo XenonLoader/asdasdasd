@@ -72,14 +72,13 @@ main:SelectTab()
 -- Create sections
 local sections = {
     Welcome = tabs.Welcome:AddSection({Defualt = true, Locked = true}),
-    SeedBuyer = tabs.Shop:AddSection({Title = "Seed Purchasing", Description = "Auto buy seeds", Defualt = true, Locked = false}),
-    GearBuyer = tabs.Shop:AddSection({Title = "Gear Purchasing", Description = "Auto buy gears", Defualt = true, Locked = false}),
+    SeedBuyer = tabs.Shop:AddSection({Title = "Seed Purchasing", Description = "Auto buy seeds with stock detection", Defualt = true, Locked = false}),
+    GearBuyer = tabs.Shop:AddSection({Title = "Gear Purchasing", Description = "Auto buy gears with stock detection", Defualt = true, Locked = false}),
     Teleport = tabs.Main:AddSection({Title = "Teleport", Description = "Teleportation utilities", Defualt = true, Locked = false}),
     Fruit = tabs.Main:AddSection({Title = "Fruit Management", Description = "Fruit collection and selling", Defualt = false, Locked = false}),
     AutoHarvest = tabs.Auto:AddSection({Title = "Mutasi Collection", Description = "Collect fruits with specific mutations", Defualt = false, Locked = false}),
-    -- MovePlants = tabs.Auto:AddSection({Title = "Move Plants", Description = "Automatically move all plants to selected pet", Defualt = true, Locked = false}),
     UIControls = tabs.Shop:AddSection({Title = "UI Controls", Description = "Toggle game UIs", Defualt = true, Locked = false}),
-    NPCSubmission = tabs.Event:AddSection({Title = "Zen Event", Description = "Submit plants to NPCs", Defualt = true, Locked = false}),
+    NPCSubmission = tabs.Event:AddSection({Title = "Zen Event", Description = "Submit plants to NPCs with Tranquil detection", Defualt = true, Locked = false}),
 }
 
 -- Variables
@@ -100,14 +99,19 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 <font color="rgb(255,255,255)">Version:</font> ]] .. formatVersion(LRM_ScriptVersion) .. [[
 
 <font color="rgb(255,255,255)">Features:</font>
-
+- Smart Stock Detection System
+- Auto Buy with Stock Monitoring
+- Mutasi Collection System
+- Auto Sell & Teleport
+- Tranquil Detection for NPC Submission
 
 <font color="rgb(255,255,255)">Instructions:</font>
-1. Select plants from dropdown (multiple selection)
-2. Select pet from available pets (auto-detected from UI)
-3. Enable Move Plants to start farming
-4. Script will automatically find YOUR farm and pets
-5. Join our Discord for support
+1. Select items from dropdown (multiple selection)
+2. Enable auto buy - script will check stock automatically
+3. Script only buys when stock > 0 (X1 Stock or higher)
+4. Auto stops when stock is empty (X0 Stock)
+5. NPC submission only works when Tranquil mutasi is detected in backpack
+6. Join our Discord for support
 
 <font color="rgb(255,255,255)">Discord:</font> discord.gg/cF8YeDPt2G]])
 
@@ -148,11 +152,6 @@ local infiniteJump = false
 -- NEW: Mutasi Collection Variables
 local selectedMutasi = {}
 
--- SIMPLIFIED: Move Plants Variables
-local selectedPlants = {} -- Plants selected from dropdown
-local selectedPetName = nil -- Selected pet name from dropdown
-local movePlantsEnabled = false
-
 -- NPC Submission Variables
 local selectedNPC = nil
 local autoSubmitToNPC = false
@@ -180,10 +179,10 @@ local validMutasi = {
     "Voidtouched",
     "Friendbound",
     "Eclipsed",
-    "Moonlit" -- Added from the image
+    "Moonlit"
 }
 
--- Seed Buying Variables
+-- Seed Buying Variables with Stock Detection
 local validSeeds = {
     "Carrot", "Strawberry", "Blueberry", "Tomato", "Orange Tulip", "Corn", 
     "Daffodil", "Watermelon", "Pumpkin", "Apple", "Bamboo", "Coconut", 
@@ -193,7 +192,7 @@ local selectedSeeds = {}
 local autoBuyingSelected = false
 local autoBuyingAll = false
 
--- Gear Buying Variables
+-- Gear Buying Variables with Stock Detection
 local validGears = {
     "Basic Sprinkler", "Advanced Sprinkler", "Godly Sprinkler",
     "Master Sprinkler", "Recall Wrench", "Tanning Mirror", "Trowel", "Watering Can", "Harvest Tool", "Friendship Pot", "Cleaning Spray","Medium Toy", "Medium Treat","Levelup Lollipop"
@@ -220,6 +219,94 @@ local ZenAuraRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:Fin
 game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Gear.Visible = true
 game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Pets.Visible = true
 
+-- STOCK DETECTION FUNCTIONS
+local function getSeedStock(seedName)
+    local success, stock = pcall(function()
+        local seedShop = LocalPlayer.PlayerGui:FindFirstChild("Seed_Shop")
+        if not seedShop then return 0 end
+        
+        local frame = seedShop:FindFirstChild("Frame")
+        if not frame then return 0 end
+        
+        local scrollingFrame = frame:FindFirstChild("ScrollingFrame")
+        if not scrollingFrame then return 0 end
+        
+        local seedFrame = scrollingFrame:FindFirstChild(seedName)
+        if not seedFrame then return 0 end
+        
+        local mainFrame = seedFrame:FindFirstChild("Main_Frame")
+        if not mainFrame then return 0 end
+        
+        local stockText = mainFrame:FindFirstChild("Stock_Text")
+        if not stockText then return 0 end
+        
+        -- Parse stock text (format: "X15 Stock" or "X0 Stock")
+        local stockNumber = string.match(stockText.Text, "X(%d+)")
+        return tonumber(stockNumber) or 0
+    end)
+    
+    if success then
+        return stock
+    else
+        return 0
+    end
+end
+
+local function getGearStock(gearName)
+    local success, stock = pcall(function()
+        local gearShop = LocalPlayer.PlayerGui:FindFirstChild("Gear_Shop")
+        if not gearShop then return 0 end
+        
+        local frame = gearShop:FindFirstChild("Frame")
+        if not frame then return 0 end
+        
+        local scrollingFrame = frame:FindFirstChild("ScrollingFrame")
+        if not scrollingFrame then return 0 end
+        
+        local gearFrame = scrollingFrame:FindFirstChild(gearName)
+        if not gearFrame then return 0 end
+        
+        local mainFrame = gearFrame:FindFirstChild("Main_Frame")
+        if not mainFrame then return 0 end
+        
+        local stockText = mainFrame:FindFirstChild("Stock_Text")
+        if not stockText then return 0 end
+        
+        -- Parse stock text (format: "X15 Stock" or "X0 Stock")
+        local stockNumber = string.match(stockText.Text, "X(%d+)")
+        return tonumber(stockNumber) or 0
+    end)
+    
+    if success then
+        return stock
+    else
+        return 0
+    end
+end
+
+-- ENHANCED BUYING FUNCTIONS WITH STOCK DETECTION
+local function buySeedWithStockCheck(seedName)
+    local stock = getSeedStock(seedName)
+    if stock > 0 then
+        if buyEvent then
+            buyEvent:FireServer(seedName)
+            return true, stock
+        end
+    end
+    return false, stock
+end
+
+local function buyGearWithStockCheck(gearName)
+    local stock = getGearStock(gearName)
+    if stock > 0 then
+        if buyGearEvent then
+            buyGearEvent:FireServer(gearName)
+            return true, stock
+        end
+    end
+    return false, stock
+end
+
 -- Helper Functions using GetFarm module
 local function getPlayerFarm()
     local success, result = pcall(function()
@@ -234,215 +321,36 @@ local function getPlayerFarm()
     end
 end
 
-local function getAllPlants()
-    local plants = {}
-    local playerFarm = getPlayerFarm()
-    if playerFarm and playerFarm.Important and playerFarm.Important:FindFirstChild("Plants_Physical") then
-        for _, plant in pairs(playerFarm.Important.Plants_Physical:GetChildren()) do
-            if not table.find(plants, plant.Name) then
-                table.insert(plants, plant.Name)
-            end
-        end
-    end
-    return plants
-end
-
-local function getAllPlantsInFarm()
-    local plants = {}
-    local playerFarm = getPlayerFarm()
-    if playerFarm and playerFarm.Important and playerFarm.Important:FindFirstChild("Plants_Physical") then
-        for _, plant in pairs(playerFarm.Important.Plants_Physical:GetChildren()) do
-            table.insert(plants, plant)
-        end
-    end
-    return plants
-end
-
--- FIXED UUID-BASED PET DETECTION SYSTEM
-
--- 1. Get pet names from ActivePetUI using UUID and PET_TYPE.Text
-local function getAllPetNames()
-    local petNames = {}
-    local activePetUI = LocalPlayer.PlayerGui:FindFirstChild("ActivePetUI")
+-- NEW: Tranquil Detection Function
+local function hasTranquilInBackpack()
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not backpack then return false end
     
-    if activePetUI then
-        local frame = activePetUI:FindFirstChild("Frame")
-        if frame then
-            local main = frame:FindFirstChild("Main")
-            if main then
-                local scrollingFrame = main:FindFirstChild("ScrollingFrame")
-                if scrollingFrame then
-                    
-                    for _, child in pairs(scrollingFrame:GetChildren()) do
-                        -- Check if this is a UUID frame (contains hyphens and is long enough)
-                        if child:IsA("Frame") and string.find(child.Name, "-") and string.len(child.Name) > 20 then
-                            
-                            -- Look for PET_TYPE inside this UUID frame
-                            local petType = child:FindFirstChild("PET_TYPE")
-                            if petType and petType:IsA("TextLabel") and petType.Text ~= "" then
-                                
-                                -- Store both the pet name and UUID for later matching
-                                local petData = {
-                                    name = petType.Text,
-                                    uuid = child.Name
-                                }
-                                
-                                if not table.find(petNames, petType.Text) then
-                                    table.insert(petNames, petType.Text)
-                                end
-                            end
-                        end
-                    end
-                end
+    for _, tool in pairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            -- Check if the tool name contains "Tranquil"
+            -- Format examples: "[Windstruck, Tranquil] Mango [20.09kg]"
+            if string.find(tool.Name, "Tranquil") then
+                return true, tool.Name
             end
         end
     end
     
-    return petNames
+    return false, nil
 end
 
--- 2. Get UUID to pet name mapping from ActivePetUI
-local function getUUIDToPetNameMapping()
-    local mapping = {}
-    local activePetUI = LocalPlayer.PlayerGui:FindFirstChild("ActivePetUI")
-    
-    if activePetUI then
-        local frame = activePetUI:FindFirstChild("Frame")
-        if frame then
-            local main = frame:FindFirstChild("Main")
-            if main then
-                local scrollingFrame = main:FindFirstChild("ScrollingFrame")
-                if scrollingFrame then
-                    for _, child in pairs(scrollingFrame:GetChildren()) do
-                        -- Check if this is a UUID frame
-                        if child:IsA("Frame") and string.find(child.Name, "-") and string.len(child.Name) > 20 then
-                            local petType = child:FindFirstChild("PET_TYPE")
-                            if petType and petType:IsA("TextLabel") and petType.Text ~= "" then
-                                mapping[child.Name] = petType.Text
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    return mapping
-end
-
--- 3. Get pets from PetsPhysical using proper BasePart/Part detection
-local function getAvailablePetsInPhysical()
-    local pets = {}
-    local petsPhysical = workspace:FindFirstChild("PetsPhysical")
-    local uuidMapping = getUUIDToPetNameMapping()
-    
-    if petsPhysical then
-        for _, pet in pairs(petsPhysical:GetChildren()) do
-            
-            -- Check if it's a BasePart or Part and belongs to the player
-            if (pet:IsA("BasePart") or pet:IsA("Part")) and pet:GetAttribute("OWNER") == LocalPlayer.Name then
-                
-                -- Get UUID from attributes
-                local petUUID = pet:GetAttribute("UUID")
-                if petUUID then
-                    
-                    -- Match UUID with ActivePetUI to get real pet name
-                    local realPetName = uuidMapping[petUUID]
-                    if realPetName then
-                        if not table.find(pets, realPetName) then
-                            table.insert(pets, realPetName)
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    return pets
-end
-
--- 4. Move pets to plant using UUID matching
-local function movePetsToPlant(selectedPetName)
-    local players = game:GetService("Players")
-    local replicated_storage = game:GetService("ReplicatedStorage")
-    local local_player = players.LocalPlayer
-
-    local get_farm = require(replicated_storage.Modules.GetFarm)
-    local local_farm = get_farm(local_player)
-
-    if not local_farm or not local_farm.Important or not local_farm.Important:FindFirstChild("Plants_Physical") then
-        return false
-    end
-
-    local position
-
-    -- Find Bone Blossom position (or any plant)
-    for _, v in next, local_farm.Important.Plants_Physical:GetChildren() do
-        if v.Name == "Bone Blossom" then
-            position = v:GetPivot().Position
-            break
-        end
-    end
-
-    if not position then
-        -- If no Bone Blossom, use first available plant
-        for _, v in next, local_farm.Important.Plants_Physical:GetChildren() do
-            position = v:GetPivot().Position
-            break
-        end
-    end
-
-    if not position then
-        return false
-    end
-
-    -- Get UUID mapping to match selected pet name to UUID
-    local uuidMapping = getUUIDToPetNameMapping()
-    local targetUUID = nil
-    
-    -- Find UUID for selected pet name
-    for uuid, petName in pairs(uuidMapping) do
-        if petName == selectedPetName then
-            targetUUID = uuid
-            break
-        end
-    end
-    
-    if not targetUUID and selectedPetName then
-        return false
-    end
-
-    -- Move pets to the plant using UUID matching
-    local movedCount = 0
-    for _, v in next, workspace.PetsPhysical:GetChildren() do
-        if (v:IsA("BasePart") or v:IsA("Part")) and v:GetAttribute("OWNER") == local_player.Name then
-            local petUUID = v:GetAttribute("UUID")
-            
-            if petUUID then
-                -- If no specific pet selected, move all pets
-                -- If specific pet selected, only move that pet by UUID
-                if not selectedPetName or petUUID == targetUUID then
-                    -- Find the model inside the pet (if any)
-                    local petModel = v:FindFirstChildOfClass("Model")
-                    if petModel then
-                        petModel:PivotTo(CFrame.new(position))
-                    end
-                    
-                    -- Move the pet itself
-                    v.Position = position
-                    v.Anchored = false
-                    movedCount = movedCount + 1
-                    
-                end
-            end
-        end
-    end
-    
-    return movedCount > 0
-end
-
--- NPC Submission Functions
+-- NPC Submission Functions with Tranquil Detection
 local function submitToNPC(npcName)
+    -- Check if player has Tranquil mutasi in backpack
+    local hasTranquil, tranquilItemName = hasTranquilInBackpack()
+    
+    if not hasTranquil then
+        lib:Notification('Warning', 'No Tranquil mutasi found in backpack! Cannot submit to NPC.', 5)
+        return false
+    end
+    
+    lib:Notification('Info', 'Tranquil detected: ' .. tranquilItemName .. ' - Submitting to ' .. npcName, 3)
+    
     if npcName == "Channeller" then
         if ZenQuestRemoteEvent then
             ZenQuestRemoteEvent:FireServer("SubmitAllPlants")
@@ -460,120 +368,18 @@ end
 local function autoSubmitToNPCLoop()
     while autoSubmitToNPC do
         if selectedNPC then
-            local success = submitToNPC(selectedNPC)
-        end
-        task.wait(0.1)
-    end
-end
-
-local function getFruitsInBackpack()
-    local fruits = {}
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if backpack then
-        for _, tool in pairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                if string.find(tool.Name, "%[") and string.find(tool.Name, "kg%]") then
-                    table.insert(fruits, tool)
+            local hasTranquil, tranquilItemName = hasTranquilInBackpack()
+            
+            if hasTranquil then
+                local success = submitToNPC(selectedNPC)
+                if success then
+                    lib:Notification('Success', 'Submitted plants to ' .. selectedNPC .. ' with Tranquil: ' .. tranquilItemName, 3)
                 end
+            else
+                -- Wait longer if no Tranquil is found
+                task.wait(5)
             end
         end
-    end
-    return fruits
-end
-
-local function unequipCurrentTool()
-    if LocalPlayer.Character then
-        local currentTool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if currentTool then
-            currentTool.Parent = LocalPlayer.Backpack
-            return true
-        end
-    end
-    return false
-end
-
-local function equipRandomFruit()
-    local fruits = getFruitsInBackpack()
-    if #fruits > 0 then
-        local randomFruit = fruits[math.random(1, #fruits)]
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            unequipCurrentTool()
-            LocalPlayer.Character.Humanoid:EquipTool(randomFruit)
-            task.wait(0.1)
-            return randomFruit
-        end
-    end
-    return nil
-end
-
-local function getEquippedFruit()
-    if LocalPlayer.Character then
-        for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
-            if tool:IsA("Tool") and string.find(tool.Name, "%[") and string.find(tool.Name, "kg%]") then
-                return tool
-            end
-        end
-    end
-    return nil
-end
-
-local function safeTrowelInvoke(action, fruit, plant, cframe)
-    if not TrowelRemote then
-        return false, "TrowelRemote not found"
-    end
-    
-    if not fruit or not plant then
-        return false, "Missing fruit or plant"
-    end
-    
-    local success, result = pcall(function()
-        if action == "Pickup" then
-            return TrowelRemote:InvokeServer(action, fruit, plant)
-        elseif action == "Place" then
-            if not cframe then
-                return nil
-            end
-            return TrowelRemote:InvokeServer(action, fruit, plant, cframe)
-        else
-            return nil
-        end
-    end)
-    
-    if success then
-        return true, result
-    else
-        return false, result
-    end
-end
-
--- Other helper functions
-local function getOwnFarmSpawnCFrame()
-    local playerFarm = getPlayerFarm()
-    if playerFarm then
-        local spawnPoint = playerFarm:FindFirstChild("Spawn_Point")
-        if spawnPoint and spawnPoint:IsA("BasePart") then
-            return spawnPoint.CFrame
-        end
-    end
-    return nil
-end
-
-local function submitSummer()
-    while autoSubmit do
-        game:GetService("ReplicatedStorage")
-            :WaitForChild("GameEvents")
-            :WaitForChild("SummerHarvestRemoteEvent")
-            :FireServer("SubmitHeldPlant")
-        task.wait(0.1)
-    end
-end
-
-local function submitAllHarvestFruit()
-    while autoSubmitAllHarvest do
-        game:GetService("ReplicatedStorage")
-            :WaitForChild("GameEvents")
-            :WaitForChild("SummerHarvestRemoteEvent")
-            :FireServer("SubmitAllPlants")
         task.wait(0.1)
     end
 end
@@ -700,7 +506,6 @@ local function tpAndSell()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if hrp then
-        local returnCFrame = getOwnFarmSpawnCFrame()
         hrp.CFrame = CFrame.new(
             86.5854721, 2.76619363, 0.426784277,
             0, 0, -1,
@@ -710,13 +515,6 @@ local function tpAndSell()
         task.wait(0.2)
         ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("Sell_Inventory"):FireServer()
         lib:Notification('Success', 'Teleported and sold inventory!', 3)
-        if returnCFrame then
-            task.wait(0.2)
-            hrp.CFrame = returnCFrame
-            lib:Notification('Success', 'Returned to your garden spawn point!', 3)
-        else
-            lib:Notification('Warning', 'Could not find your garden spawn point!', 3)
-        end
     else
         lib:Notification('Error', 'HumanoidRootPart not found!', 3)
     end
@@ -750,10 +548,10 @@ local function mutasiCollectFilter(item, selectedMutasi)
     return false
 end
 
--- SEED BUYING SECTION
+-- ENHANCED SEED BUYING SECTION WITH STOCK DETECTION
 sections.SeedBuyer:AddDropdown("SeedSelect", {
     Title = "Select Seeds to Buy",
-    Description = "Choose which seeds you want to auto buy",
+    Description = "Choose which seeds you want to auto buy (with stock detection)",
     Options = validSeeds,
     Default = {},
     PlaceHolder = "Select seeds",
@@ -769,44 +567,33 @@ sections.SeedBuyer:AddDropdown("SeedSelect", {
     end
 })
 
-sections.SeedBuyer:AddButton({
-    Title = "Buy Selected Seeds Once",
-    Description = "Buy all selected seeds one time each",
-    Callback = function()
-        if buyEvent and #selectedSeeds > 0 then
-            local count = 0
-            for _, seed in ipairs(selectedSeeds) do
-                buyEvent:FireServer(seed)
-                count = count + 1
-                task.wait(0.01)
-            end
-            lib:Notification('Success', 'Bought ' .. count .. ' different seeds!', 3)
-        else
-            lib:Notification('Error', 'No seeds selected or buy event not found', 3)
-        end
-    end,
-})
-
 sections.SeedBuyer:AddToggle("AutoBuySelected", {
-    Title = "Auto Buy Selected Seeds Only",
+    Title = "Auto Buy Selected Seeds",
     Default = false,
-    Description = "Continuously buy ONLY the seeds you selected from dropdown",
+    Description = "Continuously buy ONLY selected seeds when stock",
     Callback = function(value)
         autoBuyingSelected = value
         if value then
             if #selectedSeeds > 0 then
                 local seedList = table.concat(selectedSeeds, ", ")
-                lib:Notification('Success', 'Auto buying selected seeds: ' .. seedList, 5)
                 task.spawn(function()
                     while autoBuyingSelected do
-                        if buyEvent and #selectedSeeds > 0 then
-                            for _, seed in ipairs(selectedSeeds) do
-                                if not autoBuyingSelected then break end
-                                buyEvent:FireServer(seed)
-                                task.wait(0.01)
+                        local anyPurchased = false
+                        for _, seed in ipairs(selectedSeeds) do
+                            if not autoBuyingSelected then break end
+                            local success, stock = buySeedWithStockCheck(seed)
+                            if success then
+                                anyPurchased = true
                             end
+                            task.wait(0.01)
                         end
-                        task.wait(0.01)
+                        
+                        -- If no items were purchased (all out of stock), wait longer
+                        if not anyPurchased then
+                            task.wait(2)
+                        else
+                            task.wait(0.1)
+                        end
                     end
                 end)
             else
@@ -814,50 +601,48 @@ sections.SeedBuyer:AddToggle("AutoBuySelected", {
                 autoBuyingSelected = false
             end
         else
-            lib:Notification('Info', 'Auto buy selected seeds disabled', 3)
+            lib:Notification('Info', 'Smart auto buy selected seeds disabled', 3)
         end
     end,
 })
 
 sections.SeedBuyer:AddToggle("AutoBuyAll", {
-    Title = "Auto Buy All Seeds",
+    Title = "Auto Buy All Seeds (Smart Stock)",
     Default = false,
-    Description = "Continuously buy ALL available seeds (ignores selection)",
+    Description = "Continuously buy ALL available seeds when stock",
     Callback = function(value)
         autoBuyingAll = value
         if value then
-            lib:Notification('Success', 'Auto buying ALL ' .. #validSeeds .. ' seeds enabled', 3)
             task.spawn(function()
                 while autoBuyingAll do
+                    local anyPurchased = false
                     for _, seed in ipairs(validSeeds) do
                         if not autoBuyingAll then break end
-                        if buyEvent then
-                            buyEvent:FireServer(seed)
+                        local success, stock = buySeedWithStockCheck(seed)
+                        if success then
+                            anyPurchased = true
                         end
                         task.wait(0.01)
                     end
-                    task.wait(0.01)
+                    
+                    if not anyPurchased then
+                        task.wait(2)
+                    else
+                        task.wait(0.1)
+                    end
                 end
             end)
         else
-            lib:Notification('Info', 'Auto buy all seeds disabled', 3)
+            lib:Notification('Info', 'Smart auto buy all seeds disabled', 3)
         end
     end,
 })
 
-sections.SeedBuyer:AddButton({
-    Title = "Clear Selected Seeds",
-    Description = "Clear all selected seeds",
-    Callback = function()
-        selectedSeeds = {}
-        lib:Notification('Info', 'All selected seeds cleared', 3)
-    end,
-})
 
--- GEAR BUYING SECTION
+-- ENHANCED GEAR BUYING SECTION WITH STOCK DETECTION
 sections.GearBuyer:AddDropdown("GearSelect", {
     Title = "Select Gears to Buy",
-    Description = "Choose which gears you want to auto buy",
+    Description = "Choose which gears you want to auto buy (with stock detection)",
     Options = validGears,
     Default = {},
     PlaceHolder = "Select gears",
@@ -872,45 +657,32 @@ sections.GearBuyer:AddDropdown("GearSelect", {
         end
     end
 })
-
-sections.GearBuyer:AddButton({
-    Title = "Buy Selected Gears Once",
-    Description = "Buy all selected gears one time each",
-    Callback = function()
-        if buyGearEvent and #selectedGears > 0 then
-            local count = 0
-            for _, gear in ipairs(selectedGears) do
-                buyGearEvent:FireServer(gear)
-                count = count + 1
-                task.wait(0.01)
-            end
-            lib:Notification('Success', 'Bought ' .. count .. ' different gears!', 3)
-        else
-            lib:Notification('Error', 'No gears selected or buy gear event not found', 3)
-        end
-    end,
-})
-
 sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
-    Title = "Auto Buy Selected Gears Only",
+    Title = "Auto Buy Selected Gears",
     Default = false,
-    Description = "Continuously buy ONLY the gears you selected from dropdown",
+    Description = "Continuously buy ONLY selected gears when stock",
     Callback = function(value)
         autoBuyingSelectedGear = value
         if value then
             if #selectedGears > 0 then
                 local gearList = table.concat(selectedGears, ", ")
-                lib:Notification('Success', 'Auto buying selected gears: ' .. gearList, 5)
                 task.spawn(function()
                     while autoBuyingSelectedGear do
-                        if buyGearEvent and #selectedGears > 0 then
-                            for _, gear in ipairs(selectedGears) do
-                                if not autoBuyingSelectedGear then break end
-                                buyGearEvent:FireServer(gear)
-                                task.wait(0.01)
+                        local anyPurchased = false
+                        for _, gear in ipairs(selectedGears) do
+                            if not autoBuyingSelectedGear then break end
+                            local success, stock = buyGearWithStockCheck(gear)
+                            if success then
+                                anyPurchased = true
                             end
+                            task.wait(0.01)
                         end
-                        task.wait(0.01)
+                        
+                        if not anyPurchased then
+                            task.wait(2)
+                        else
+                            task.wait(0.1)
+                        end
                     end
                 end)
             else
@@ -918,43 +690,39 @@ sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
                 autoBuyingSelectedGear = false
             end
         else
-            lib:Notification('Info', 'Auto buy selected gears disabled', 3)
+            lib:Notification('Info', 'Smart auto buy selected gears disabled', 3)
         end
     end,
 })
 
 sections.GearBuyer:AddToggle("AutoBuyAllGears", {
-    Title = "Auto Buy All Gears",
+    Title = "Auto Buy All Gears (Smart Stock)",
     Default = false,
-    Description = "Continuously buy ALL available gears (ignores selection)",
+    Description = "Continuously buy ALL available gears when stock",
     Callback = function(value)
         autoBuyingAllGears = value
         if value then
-            lib:Notification('Success', 'Auto buying ALL ' .. #validGears .. ' gears enabled', 3)
             task.spawn(function()
                 while autoBuyingAllGears do
+                    local anyPurchased = false
                     for _, gear in ipairs(validGears) do
                         if not autoBuyingAllGears then break end
-                        if buyGearEvent then
-                            buyGearEvent:FireServer(gear)
+                        local success, stock = buyGearWithStockCheck(gear)
+                        if success then
+                            anyPurchased = true
                         end
                         task.wait(0.01)
                     end
-                    task.wait(0.01)
+                    if not anyPurchased then
+                        task.wait(2)
+                    else
+                        task.wait(0.1)
+                    end
                 end
             end)
         else
-            lib:Notification('Info', 'Auto buy all gears disabled', 3)
+            lib:Notification('Info', 'Smart auto buy all gears disabled', 3)
         end
-    end,
-})
-
-sections.GearBuyer:AddButton({
-    Title = "Clear Selected Gears",
-    Description = "Clear all selected gears",
-    Callback = function()
-        selectedGears = {}
-        lib:Notification('Info', 'All selected gears cleared', 3)
     end,
 })
 
@@ -1121,9 +889,6 @@ sections.AutoHarvest:AddToggle("MutasiAutoCollect", {
                         end
                     end
                     
-                    if collectedCount > 0 then
-                    end
-                    
                     task.wait(3)
                 end
                 lib:Notification('Info', 'Auto Collect Mutasi disabled!', 3)
@@ -1131,15 +896,6 @@ sections.AutoHarvest:AddToggle("MutasiAutoCollect", {
         else
             lib:Notification('Info', 'Auto Collect Mutasi disabled!', 3)
         end
-    end,
-})
-
-sections.AutoHarvest:AddButton({
-    Title = "Clear Selected Mutasi",
-    Description = "Clear all selected mutasi (will collect all mutasi fruits)",
-    Callback = function()
-        selectedMutasi = {}
-        lib:Notification('Info', 'All selected mutasi cleared - will collect all mutasi fruits', 3)
     end,
 })
 
@@ -1167,6 +923,7 @@ sections.UIControls:AddButton({
         lib:Notification('Info', 'Gear Shop opened', 3)
     end,
 })
+
 sections.UIControls:AddButton({
     Title = "Hide All Shops",
     Callback = function()
@@ -1179,10 +936,24 @@ sections.UIControls:AddButton({
     end,
 })
 
--- NPC Submission Section (moved to Event tab)
+-- ENHANCED NPC Submission Section with Tranquil Detection
+sections.NPCSubmission:AddButton({
+    Title = "Check Tranquil in Backpack",
+    Description = "Check if you have any Tranquil mutasi items in backpack",
+    Callback = function()
+        local hasTranquil, tranquilItemName = hasTranquilInBackpack()
+        
+        if hasTranquil then
+            lib:Notification('Success', 'Tranquil found: ' .. tranquilItemName, 5)
+        else
+            lib:Notification('Warning', 'No Tranquil mutasi found in backpack!', 5)
+        end
+    end,
+})
+
 sections.NPCSubmission:AddDropdown("NPCSelect", {
     Title = "Select Give to NPC",
-    Description = "Choose which NPC to submit plants to",
+    Description = "Choose which NPC to submit plants to (requires Tranquil mutasi)",
     Options = {"Channeller", "Zen Shop"},
     Default = "",
     PlaceHolder = "Select NPC",
@@ -1203,11 +974,10 @@ sections.NPCSubmission:AddDropdown("NPCSelect", {
         end
     end
 })
-
 sections.NPCSubmission:AddToggle("AutoSubmitNPC", {
-    Title = "Auto Submit to NPC",
+    Title = "Auto Submit to NPC (Tranquil Required)",
     Default = false,
-    Description = "Automatically submit plants to selected NPC",
+    Description = "Automatically submit plants to selected NPC when Tranquil mutasi is detected",
     Callback = function(value)
         autoSubmitToNPC = value
         if value then
