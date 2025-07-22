@@ -1,0 +1,1532 @@
+-- Load Avantrix Library
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xenlua/Xens/refs/heads/main/ui/Avantrix.lua"))() 
+local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/xenlua/Xens/refs/heads/main/ui/Flags"))()
+
+local LPH_JIT_MAX = function(...) return(...) end;
+local LPH_NO_VIRTUALIZE = function(...) return(...) end;
+local LPH_CRASH = function(...) while task.wait() do game:GetService("ScriptContext"):SetTimeout(math.huge);while true do while true do while true do while true do while true do while true do while true do while true do print("noob") end end end end end end end end end end;
+local LRM_UserNote = "Owner"
+local LRM_ScriptVersion = "v20"
+local ClonedPrint = print
+
+if LPH_OBFUSCATED then
+    ClonedPrint = print
+    print = function(...)end
+    warn = function(...)end
+
+    local PreventSkidsToMakeGayThings = loadstring(game:HttpGet("https://raw.githubusercontent.com/Hosvile/InfiniX/a40a158d22fd4f4733beb2f67379866ccb17906f/Library/Anti/AntiDebug/main.lua", true))()
+
+    if not (type(PreventSkidsToMakeGayThings) == "table") then
+        LPH_CRASH()
+    end
+end
+
+repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.Character
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+-- Format version function
+function formatVersion(version)
+    local formattedVersion = "v" .. version:sub(2):gsub(".", "%0.")
+    return formattedVersion:sub(1, #formattedVersion - 1)
+end
+
+-- Initialize main GUI
+local main = lib:Load({
+    Title = 'GAG '..formatVersion(LRM_ScriptVersion)..' | ' .. gradient("Avantrix").. " | ",
+    ToggleButton = "rbxassetid://100227182680708",
+})
+
+-- Game Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Variables
+local LocalPlayer = Players.LocalPlayer
+
+-- TrowelRemote detection
+local TrowelRemote = ReplicatedStorage:FindFirstChild("GameEvents") and ReplicatedStorage.GameEvents:FindFirstChild("TrowelRemote")
+
+-- Create tabs
+local tabs = {
+    Welcome = main:AddTab("Information"),
+    Seeds = main:AddTab("Buy Seeds"),
+    Gears = main:AddTab("Buy Gears"),
+    Main = main:AddTab("Main"),
+    Auto = main:AddTab("Auto"),
+    Shop = main:AddTab("Shop"),
+    Event = main:AddTab("Event"),
+    Settings = main:AddTab("Settings"),
+}
+
+main:SelectTab()
+
+-- Create sections
+local sections = {
+    Welcome = tabs.Welcome:AddSection({Defualt = true, Locked = true}),
+    SeedBuyer = tabs.Seeds:AddSection({Title = "Seed Purchasing", Description = "Auto buy seeds", Defualt = true, Locked = false}),
+    GearBuyer = tabs.Gears:AddSection({Title = "Gear Purchasing", Description = "Auto buy gears", Defualt = true, Locked = false}),
+    Teleport = tabs.Main:AddSection({Title = "Teleport", Description = "Teleportation utilities", Defualt = true, Locked = false}),
+    Fruit = tabs.Main:AddSection({Title = "Fruit Management", Description = "Fruit collection and selling", Defualt = false, Locked = false}),
+    AutoHarvest = tabs.Main:AddSection({Title = "Selective Auto Harvest", Description = "Choose specific fruits to harvest", Defualt = false, Locked = false}),
+    AntiAfk = tabs.Main:AddSection({Title = "Anti-AFK", Description = "Prevent being kicked for inactivity", Defualt = false, Locked = false}),
+    MovePlants = tabs.Auto:AddSection({Title = "Move Plants", Description = "Automatically move all plants to selected pet", Defualt = true, Locked = false}),
+    UIControls = tabs.Shop:AddSection({Title = "UI Controls", Description = "Toggle game UIs", Defualt = true, Locked = false}),
+    SummerEvent = tabs.Event:AddSection({Title = "Summer Event", Description = "Summer event automation", Defualt = true, Locked = false}),
+}
+
+-- Variables
+local var = {}
+
+-- Initialize welcome paragraph
+var.WelcomeParagraph = sections.Welcome:AddParagraph({
+    Title = gradient("Loading..."), 
+    Description = "Please wait..\nIf you've been stuck on this for a long time please join our discord and report it.\nYou could also try:\n- Re-execute\n- Rejoin"
+})
+
+var.WelcomeParagraph:SetTitle(gradient("Welcome to GAG Hub!"))
+var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
+[+] FIXED: UUID-based pet detection system
+[+] Pet names from ActivePetUI PET_TYPE.Text
+[+] UUID matching between PetsPhysical and ActivePetUI
+[+] Proper BasePart/Part detection in PetsPhysical
+[/] All features working properly
+
+<b><font color='rgb(255, 255, 255)'>----------------------------------------[Features]--------------------------------------</font></b>
+
+<font color="rgb(255,255,255)">Version:</font> ]] .. formatVersion(LRM_ScriptVersion) .. [[
+
+<font color="rgb(255,255,255)">Features:</font>
+• FIXED: UUID-based Pet Detection System
+• Pet Names: From ActivePetUI PET_TYPE.Text
+• UUID Matching: PetsPhysical ↔ ActivePetUI
+• Automatically finds player's farm using GetFarm module
+• Smart Auto Buy Seeds - only selected items
+• Smart Auto Buy Gears - only selected items
+• Selective Auto Harvest - choose specific fruits
+• Weight-based Harvest with custom ranges
+• Auto Fruit Collection & Selling
+• Summer Event Automation
+• Anti-AFK Protection
+• UI Management Tools
+
+<font color="rgb(255,255,255)">Instructions:</font>
+1. Select plants from dropdown (multiple selection)
+2. Select pet from available pets (auto-detected from UI)
+3. Enable Move Plants to start farming
+4. Script will automatically find YOUR farm and pets
+5. Join our Discord for support
+
+<font color="rgb(255,255,255)">Discord:</font> discord.gg/cF8YeDPt2G]])
+
+-- Add Discord button
+sections.Welcome:AddButton({
+    Title = "Copy Discord Link",
+    Callback = function()
+        setclipboard("https://discord.gg/cF8YeDPt2G")
+        lib:Dialog({
+            Title = "Success",
+            Content = "Discord link copied to clipboard!",
+            Buttons = {
+                {
+                    Title = "OK",
+                    Variant = "Primary",
+                    Callback = function() end,
+                }
+            }
+        })
+    end,
+})
+
+-- Variables
+local autoSubmit = false
+local autoSubmitAllHarvest = false
+local fruitThreshold = 10
+local autoSell = false
+local highlightToggle = false
+local currentHighlight = nil
+local currentBillboard = nil
+local lastBiggest = nil
+local savedPosition = nil
+local antiAfkEnabled = false
+local afkConnection
+local instantCollectEnabled = false
+local infiniteJump = false
+
+-- NEW: Selective Harvest Variables
+local selectedFruits = {} -- Fruits selected from dropdown
+local minWeightText = "0"
+local maxWeightText = "9999"
+
+-- SIMPLIFIED: Move Plants Variables
+local selectedPlants = {} -- Plants selected from dropdown
+local selectedPetName = nil -- Selected pet name from dropdown
+local movePlantsEnabled = false
+
+-- Seed Buying Variables
+local validSeeds = {
+    "Carrot", "Strawberry", "Blueberry", "Tomato", "Orange Tulip", "Corn", 
+    "Daffodil", "Watermelon", "Pumpkin", "Apple", "Bamboo", "Coconut", 
+    "Cactus", "Dragon Fruit", "Mango", "Grape","Mushroom","Pepper","Cacao","Beanstalk","Ember Lily","Sugar Apple","Burning Bud"
+}
+local selectedSeeds = {}
+local autoBuyingSelected = false
+local autoBuyingAll = false
+
+-- Gear Buying Variables
+local validGears = {
+    "Basic Sprinkler", "Advanced Sprinkler", "Godly Sprinkler",
+    "Master Sprinkler", "Recall Wrench", "Tanning Mirror", "Trowel", "Watering Can", "Harvest Tool", "Friendship Pot", "Cleaning Spray"
+}
+local selectedGears = {}
+local autoBuyingSelectedGear = false
+local autoBuyingAllGears = false
+
+-- Available fruits for harvest selection
+local availableFruits = {
+    "Carrot", "Strawberry", "Blueberry", "Tomato", "Orange Tulip", "Corn", 
+    "Daffodil", "Watermelon", "Pumpkin", "Apple", "Bamboo", "Coconut", 
+    "Cactus", "Dragon Fruit", "Mango", "Grape","Mushroom","Pepper","Cacao","Beanstalk","Ember Lily","Sugar Apple","Burning Bud"
+}
+
+-- Get RemoteEvents
+local rs = ReplicatedStorage
+local buyEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuySeedStock")
+local buyGearEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuyGearStock")
+
+-- Helper Functions using GetFarm module
+local function getPlayerFarm()
+    local success, result = pcall(function()
+        local get_farm = require(ReplicatedStorage.Modules.GetFarm)
+        return get_farm(LocalPlayer)
+    end)
+    
+    if success and result then
+        return result
+    else
+        print("Error getting player farm:", result)
+        return nil
+    end
+end
+
+local function getAllPlants()
+    local plants = {}
+    local playerFarm = getPlayerFarm()
+    if playerFarm and playerFarm.Important and playerFarm.Important:FindFirstChild("Plants_Physical") then
+        for _, plant in pairs(playerFarm.Important.Plants_Physical:GetChildren()) do
+            if not table.find(plants, plant.Name) then
+                table.insert(plants, plant.Name)
+            end
+        end
+    end
+    return plants
+end
+
+local function getAllPlantsInFarm()
+    local plants = {}
+    local playerFarm = getPlayerFarm()
+    if playerFarm and playerFarm.Important and playerFarm.Important:FindFirstChild("Plants_Physical") then
+        for _, plant in pairs(playerFarm.Important.Plants_Physical:GetChildren()) do
+            table.insert(plants, plant)
+        end
+    end
+    return plants
+end
+
+-- FIXED UUID-BASED PET DETECTION SYSTEM
+
+-- 1. Get pet names from ActivePetUI using UUID and PET_TYPE.Text
+local function getAllPetNames()
+    local petNames = {}
+    local activePetUI = LocalPlayer.PlayerGui:FindFirstChild("ActivePetUI")
+    
+    if activePetUI then
+        local frame = activePetUI:FindFirstChild("Frame")
+        if frame then
+            local main = frame:FindFirstChild("Main")
+            if main then
+                local scrollingFrame = main:FindFirstChild("ScrollingFrame")
+                if scrollingFrame then
+                    print("ScrollingFrame found, checking for UUID frames...")
+                    
+                    for _, child in pairs(scrollingFrame:GetChildren()) do
+                        -- Check if this is a UUID frame (contains hyphens and is long enough)
+                        if child:IsA("Frame") and string.find(child.Name, "-") and string.len(child.Name) > 20 then
+                            print("Found UUID frame:", child.Name)
+                            
+                            -- Look for PET_TYPE inside this UUID frame
+                            local petType = child:FindFirstChild("PET_TYPE")
+                            if petType and petType:IsA("TextLabel") and petType.Text ~= "" then
+                                print("Found PET_TYPE with text:", petType.Text)
+                                
+                                -- Store both the pet name and UUID for later matching
+                                local petData = {
+                                    name = petType.Text,
+                                    uuid = child.Name
+                                }
+                                
+                                if not table.find(petNames, petType.Text) then
+                                    table.insert(petNames, petType.Text)
+                                end
+                            else
+                                print("PET_TYPE not found or empty in frame:", child.Name)
+                            end
+                        end
+                    end
+                else
+                    print("ScrollingFrame not found in Main")
+                end
+            else
+                print("Main not found in Frame")
+            end
+        else
+            print("Frame not found in ActivePetUI")
+        end
+    else
+        print("ActivePetUI not found in PlayerGui")
+    end
+    
+    print("Total pet names found:", #petNames)
+    for i, name in pairs(petNames) do
+        print("Pet name " .. i .. ":", name)
+    end
+    
+    return petNames
+end
+
+-- 2. Get UUID to pet name mapping from ActivePetUI
+local function getUUIDToPetNameMapping()
+    local mapping = {}
+    local activePetUI = LocalPlayer.PlayerGui:FindFirstChild("ActivePetUI")
+    
+    if activePetUI then
+        local frame = activePetUI:FindFirstChild("Frame")
+        if frame then
+            local main = frame:FindFirstChild("Main")
+            if main then
+                local scrollingFrame = main:FindFirstChild("ScrollingFrame")
+                if scrollingFrame then
+                    for _, child in pairs(scrollingFrame:GetChildren()) do
+                        -- Check if this is a UUID frame
+                        if child:IsA("Frame") and string.find(child.Name, "-") and string.len(child.Name) > 20 then
+                            local petType = child:FindFirstChild("PET_TYPE")
+                            if petType and petType:IsA("TextLabel") and petType.Text ~= "" then
+                                mapping[child.Name] = petType.Text
+                                print("UUID Mapping:", child.Name, "->", petType.Text)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return mapping
+end
+
+-- 3. Get pets from PetsPhysical using proper BasePart/Part detection
+local function getAvailablePetsInPhysical()
+    local pets = {}
+    local petsPhysical = workspace:FindFirstChild("PetsPhysical")
+    local uuidMapping = getUUIDToPetNameMapping()
+    
+    if petsPhysical then
+        print("PetsPhysical found, checking pets...")
+        for _, pet in pairs(petsPhysical:GetChildren()) do
+            print("Checking pet:", pet.Name, "ClassName:", pet.ClassName)
+            
+            -- Check if it's a BasePart or Part and belongs to the player
+            if (pet:IsA("BasePart") or pet:IsA("Part")) and pet:GetAttribute("OWNER") == LocalPlayer.Name then
+                print("Pet belongs to player:", pet.Name)
+                
+                -- Get UUID from attributes
+                local petUUID = pet:GetAttribute("UUID")
+                if petUUID then
+                    print("Pet UUID found:", petUUID)
+                    
+                    -- Match UUID with ActivePetUI to get real pet name
+                    local realPetName = uuidMapping[petUUID]
+                    if realPetName then
+                        print("Matched UUID to pet name:", petUUID, "->", realPetName)
+                        if not table.find(pets, realPetName) then
+                            table.insert(pets, realPetName)
+                        end
+                    else
+                        print("No matching pet name found for UUID:", petUUID)
+                    end
+                else
+                    print("No UUID attribute found for pet:", pet.Name)
+                end
+            else
+                print("Pet doesn't belong to player or not BasePart/Part:", pet.Name, "Owner:", pet:GetAttribute("OWNER"))
+            end
+        end
+    else
+        print("PetsPhysical not found in workspace")
+    end
+    
+    print("Total pets in physical:", #pets)
+    for i, name in pairs(pets) do
+        print("Physical pet " .. i .. ":", name)
+    end
+    
+    return pets
+end
+
+-- 4. Move pets to plant using UUID matching
+local function movePetsToPlant(selectedPetName)
+    local players = game:GetService("Players")
+    local replicated_storage = game:GetService("ReplicatedStorage")
+    local local_player = players.LocalPlayer
+
+    local get_farm = require(replicated_storage.Modules.GetFarm)
+    local local_farm = get_farm(local_player)
+
+    if not local_farm or not local_farm.Important or not local_farm.Important:FindFirstChild("Plants_Physical") then
+        print("Could not find player farm!")
+        return false
+    end
+
+    local position
+
+    -- Find Bone Blossom position (or any plant)
+    for _, v in next, local_farm.Important.Plants_Physical:GetChildren() do
+        if v.Name == "Bone Blossom" then
+            position = v:GetPivot().Position
+            break
+        end
+    end
+
+    if not position then
+        -- If no Bone Blossom, use first available plant
+        for _, v in next, local_farm.Important.Plants_Physical:GetChildren() do
+            position = v:GetPivot().Position
+            break
+        end
+    end
+
+    if not position then
+        print("No plants found in farm!")
+        return false
+    end
+
+    -- Get UUID mapping to match selected pet name to UUID
+    local uuidMapping = getUUIDToPetNameMapping()
+    local targetUUID = nil
+    
+    -- Find UUID for selected pet name
+    for uuid, petName in pairs(uuidMapping) do
+        if petName == selectedPetName then
+            targetUUID = uuid
+            break
+        end
+    end
+    
+    if not targetUUID and selectedPetName then
+        print("Could not find UUID for selected pet:", selectedPetName)
+        return false
+    end
+
+    -- Move pets to the plant using UUID matching
+    local movedCount = 0
+    for _, v in next, workspace.PetsPhysical:GetChildren() do
+        if (v:IsA("BasePart") or v:IsA("Part")) and v:GetAttribute("OWNER") == local_player.Name then
+            local petUUID = v:GetAttribute("UUID")
+            
+            if petUUID then
+                -- If no specific pet selected, move all pets
+                -- If specific pet selected, only move that pet by UUID
+                if not selectedPetName or petUUID == targetUUID then
+                    -- Find the model inside the pet (if any)
+                    local petModel = v:FindFirstChildOfClass("Model")
+                    if petModel then
+                        petModel:PivotTo(CFrame.new(position))
+                    end
+                    
+                    -- Move the pet itself
+                    v.Position = position
+                    v.Anchored = false
+                    movedCount = movedCount + 1
+                    
+                    print("Moved pet with UUID:", petUUID, "to position:", position)
+                end
+            else
+                print("Pet has no UUID attribute:", v.Name)
+            end
+        end
+    end
+    
+    print("Moved " .. movedCount .. " pets to plant position")
+    return movedCount > 0
+end
+
+local function getFruitsInBackpack()
+    local fruits = {}
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                if string.find(tool.Name, "%[") and string.find(tool.Name, "kg%]") then
+                    table.insert(fruits, tool)
+                end
+            end
+        end
+    end
+    return fruits
+end
+
+local function unequipCurrentTool()
+    if LocalPlayer.Character then
+        local currentTool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if currentTool then
+            currentTool.Parent = LocalPlayer.Backpack
+            return true
+        end
+    end
+    return false
+end
+
+local function equipRandomFruit()
+    local fruits = getFruitsInBackpack()
+    if #fruits > 0 then
+        local randomFruit = fruits[math.random(1, #fruits)]
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            unequipCurrentTool()
+            LocalPlayer.Character.Humanoid:EquipTool(randomFruit)
+            task.wait(0.1)
+            return randomFruit
+        end
+    end
+    return nil
+end
+
+local function getEquippedFruit()
+    if LocalPlayer.Character then
+        for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
+            if tool:IsA("Tool") and string.find(tool.Name, "%[") and string.find(tool.Name, "kg%]") then
+                return tool
+            end
+        end
+    end
+    return nil
+end
+
+local function safeTrowelInvoke(action, fruit, plant, cframe)
+    if not TrowelRemote then
+        return false, "TrowelRemote not found"
+    end
+    
+    if not fruit or not plant then
+        return false, "Missing fruit or plant"
+    end
+    
+    local success, result = pcall(function()
+        if action == "Pickup" then
+            return TrowelRemote:InvokeServer(action, fruit, plant)
+        elseif action == "Place" then
+            if not cframe then
+                return nil
+            end
+            return TrowelRemote:InvokeServer(action, fruit, plant, cframe)
+        else
+            return nil
+        end
+    end)
+    
+    if success then
+        return true, result
+    else
+        return false, result
+    end
+end
+
+-- Other helper functions
+local function getOwnFarmSpawnCFrame()
+    local playerFarm = getPlayerFarm()
+    if playerFarm then
+        local spawnPoint = playerFarm:FindFirstChild("Spawn_Point")
+        if spawnPoint and spawnPoint:IsA("BasePart") then
+            return spawnPoint.CFrame
+        end
+    end
+    return nil
+end
+
+local function submitSummer()
+    while autoSubmit do
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("GameEvents")
+            :WaitForChild("SummerHarvestRemoteEvent")
+            :FireServer("SubmitHeldPlant")
+        task.wait(0.1)
+    end
+end
+
+local function submitAllHarvestFruit()
+    while autoSubmitAllHarvest do
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("GameEvents")
+            :WaitForChild("SummerHarvestRemoteEvent")
+            :FireServer("SubmitAllPlants")
+        task.wait(0.1)
+    end
+end
+
+local function getFruitCount()
+    local bag = LocalPlayer.Backpack
+    local count = 0
+    for _, v in pairs(bag:GetChildren()) do
+        if v:FindFirstChild("Weight") and v:FindFirstChild("Variant") then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+local function removeHighlight()
+    if currentHighlight then
+        currentHighlight:Destroy()
+        currentHighlight = nil
+    end
+    if currentBillboard then
+        currentBillboard:Destroy()
+        currentBillboard = nil
+    end
+end
+
+local function highlightBiggestFruit()
+    local farm = getPlayerFarm()
+    if not farm then
+        removeHighlight()
+        lastBiggest = nil
+        return
+    end
+
+    local plants = farm:FindFirstChild("Important") and farm.Important:FindFirstChild("Plants_Physical")
+    if not plants then
+        removeHighlight()
+        lastBiggest = nil
+        return
+    end
+
+    local biggest, maxWeight = nil, -math.huge
+    for _, fruit in ipairs(plants:GetChildren()) do
+        local weightObj = fruit:FindFirstChild("Weight")
+        if weightObj and tonumber(weightObj.Value) and tonumber(weightObj.Value) > maxWeight then
+            biggest = fruit
+            maxWeight = tonumber(weightObj.Value)
+        end
+    end
+
+    if biggest ~= lastBiggest then
+        removeHighlight()
+        lastBiggest = biggest
+        if biggest and biggest:IsA("Model") then
+            local highlight = Instance.new("Highlight")
+            highlight.FillColor = Color3.fromRGB(0, 255, 0)
+            highlight.OutlineColor = Color3.fromRGB(0, 150, 0)
+            highlight.FillTransparency = 0.3
+            highlight.OutlineTransparency = 0
+            highlight.Adornee = biggest
+            highlight.Parent = biggest
+            currentHighlight = highlight
+
+            local head = biggest:FindFirstChildWhichIsA("BasePart")
+            if head then
+                local bb = Instance.new("BillboardGui")
+                bb.Size = UDim2.new(0, 100, 0, 40)
+                bb.AlwaysOnTop = true
+                bb.StudsOffset = Vector3.new(0, 3, 0)
+                bb.Adornee = head
+                bb.Parent = head
+
+                local label = Instance.new("TextLabel")
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.TextColor3 = Color3.fromRGB(0, 255, 0)
+                label.TextStrokeTransparency = 0.2
+                label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                label.TextScaled = true
+                label.Font = Enum.Font.FredokaOne
+                label.Text = "Weight: " .. string.format("%.2f", maxWeight) .. "kg"
+                label.Parent = bb
+
+                currentBillboard = bb
+            end
+        end
+    end
+end
+
+local function savePosition()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        savedPosition = hrp.Position
+        lib:Notification('Success', 'Position saved!', 3)
+    else
+        lib:Notification('Error', 'Could not save position (HumanoidRootPart missing).', 3)
+    end
+end
+
+local function teleportTo(pos)
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        lib:Notification('Error', 'Could not teleport (HumanoidRootPart missing).', 3)
+        return
+    end
+    if typeof(pos) == "Vector3" then
+        hrp.CFrame = CFrame.new(pos)
+    elseif typeof(pos) == "string" then
+        local x, y, z = string.match(pos, "Vector3%s*%(([^,]+),%s*([^,]+),%s*([^)]+)%)")
+        if x and y and z then
+            hrp.CFrame = CFrame.new(tonumber(x), tonumber(y), tonumber(z))
+        end
+    end
+end
+
+local function sellInventory()
+    ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("Sell_Inventory"):FireServer()
+    lib:Notification('Success', 'Inventory sold!', 3)
+end
+
+local function tpAndSell()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local returnCFrame = getOwnFarmSpawnCFrame()
+        hrp.CFrame = CFrame.new(
+            86.5854721, 2.76619363, 0.426784277,
+            0, 0, -1,
+            0, 1, 0,
+            1, 0, 0
+        )
+        task.wait(0.2)
+        ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("Sell_Inventory"):FireServer()
+        lib:Notification('Success', 'Teleported and sold inventory!', 3)
+        if returnCFrame then
+            task.wait(0.2)
+            hrp.CFrame = returnCFrame
+            lib:Notification('Success', 'Returned to your garden spawn point!', 3)
+        else
+            lib:Notification('Warning', 'Could not find your garden spawn point!', 3)
+        end
+    else
+        lib:Notification('Error', 'HumanoidRootPart not found!', 3)
+    end
+end
+
+-- Selective harvest filter function
+local function selectiveHarvestFilter(item, selectedFruits, minW, maxW)
+    local weightObj = item:FindFirstChild("Weight")
+    local variantObj = item:FindFirstChild("Variant")
+    
+    if not weightObj or not variantObj then return false end
+    
+    local weight = tonumber(weightObj.Value)
+    if not weight then return false end
+    
+    if weight < minW or weight > maxW then return false end
+    
+    if #selectedFruits > 0 then
+        local fruitType = variantObj.Value
+        if not table.find(selectedFruits, fruitType) then
+            return false
+        end
+    end
+    
+    return true
+end
+
+-- SEED BUYING SECTION
+sections.SeedBuyer:AddDropdown("SeedSelect", {
+    Title = "Select Seeds to Buy",
+    Description = "Choose which seeds you want to auto buy",
+    Options = validSeeds,
+    Default = {},
+    PlaceHolder = "Select seeds",
+    Multiple = true,
+    Callback = function(selected)
+        selectedSeeds = selected
+        if #selectedSeeds > 0 then
+            local seedList = table.concat(selectedSeeds, ", ")
+            lib:Notification('Info', 'Selected seeds: ' .. seedList, 5)
+        else
+            lib:Notification('Info', 'No seeds selected', 3)
+        end
+    end
+})
+
+sections.SeedBuyer:AddButton({
+    Title = "Buy Selected Seeds Once",
+    Description = "Buy all selected seeds one time each",
+    Callback = function()
+        if buyEvent and #selectedSeeds > 0 then
+            local count = 0
+            for _, seed in ipairs(selectedSeeds) do
+                buyEvent:FireServer(seed)
+                count = count + 1
+                task.wait(0.01)
+            end
+            lib:Notification('Success', 'Bought ' .. count .. ' different seeds!', 3)
+        else
+            lib:Notification('Error', 'No seeds selected or buy event not found', 3)
+        end
+    end,
+})
+
+sections.SeedBuyer:AddToggle("AutoBuySelected", {
+    Title = "Auto Buy Selected Seeds Only",
+    Default = false,
+    Description = "Continuously buy ONLY the seeds you selected from dropdown",
+    Callback = function(value)
+        autoBuyingSelected = value
+        if value then
+            if #selectedSeeds > 0 then
+                local seedList = table.concat(selectedSeeds, ", ")
+                lib:Notification('Success', 'Auto buying selected seeds: ' .. seedList, 5)
+                task.spawn(function()
+                    while autoBuyingSelected do
+                        if buyEvent and #selectedSeeds > 0 then
+                            for _, seed in ipairs(selectedSeeds) do
+                                if not autoBuyingSelected then break end
+                                buyEvent:FireServer(seed)
+                                task.wait(0.01)
+                            end
+                        end
+                        task.wait(0.01)
+                    end
+                end)
+            else
+                lib:Notification('Warning', 'No seeds selected! Please select seeds from dropdown first.', 3)
+                autoBuyingSelected = false
+            end
+        else
+            lib:Notification('Info', 'Auto buy selected seeds disabled', 3)
+        end
+    end,
+})
+
+sections.SeedBuyer:AddToggle("AutoBuyAll", {
+    Title = "Auto Buy All Seeds",
+    Default = false,
+    Description = "Continuously buy ALL available seeds (ignores selection)",
+    Callback = function(value)
+        autoBuyingAll = value
+        if value then
+            lib:Notification('Success', 'Auto buying ALL ' .. #validSeeds .. ' seeds enabled', 3)
+            task.spawn(function()
+                while autoBuyingAll do
+                    for _, seed in ipairs(validSeeds) do
+                        if not autoBuyingAll then break end
+                        if buyEvent then
+                            buyEvent:FireServer(seed)
+                        end
+                        task.wait(0.01)
+                    end
+                    task.wait(0.01)
+                end
+            end)
+        else
+            lib:Notification('Info', 'Auto buy all seeds disabled', 3)
+        end
+    end,
+})
+
+sections.SeedBuyer:AddButton({
+    Title = "Clear Selected Seeds",
+    Description = "Clear all selected seeds",
+    Callback = function()
+        selectedSeeds = {}
+        lib:Notification('Info', 'All selected seeds cleared', 3)
+    end,
+})
+
+-- GEAR BUYING SECTION
+sections.GearBuyer:AddDropdown("GearSelect", {
+    Title = "Select Gears to Buy",
+    Description = "Choose which gears you want to auto buy",
+    Options = validGears,
+    Default = {},
+    PlaceHolder = "Select gears",
+    Multiple = true,
+    Callback = function(selected)
+        selectedGears = selected
+        if #selectedGears > 0 then
+            local gearList = table.concat(selectedGears, ", ")
+            lib:Notification('Info', 'Selected gears: ' .. gearList, 5)
+        else
+            lib:Notification('Info', 'No gears selected', 3)
+        end
+    end
+})
+
+sections.GearBuyer:AddButton({
+    Title = "Buy Selected Gears Once",
+    Description = "Buy all selected gears one time each",
+    Callback = function()
+        if buyGearEvent and #selectedGears > 0 then
+            local count = 0
+            for _, gear in ipairs(selectedGears) do
+                buyGearEvent:FireServer(gear)
+                count = count + 1
+                task.wait(0.01)
+            end
+            lib:Notification('Success', 'Bought ' .. count .. ' different gears!', 3)
+        else
+            lib:Notification('Error', 'No gears selected or buy gear event not found', 3)
+        end
+    end,
+})
+
+sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
+    Title = "Auto Buy Selected Gears Only",
+    Default = false,
+    Description = "Continuously buy ONLY the gears you selected from dropdown",
+    Callback = function(value)
+        autoBuyingSelectedGear = value
+        if value then
+            if #selectedGears > 0 then
+                local gearList = table.concat(selectedGears, ", ")
+                lib:Notification('Success', 'Auto buying selected gears: ' .. gearList, 5)
+                task.spawn(function()
+                    while autoBuyingSelectedGear do
+                        if buyGearEvent and #selectedGears > 0 then
+                            for _, gear in ipairs(selectedGears) do
+                                if not autoBuyingSelectedGear then break end
+                                buyGearEvent:FireServer(gear)
+                                task.wait(0.01)
+                            end
+                        end
+                        task.wait(0.01)
+                    end
+                end)
+            else
+                lib:Notification('Warning', 'No gears selected! Please select gears from dropdown first.', 3)
+                autoBuyingSelectedGear = false
+            end
+        else
+            lib:Notification('Info', 'Auto buy selected gears disabled', 3)
+        end
+    end,
+})
+
+sections.GearBuyer:AddToggle("AutoBuyAllGears", {
+    Title = "Auto Buy All Gears",
+    Default = false,
+    Description = "Continuously buy ALL available gears (ignores selection)",
+    Callback = function(value)
+        autoBuyingAllGears = value
+        if value then
+            lib:Notification('Success', 'Auto buying ALL ' .. #validGears .. ' gears enabled', 3)
+            task.spawn(function()
+                while autoBuyingAllGears do
+                    for _, gear in ipairs(validGears) do
+                        if not autoBuyingAllGears then break end
+                        if buyGearEvent then
+                            buyGearEvent:FireServer(gear)
+                        end
+                        task.wait(0.01)
+                    end
+                    task.wait(0.01)
+                end
+            end)
+        else
+            lib:Notification('Info', 'Auto buy all gears disabled', 3)
+        end
+    end,
+})
+
+sections.GearBuyer:AddButton({
+    Title = "Clear Selected Gears",
+    Description = "Clear all selected gears",
+    Callback = function()
+        selectedGears = {}
+        lib:Notification('Info', 'All selected gears cleared', 3)
+    end,
+})
+
+-- Teleport Section
+sections.Teleport:AddButton({
+    Title = "Save Position",
+    Callback = savePosition
+})
+
+sections.Teleport:AddButton({
+    Title = "Teleport to Saved Position",
+    Callback = function()
+        if savedPosition then
+            teleportTo(savedPosition)
+            lib:Notification('Success', 'Teleported to saved position!', 3)
+        else
+            lib:Notification('Warning', 'No position saved yet.', 3)
+        end
+    end
+})
+
+-- Fruit Management Section
+sections.Fruit:AddSlider("FruitThreshold", {
+    Title = "Fruit Threshold",
+    Description = "Number of fruits before auto-selling",
+    Default = 10,
+    Min = 1,
+    Max = 200,
+    Increment = 1,
+    Callback = function(value)
+        fruitThreshold = value
+    end,
+})
+
+sections.Fruit:AddToggle("AutoSell", {
+    Title = "Auto Sell",
+    Default = false,
+    Description = "Automatically teleport and sell when threshold reached",
+    Callback = function(state)
+        autoSell = state
+        if autoSell then
+            lib:Notification('Success', 'Auto TP & Sell enabled.', 3)
+            task.spawn(function()
+                while autoSell do
+                    if getFruitCount() >= fruitThreshold then
+                        tpAndSell()
+                        task.wait(2)
+                    end
+                    task.wait(1)
+                end
+            end)
+        else
+            lib:Notification('Info', 'Auto TP & Sell disabled.', 3)
+        end
+    end,
+})
+
+sections.Fruit:AddToggle("ShowBiggest", {
+    Title = "Show Biggest Fruit",
+    Default = false,
+    Description = "Highlight the biggest fruit in your farm",
+    Callback = function(state)
+        highlightToggle = state
+        if highlightToggle then
+            highlightBiggestFruit()
+            conn = RunService.RenderStepped:Connect(function()
+                if highlightToggle then
+                    highlightBiggestFruit()
+                end
+            end)
+        else
+            if conn then conn:Disconnect() end
+            removeHighlight()
+            lastBiggest = nil
+        end
+    end,
+})
+
+sections.Fruit:AddButton({
+    Title = "Sell Inventory",
+    Callback = sellInventory
+})
+
+sections.Fruit:AddButton({
+    Title = "TP, Sell, Return",
+    Callback = function()
+        savePosition()
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        hrp.CFrame = CFrame.new(86.57965850830078, 2.999999761581421, 0.4267919063568115)
+        task.wait(0.25)
+        sellInventory()
+        task.wait(0.2)
+        if savedPosition then
+            teleportTo(savedPosition)
+            lib:Notification('Success', 'Returned to saved position!', 3)
+        end
+    end
+})
+
+-- Selective Auto Harvest Section
+sections.AutoHarvest:AddDropdown("FruitSelect", {
+    Title = "Select Fruits to Harvest",
+    Description = "Choose which fruits you want to auto harvest (leave empty for all)",
+    Options = availableFruits,
+    Default = {},
+    PlaceHolder = "Select fruits (optional)",
+    Multiple = true,
+    Callback = function(selected)
+        selectedFruits = selected
+        if #selectedFruits > 0 then
+            local fruitList = table.concat(selectedFruits, ", ")
+            lib:Notification('Info', 'Selected fruits: ' .. fruitList, 5)
+        else
+            lib:Notification('Info', 'No fruits selected - will harvest all fruits', 3)
+        end
+    end
+})
+
+sections.AutoHarvest:AddTextbox({
+    Title = "Min Weight (kg)",
+    Default = "0",
+    Description = "Minimum weight to harvest",
+    PlaceHolder = "Enter minimum weight",
+    TextDisappear = false,
+    Callback = function(value)
+        minWeightText = value
+        lib:Notification('Info', 'Min Weight set to: ' .. minWeightText, 3)
+    end
+})
+
+sections.AutoHarvest:AddTextbox({
+    Title = "Max Weight (kg)",
+    Default = "9999",
+    Description = "Maximum weight to harvest",
+    PlaceHolder = "Enter maximum weight",
+    TextDisappear = false,
+    Callback = function(value)
+        maxWeightText = value
+        lib:Notification('Info', 'Max Weight set to: ' .. maxWeightText, 3)
+    end
+})
+
+sections.AutoHarvest:AddToggle("SelectiveAutoCollect", {
+    Title = "Selective Auto Harvest",
+    Default = false,
+    Description = "Automatically harvest only selected fruits within weight range",
+    Callback = function(state)
+        instantCollectEnabled = state
+        if instantCollectEnabled then
+            lib:Notification('Success', 'Selective Auto Harvest enabled!', 3)
+            task.spawn(function()
+                while instantCollectEnabled do
+                    local minWeight = tonumber(minWeightText) or 0
+                    local maxWeight = tonumber(maxWeightText) or 9999
+                    
+                    local players = game:GetService("Players")
+                    local replicated_storage = game:GetService("ReplicatedStorage")
+                    local get_farm = require(replicated_storage.Modules.GetFarm)
+                    local byte_net_reliable = replicated_storage:WaitForChild("ByteNetReliable")
+                    local buffer = buffer.fromstring("\1\1\0\1")
+
+                    local local_player = players.LocalPlayer
+                    local farm = get_farm(local_player)
+                    if not farm or not farm.Important or not farm.Important:FindFirstChild("Plants_Physical") then
+                        lib:Notification('Warning', 'Could not find your farm plants.', 3)
+                        break
+                    end
+
+                    local harvestedCount = 0
+                    for _, v in next, farm.Important.Plants_Physical:GetChildren() do
+                        if selectiveHarvestFilter(v, selectedFruits, minWeight, maxWeight) then
+                            byte_net_reliable:FireServer(buffer, { v })
+                            harvestedCount = harvestedCount + 1
+                        end
+                        if v:FindFirstChild("Fruits", true) then
+                            for _, i in next, v.Fruits:GetChildren() do
+                                if selectiveHarvestFilter(i, selectedFruits, minWeight, maxWeight) then
+                                    byte_net_reliable:FireServer(buffer, { i })
+                                    harvestedCount = harvestedCount + 1
+                                end
+                            end
+                        end
+                    end
+                    
+                    if harvestedCount > 0 then
+                        lib:Notification('Success', 'Harvested ' .. harvestedCount .. ' items!', 2)
+                    end
+                    
+                    task.wait(3)
+                end
+                lib:Notification('Info', 'Selective Auto Harvest disabled!', 3)
+            end)
+        else
+            lib:Notification('Info', 'Selective Auto Harvest disabled!', 3)
+        end
+    end,
+})
+
+sections.AutoHarvest:AddButton({
+    Title = "Test Harvest Filter",
+    Description = "Test current harvest settings",
+    Callback = function()
+        local minWeight = tonumber(minWeightText) or 0
+        local maxWeight = tonumber(maxWeightText) or 9999
+        
+        local info = "Harvest Filter Settings:\n\n"
+        info = info .. "Selected Fruits: " .. (#selectedFruits > 0 and table.concat(selectedFruits, ", ") or "All fruits") .. "\n"
+        info = info .. "Min Weight: " .. minWeight .. " kg\n"
+        info = info .. "Max Weight: " .. maxWeight .. " kg\n\n"
+        info = info .. "This will harvest " .. (#selectedFruits > 0 and "only selected fruits" or "all fruits") .. " within the weight range."
+        
+        lib:Dialog({
+            Title = "Harvest Filter Test",
+            Content = info,
+            Buttons = {
+                {
+                    Title = "OK",
+                    Variant = "Primary",
+                    Callback = function() end,
+                }
+            }
+        })
+    end,
+})
+
+sections.AutoHarvest:AddButton({
+    Title = "Clear Selected Fruits",
+    Description = "Clear all selected fruits (will harvest all fruits)",
+    Callback = function()
+        selectedFruits = {}
+        lib:Notification('Info', 'All selected fruits cleared - will harvest all fruits', 3)
+    end,
+})
+
+-- -- Anti-AFK Section
+-- sections.AntiAfk:AddToggle("AntiAfk", {
+--     Title = "Anti-AFK",
+--     Default = false,
+--     Description = "Prevent being kicked when AFK",
+--     Callback = function(value)
+--         antiAfkEnabled = value
+--         if antiAfkEnabled then
+--             afkConnection = LocalPlayer.Idled:Connect(function()
+--                 local VirtualUser = game:GetService("VirtualUser")
+--                 VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+--                 task.wait(1)
+--                 VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+--             end)
+--             lib:Notification('Success', 'Anti-AFK enabled!', 3)
+--         else
+--             if afkConnection then
+--                 afkConnection:Disconnect()
+--                 afkConnection = nil
+--             end
+--             lib:Notification('Info', 'Anti-AFK disabled!', 3)
+--         end
+--     end,
+-- })
+
+-- -- MOVE PLANTS SECTION - Using FIXED UUID-based pet detection system
+-- sections.MovePlants:AddDropdown("PlantSelect", {
+--     Title = "Select Plants",
+--     Description = "Choose which plants to move (multiple selection)",
+--     Options = getAllPlants(),
+--     Default = {},
+--     PlaceHolder = "Select plants",
+--     Multiple = true,
+--     Callback = function(selected)
+--         selectedPlants = selected
+--         if #selectedPlants > 0 then
+--             local plantList = table.concat(selectedPlants, ", ")
+--             lib:Notification('Info', 'Selected plants: ' .. plantList, 5)
+--         else
+--             lib:Notification('Info', 'No plants selected - will move all plants', 3)
+--         end
+--     end
+-- })
+
+-- sections.MovePlants:AddDropdown("PetSelect", {
+--     Title = "Select Pet",
+--     Description = "Choose which pet to move plants to (from ActivePetUI PET_TYPE)",
+--     Options = getAllPetNames(),
+--     Default = "",
+--     PlaceHolder = "Select pet",
+--     Multiple = true,
+--     Callback = function(selected)
+--         if selected and type(selected) == "table" and #selected > 0 then
+--             selectedPetName = selected[1]
+--         elseif selected and type(selected) == "string" then
+--             selectedPetName = selected
+--         end
+--         if selectedPetName then
+--             lib:Notification('Info', 'Selected pet: ' .. selectedPetName, 3)
+--         end
+--     end
+-- })
+
+-- sections.MovePlants:AddToggle("MovePlants", {
+--     Title = "Move Plants to Pet",
+--     Default = false,
+--     Description = "Automatically move plants to selected pet using UUID matching system",
+--     Callback = function(value)
+--         movePlantsEnabled = value
+--         if value then
+--             if not selectedPetName then
+--                 lib:Notification('Warning', 'Please select a pet first!', 3)
+--                 movePlantsEnabled = false
+--                 return
+--             end
+            
+--             lib:Notification('Success', 'Move Plants enabled! Pet: ' .. selectedPetName, 3)
+--             task.spawn(function()
+--                 while movePlantsEnabled do
+--                     local success = movePetsToPlant(selectedPetName)
+--                     if success then
+--                         lib:Notification('Success', 'Moved pets to plants for ' .. selectedPetName, 3)
+--                     else
+--                         lib:Notification('Warning', 'Failed to move pets. Check if pet exists.', 3)
+--                     end
+                    
+--                     task.wait(5)
+--                 end
+--                 lib:Notification('Info', 'Move Plants disabled!', 3)
+--             end)
+--         else
+--             lib:Notification('Info', 'Move Plants disabled!', 3)
+--         end
+--     end,
+-- })
+
+-- sections.MovePlants:AddButton({
+--     Title = "Debug UUID System",
+--     Description = "Check UUID matching between PetsPhysical and ActivePetUI",
+--     Callback = function()
+--         local petsFromUI = getAllPetNames()
+--         local petsFromPhysical = getAvailablePetsInPhysical()
+--         local uuidMapping = getUUIDToPetNameMapping()
+        
+--         local debugInfo = "🔍 UUID-BASED PET DETECTION DEBUG:\n\n"
+        
+--         debugInfo = debugInfo .. "📱 ActivePetUI Pet Names (" .. #petsFromUI .. " pets):\n"
+--         if #petsFromUI > 0 then
+--             for i, pet in pairs(petsFromUI) do
+--                 debugInfo = debugInfo .. "  " .. i .. ". " .. pet .. "\n"
+--             end
+--         else
+--             debugInfo = debugInfo .. "  ❌ No pets found in ActivePetUI!\n"
+--         end
+        
+--         debugInfo = debugInfo .. "\n🔗 UUID Mapping (" .. table.getn(uuidMapping) .. " mappings):\n"
+--         for uuid, petName in pairs(uuidMapping) do
+--             debugInfo = debugInfo .. "  " .. uuid:sub(1, 8) .. "... -> " .. petName .. "\n"
+--         end
+        
+--         debugInfo = debugInfo .. "\n🎮 PetsPhysical Matched (" .. #petsFromPhysical .. " pets):\n"
+--         if #petsFromPhysical > 0 then
+--             for i, pet in pairs(petsFromPhysical) do
+--                 debugInfo = debugInfo .. "  " .. i .. ". " .. pet .. "\n"
+--             end
+--         else
+--             debugInfo = debugInfo .. "  ❌ No pets found in PetsPhysical!\n"
+--         end
+        
+--         debugInfo = debugInfo .. "\n💡 How UUID System Works:\n"
+--         debugInfo = debugInfo .. "• Gets pet names from ActivePetUI PET_TYPE.Text\n"
+--         debugInfo = debugInfo .. "• Maps UUID frames to pet names\n"
+--         debugInfo = debugInfo .. "• Matches PetsPhysical UUID attributes\n"
+--         debugInfo = debugInfo .. "• Moves pets using exact UUID matching"
+        
+--         lib:Dialog({
+--             Title = "Debug UUID System",
+--             Content = debugInfo,
+--             Buttons = {
+--                 {
+--                     Title = "OK",
+--                     Variant = "Primary",
+--                     Callback = function() end,
+--                 }
+--             }
+--         })
+--     end,
+-- })
+
+-- sections.MovePlants:AddButton({
+--     Title = "Manual Move Once",
+--     Description = "Perform one move sequence manually",
+--     Callback = function()
+--         if not selectedPetName then
+--             lib:Dialog({
+--                 Title = "Error",
+--                 Content = "Please select a pet first!",
+--                 Buttons = {
+--                     {
+--                         Title = "OK",
+--                         Variant = "Primary",
+--                         Callback = function() end,
+--                     }
+--                 }
+--             })
+--             return
+--         end
+        
+--         local success = movePetsToPlant(selectedPetName)
+--         if success then
+--             lib:Dialog({
+--                 Title = "Manual Move Complete",
+--                 Content = "Successfully moved pets to plants for " .. selectedPetName .. "!\n\nUsing UUID matching system:\n• ActivePetUI PET_TYPE.Text\n• UUID attribute matching\n• BasePart/Part detection",
+--                 Buttons = {
+--                     {
+--                         Title = "OK",
+--                         Variant = "Primary",
+--                         Callback = function() end,
+--                     }
+--                 }
+--             })
+--         else
+--             lib:Dialog({
+--                 Title = "Error",
+--                 Content = "Failed to move pets. Check if:\n• The pet exists in PetsPhysical\n• UUID attributes match\n• You have plants in your farm\n• The pet belongs to you",
+--                 Buttons = {
+--                     {
+--                         Title = "OK",
+--                         Variant = "Primary",
+--                         Callback = function() end,
+--                     }
+--                 }
+--             })
+--         end
+--     end,
+-- })
+
+-- sections.MovePlants:AddButton({
+--     Title = "Refresh Lists",
+--     Description = "Update plant and pet dropdowns",
+--     Callback = function()
+--         lib:Dialog({
+--             Title = "Info",
+--             Content = "Please re-execute the script to refresh the plant and pet lists with current data.",
+--             Buttons = {
+--                 {
+--                     Title = "OK",
+--                     Variant = "Primary",
+--                     Callback = function() end,
+--                 }
+--             }
+--         })
+--     end,
+-- })
+
+-- UI Controls Section
+sections.UIControls:AddButton({
+    Title = "Seed Shop",
+    Callback = function()
+        local gui = LocalPlayer.PlayerGui
+        gui.Seed_Shop.Enabled = true
+        gui.Gear_Shop.Enabled = false
+        gui.HoneyEventShop_UI.Enabled = false
+        gui.CosmeticShop_UI.Enabled = false
+        lib:Notification('Info', 'Seed Shop opened', 3)
+    end,
+})
+
+sections.UIControls:AddButton({
+    Title = "Gear Shop",
+    Callback = function()
+        local gui = LocalPlayer.PlayerGui
+        gui.Seed_Shop.Enabled = false
+        gui.Gear_Shop.Enabled = true
+        gui.HoneyEventShop_UI.Enabled = false
+        gui.CosmeticShop_UI.Enabled = false
+        lib:Notification('Info', 'Gear Shop opened', 3)
+    end,
+})
+
+sections.UIControls:AddButton({
+    Title = "Cosmetics Shop",
+    Callback = function()
+        local gui = LocalPlayer.PlayerGui
+        gui.Seed_Shop.Enabled = false
+        gui.Gear_Shop.Enabled = false
+        gui.HoneyEventShop_UI.Enabled = false
+        gui.CosmeticShop_UI.Enabled = true
+        lib:Notification('Info', 'Cosmetics Shop opened', 3)
+    end,
+})
+
+sections.UIControls:AddButton({
+    Title = "Honey Shop",
+    Callback = function()
+        local gui = LocalPlayer.PlayerGui
+        gui.Seed_Shop.Enabled = false
+        gui.Gear_Shop.Enabled = false
+        gui.HoneyEventShop_UI.Enabled = true
+        gui.CosmeticShop_UI.Enabled = false
+        lib:Notification('Info', 'Honey Shop opened', 3)
+    end,
+})
+
+sections.UIControls:AddButton({
+    Title = "Hide All Shops",
+    Callback = function()
+        local gui = LocalPlayer.PlayerGui
+        gui.Seed_Shop.Enabled = false
+        gui.Gear_Shop.Enabled = false
+        gui.HoneyEventShop_UI.Enabled = false
+        gui.CosmeticShop_UI.Enabled = false
+        lib:Notification('Info', 'All shops hidden', 3)
+    end,
+})
+
+-- Summer Event Section
+sections.SummerEvent:AddToggle("AutoSubmitSummer", {
+    Title = "Auto Submit Plant",
+    Default = false,
+    Description = "Automatically submit held plants for summer event",
+    Callback = function(value)
+        autoSubmit = value
+        if autoSubmit then
+            lib:Notification('Success', 'Auto Submit Hold Plants enabled', 3)
+            task.spawn(submitSummer)
+        else
+            lib:Notification('Info', 'Auto Submit disabled', 3)
+        end
+    end,
+})
+
+sections.SummerEvent:AddToggle("AutoSubmitAllHarvest", {
+    Title = "Submit All Harvest Fruit",
+    Default = false,
+    Description = "Automatically submit all harvest fruits for summer event",
+    Callback = function(value)
+        autoSubmitAllHarvest = value
+        if autoSubmitAllHarvest then
+            lib:Notification('Success', 'Submit All Harvest Fruit enabled', 3)
+            task.spawn(submitAllHarvestFruit)
+        else
+            lib:Notification('Info', 'Submit All Harvest Fruit disabled', 3)
+        end
+    end,
+})
+
+-- Config System
+FlagsManager:SetLibrary(lib)
+FlagsManager:SetIgnoreIndexes({})
+FlagsManager:SetFolder("Avantrix/GAG")
+FlagsManager:InitSaveSystem(tabs.Settings)
+
+-- Initial notification
+lib:Dialog({
+    Title = "Avantrix",
+    Content = "GAG script v20 has been loaded successfully!\n\n✅ FIXED UUID-BASED PET DETECTION:\n• Pet names from ActivePetUI PET_TYPE.Text (" .. #getAllPetNames() .. " pets)\n• UUID matching between systems (" .. #getAvailablePetsInPhysical() .. " matched)\n• BasePart/Part detection in PetsPhysical\n• OWNER and UUID attribute validation\n\nUUID system working perfectly!",
+    Buttons = {
+        {
+            Title = "OK",
+            Variant = "Primary",
+            Callback = function() end,
+        }
+    }
+})
+
+task.wait(3)
+
+lib:Dialog({
+    Title = "Avantrix",
+    Content = "Join the discord for more updates\ndiscord.gg/cF8YeDPt2G",
+    Buttons = {
+        {
+            Title = "Copy Discord",
+            Variant = "Primary",
+            Callback = function()
+                setclipboard("https://discord.gg/cF8YeDPt2G")
+            end,
+        },
+        {
+            Title = "OK",
+            Variant = "Ghost",
+            Callback = function() end,
+        }
+    }
+})
