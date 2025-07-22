@@ -368,7 +368,6 @@ local function autoSubmitToNPCLoop()
             if hasTranquil then
                 local success = submitToNPC(selectedNPC)
                 if success then
-                    lib:Notification('Success', 'Submitted plants to ' .. selectedNPC .. ' with Tranquil: ' .. tranquilItemName, 3)
                 end
             else
                 -- Wait longer if no Tranquil is found
