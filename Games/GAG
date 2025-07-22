@@ -76,8 +76,8 @@ local sections = {
     GearBuyer = tabs.Shop:AddSection({Title = "Gear Purchasing", Description = "Auto buy gears", Defualt = true, Locked = false}),
     Teleport = tabs.Main:AddSection({Title = "Teleport", Description = "Teleportation utilities", Defualt = true, Locked = false}),
     Fruit = tabs.Main:AddSection({Title = "Fruit Management", Description = "Fruit collection and selling", Defualt = false, Locked = false}),
-    AutoHarvest = tabs.Main:AddSection({Title = "Mutasi Collection", Description = "Collect fruits with specific mutations", Defualt = false, Locked = false}),
-    MovePlants = tabs.Auto:AddSection({Title = "Move Plants", Description = "Automatically move all plants to selected pet", Defualt = true, Locked = false}),
+    AutoHarvest = tabs.Auto:AddSection({Title = "Mutasi Collection", Description = "Collect fruits with specific mutations", Defualt = false, Locked = false}),
+    -- MovePlants = tabs.Auto:AddSection({Title = "Move Plants", Description = "Automatically move all plants to selected pet", Defualt = true, Locked = false}),
     UIControls = tabs.Shop:AddSection({Title = "UI Controls", Description = "Toggle game UIs", Defualt = true, Locked = false}),
     NPCSubmission = tabs.Event:AddSection({Title = "Zen Event", Description = "Submit plants to NPCs", Defualt = true, Locked = false}),
 }
