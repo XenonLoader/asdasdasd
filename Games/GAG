@@ -91,29 +91,14 @@ var.WelcomeParagraph = sections.Welcome:AddParagraph({
 
 var.WelcomeParagraph:SetTitle(gradient("Welcome to GAG Hub!"))
 var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
-[+] FIXED: UUID-based pet detection system
-[+] Pet names from ActivePetUI PET_TYPE.Text
-[+] UUID matching between PetsPhysical and ActivePetUI
-[+] Proper BasePart/Part detection in PetsPhysical
-[/] All features working properly
+
 
 <b><font color='rgb(255, 255, 255)'>----------------------------------------[Features]--------------------------------------</font></b>
 
 <font color="rgb(255,255,255)">Version:</font> ]] .. formatVersion(LRM_ScriptVersion) .. [[
 
 <font color="rgb(255,255,255)">Features:</font>
-• FIXED: UUID-based Pet Detection System
-• Pet Names: From ActivePetUI PET_TYPE.Text
-• UUID Matching: PetsPhysical ↔ ActivePetUI
-• Automatically finds player's farm using GetFarm module
-• Smart Auto Buy Seeds - only selected items
-• Smart Auto Buy Gears - only selected items
-• Selective Auto Harvest - choose specific fruits
-• Weight-based Harvest with custom ranges
-• Auto Fruit Collection & Selling
-• Summer Event Automation
-• Anti-AFK Protection
-• UI Management Tools
+
 
 <font color="rgb(255,255,255)">Instructions:</font>
 1. Select plants from dropdown (multiple selection)
@@ -181,7 +166,7 @@ local autoBuyingAll = false
 -- Gear Buying Variables
 local validGears = {
     "Basic Sprinkler", "Advanced Sprinkler", "Godly Sprinkler",
-    "Master Sprinkler", "Recall Wrench", "Tanning Mirror", "Trowel", "Watering Can", "Harvest Tool", "Friendship Pot", "Cleaning Spray"
+    "Master Sprinkler", "Recall Wrench", "Tanning Mirror", "Trowel", "Watering Can", "Harvest Tool", "Friendship Pot", "Cleaning Spray","Medium Toy", "Medium Treat","Levelup Lollipop"
 }
 local selectedGears = {}
 local autoBuyingSelectedGear = false
@@ -252,17 +237,14 @@ local function getAllPetNames()
             if main then
                 local scrollingFrame = main:FindFirstChild("ScrollingFrame")
                 if scrollingFrame then
-                    print("ScrollingFrame found, checking for UUID frames...")
                     
                     for _, child in pairs(scrollingFrame:GetChildren()) do
                         -- Check if this is a UUID frame (contains hyphens and is long enough)
                         if child:IsA("Frame") and string.find(child.Name, "-") and string.len(child.Name) > 20 then
-                            print("Found UUID frame:", child.Name)
                             
                             -- Look for PET_TYPE inside this UUID frame
                             local petType = child:FindFirstChild("PET_TYPE")
                             if petType and petType:IsA("TextLabel") and petType.Text ~= "" then
-                                print("Found PET_TYPE with text:", petType.Text)
                                 
                                 -- Store both the pet name and UUID for later matching
                                 local petData = {
@@ -274,21 +256,16 @@ local function getAllPetNames()
                                     table.insert(petNames, petType.Text)
                                 end
                             else
-                                print("PET_TYPE not found or empty in frame:", child.Name)
                             end
                         end
                     end
                 else
-                    print("ScrollingFrame not found in Main")
                 end
             else
-                print("Main not found in Frame")
             end
         else
-            print("Frame not found in ActivePetUI")
         end
     else
-        print("ActivePetUI not found in PlayerGui")
     end
     
     print("Total pet names found:", #petNames)
