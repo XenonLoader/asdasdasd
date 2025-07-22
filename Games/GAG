@@ -27,11 +27,6 @@ if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
--- Gradient function
-function gradient(text)
-    return text -- Simplified for now
-end
-
 -- Format version function
 function formatVersion(version)
     local formattedVersion = "v" .. version:sub(2):gsub(".", "%0.")
