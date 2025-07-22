@@ -27,6 +27,47 @@ if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
+-- Gradient function
+local function interpolate_color(color1, color2, t)
+    local r = math.floor((1 - t) * color1[1] + t * color2[1])
+    local g = math.floor((1 - t) * color1[2] + t * color2[2])
+    local b = math.floor((1 - t) * color1[3] + t * color2[3])
+    return string.format("#%02x%02x%02x", r, g, b)
+end
+
+local function hex_to_rgb(hex)
+    if hex:sub(1, 1) == "#" then
+        hex = hex:sub(2)
+    end
+    
+    return {
+        tonumber(hex:sub(1, 2), 16),
+        tonumber(hex:sub(3, 4), 16),
+        tonumber(hex:sub(5, 6), 16)
+    }
+end
+
+local function gradient(word)
+    if not word or #word == 0 then
+        return "Error"
+    end
+
+    local start_color = hex_to_rgb("ea00ff")
+    local end_color = hex_to_rgb("5700ff")
+
+    local gradient_word = ""
+    local word_len = #word
+    local step = 1.0 / math.max(word_len - 1, 1)
+
+    for i = 1, word_len do
+        local t = step * (i - 1)
+        local color = interpolate_color(start_color, end_color, t)
+        gradient_word = gradient_word .. string.format('<font color="%s">%s</font>', color, word:sub(i, i))
+    end
+
+    return gradient_word
+end
+
 -- Format version function
 function formatVersion(version)
     local formattedVersion = "v" .. version:sub(2):gsub(".", "%0.")
@@ -69,10 +110,10 @@ local sections = {
     Welcome = tabs.Welcome:AddSection({Defualt = true, Locked = true}),
     SeedBuyer = tabs.Shop:AddSection({Title = "Seed Purchasing", Description = "Auto buy seeds with stock detection", Defualt = true, Locked = false}),
     GearBuyer = tabs.Shop:AddSection({Title = "Gear Purchasing", Description = "Auto buy gears with stock detection", Defualt = true, Locked = false}),
+    ZenShop = tabs.Shop:AddSection({Title = "Zen Shop", Description = "Auto buy Zen items with stock detection", Defualt = true, Locked = false}),
     Teleport = tabs.Main:AddSection({Title = "Teleport", Description = "Teleportation utilities", Defualt = true, Locked = false}),
     Fruit = tabs.Main:AddSection({Title = "Fruit Management", Description = "Fruit collection and selling", Defualt = false, Locked = false}),
     AutoHarvest = tabs.Auto:AddSection({Title = "Mutasi Collection", Description = "Collect fruits with specific mutations", Defualt = false, Locked = false}),
-    UIControls = tabs.Shop:AddSection({Title = "UI Controls", Description = "Toggle game UIs", Defualt = true, Locked = false}),
     NPCSubmission = tabs.Event:AddSection({Title = "Zen Event", Description = "Submit plants to NPCs with Tranquil detection", Defualt = true, Locked = false}),
 }
 
@@ -94,16 +135,18 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 <font color="rgb(255,255,255)">Version:</font> ]] .. formatVersion(LRM_ScriptVersion) .. [[
 
 <font color="rgb(255,255,255)">Features:</font>
+- Enhanced Instant Purchase System (ALL STOCK AT ONCE)
 - Smart Stock Detection System
-- Auto Buy with Stock Monitoring
+- Auto Purchase System (All at once)
 - Mutasi Collection System
 - Auto Sell & Teleport
 - Tranquil Detection for NPC Submission
+- Zen Shop Auto Buying
 
 <font color="rgb(255,255,255)">Instructions:</font>
 1. Select items from dropdown (multiple selection)
-2. Enable auto buy - script will check stock automatically
-3. Script only buys when stock > 0 (X1 Stock or higher)
+2. Enable auto buy - script will purchase ALL STOCK of selected items INSTANTLY
+3. Script buys MAXIMUM STOCK available for each item simultaneously
 4. Auto stops when stock is empty (X0 Stock)
 5. NPC submission only works when Tranquil mutasi is detected in backpack
 6. Join our Discord for support
@@ -153,48 +196,150 @@ local autoSubmitToNPC = false
 
 -- FIXED: Valid Mutasi list based on the image attributes
 local validMutasi = {
+    "Wet",
+    "Chilled",
+    "Frozen",
+    "Moonlit",
+    "Bloodlit",
+    "Shocked",
+    "Gold",
+    "Rainbow",
+    "Pollinated",
+    "HoneyGlazed",
+    "Windstruck",
+    "Burnt",
+    "Cooked",
+    "Plasma",
+    "Heavenly",
+    "Molten",
+    "Disco",
+    "Voidtouched",
+    "Twisted",
+    "Dawnbound",
+    "Sundried",
+    "Drenched",
+    "Sandy",
+    "Wilt",
+    "Wiltproof",
+    "Aurora",
+    "Fried",
+    "Cloudtouched",
+    "Clay",
+    "Ceramic",
+    "Amber",
+    "OldAmber",
+    "AncientAmber",
+    "Tempestuous",
+    "Paradisal",
+    "Infected",
     "Tranquil",
     "Chakra",
     "Foxfire Chakra",
     "Radioactive",
-    "Twisted",
-    "Shocked",
-    "Celestial", 
-    "Aurora",
-    "Drenched",
-    "Sandy",
-    "Plasma",
-    "Dawnbound",
-    "Gold",
-    "Rainbow",
-    "Wet",
-    "Chilled",
-    "Pollinated",
-    "HoneyGlazed",
-    "Voidtouched",
-    "Friendbound",
-    "Eclipsed",
-    "Moonlit"
 }
 
 -- Seed Buying Variables with Stock Detection
 local validSeeds = {
-    "Carrot", "Strawberry", "Blueberry", "Tomato", "Orange Tulip", "Corn", 
-    "Daffodil", "Watermelon", "Pumpkin", "Apple", "Bamboo", "Coconut", 
-    "Cactus", "Dragon Fruit", "Mango", "Grape","Mushroom","Pepper","Cacao","Beanstalk","Ember Lily","Sugar Apple","Burning Bud"
+    "Carrot",
+    "Strawberry",
+    "Blueberry",
+    "Orange Tulip",
+    "Tomato",
+    "Daffodil",
+    "Watermelon",
+    "Pumpkin",
+    "Apple",
+    "Bamboo",
+    "Coconut",
+    "Cactus",
+    "Dragon Fruit",
+    "Mango",
+    "Grape",
+    "Mushroom",
+    "Pepper",
+    "Cacao",
+    "Beanstalk",
+    "Ember Lily",
+    "Sugar Apple",
+    "Burning Bud",
+    "Giant Pinecone",
+    "Monoblooma",
+    "Serenity",
+    "Taro Flower",
+    "Zen Rocks",
+    "Firefly Fern",
+    "Maple Apple",
+    "Zenflare",
+    "Soft Sunshine",
+    "Spiked Mango",
 }
+
 local selectedSeeds = {}
 local autoBuyingSelected = false
 local autoBuyingAll = false
 
 -- Gear Buying Variables with Stock Detection
 local validGears = {
-    "Basic Sprinkler", "Advanced Sprinkler", "Godly Sprinkler",
-    "Master Sprinkler", "Recall Wrench", "Tanning Mirror", "Trowel", "Watering Can", "Harvest Tool", "Friendship Pot", "Cleaning Spray","Medium Toy", "Medium Treat","Levelup Lollipop"
+    "Watering Can",
+    "Trowel",
+    "Recall Wrench",
+    "Basic Sprinkler",
+    "Advanced Sprinkler",
+    "Godly Sprinkler",
+    "Master Sprinkler",
+    "Firework",
+    "Chocolate Sprinkler",
+    "Magnifying Glass",
+    "Tanning Mirror",
+    "Cleaning Spray",
+    "Favorite Tool",
+    "Harvest Tool",
+    "Friendship Pot",
+    "Medium Toy",
+    "Medium Treat",
+    "Level Up Lollipop",
+    "Lightning Rod",
+    "Berry Blusher Sprinkler",
+    "Flower Froster Sprinkler",
+    "Honey Sprinkler",
+    "Nectar Staff",
+    "Pollen Radar",
+    "Pet Shard Tranquil",
+    "Reclaimer",
+    "Shovel",
+    "Small Toy",
+    "Small Treat",
+    "Spice Spritzer Sprinkler",
+    "Stalk Sprout Sprinkler",
+    "Star Caller",
+    "Sweet Soaker Sprinkler",
+    "Tranquil Radar",
+    "Tropical Mist Sprinkler"
 }
+
 local selectedGears = {}
 local autoBuyingSelectedGear = false
 local autoBuyingAllGears = false
+
+-- NEW: Zen Shop Variables with Stock Detection
+local validZenShop = {
+    "Zen Seed Pack",
+    "Zen Egg",
+    "Hot Spring",
+    "Zen Sand",
+    "Tranquil Radar",
+    "Zenflare",
+    "Zen Crate",
+    "Soft Sunshine",
+    "Koi",
+    "Zen Gnome Crate",
+    "Spiked Mango",
+    "Pet Shard Tranquil"
+}
+
+local selectedZenItems = {}
+local autoBuyingSelectedZen = false
+local autoBuyingAllZen = false
 
 -- Available NPCs for submission
 local availableNPCs = {
@@ -206,6 +351,7 @@ local availableNPCs = {
 local rs = ReplicatedStorage
 local buyEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuySeedStock")
 local buyGearEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuyGearStock")
+local buyZenEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuyEventShopStock")
 
 -- NPC RemoteEvents
 local ZenQuestRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("ZenQuestRemoteEvent")
@@ -214,7 +360,7 @@ local ZenAuraRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:Fin
 game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Gear.Visible = true
 game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Pets.Visible = true
 
--- STOCK DETECTION FUNCTIONS
+-- ENHANCED STOCK DETECTION FUNCTIONS
 local function getSeedStock(seedName)
     local success, stock = pcall(function()
         local seedShop = LocalPlayer.PlayerGui:FindFirstChild("Seed_Shop")
@@ -279,27 +425,117 @@ local function getGearStock(gearName)
     end
 end
 
--- ENHANCED BUYING FUNCTIONS WITH STOCK DETECTION
-local function buySeedWithStockCheck(seedName)
-    local stock = getSeedStock(seedName)
-    if stock > 0 then
-        if buyEvent then
-            buyEvent:FireServer(seedName)
-            return true, stock
-        end
+-- NEW: Zen Shop Stock Detection Function
+local function getZenStock(zenItemName)
+    local success, stock = pcall(function()
+        local zenShop = LocalPlayer.PlayerGui:FindFirstChild("HoneyEventShop_UI")
+        if not zenShop then return 0 end
+        
+        local frame = zenShop:FindFirstChild("Frame")
+        if not frame then return 0 end
+        
+        local scrollingFrame = frame:FindFirstChild("ScrollingFrame")
+        if not scrollingFrame then return 0 end
+        
+        local zenFrame = scrollingFrame:FindFirstChild(zenItemName)
+        if not zenFrame then return 0 end
+        
+        local mainFrame = zenFrame:FindFirstChild("Main_Frame")
+        if not mainFrame then return 0 end
+        
+        local stockText = mainFrame:FindFirstChild("Stock_Text")
+        if not stockText then return 0 end
+        
+        -- Parse stock text (format: "X15 Stock" or "X0 Stock")
+        local stockNumber = string.match(stockText.Text, "X(%d+)")
+        return tonumber(stockNumber) or 0
+    end)
+    
+    if success then
+        return stock
+    else
+        return 0
     end
-    return false, stock
 end
 
-local function buyGearWithStockCheck(gearName)
-    local stock = getGearStock(gearName)
-    if stock > 0 then
-        if buyGearEvent then
-            buyGearEvent:FireServer(gearName)
-            return true, stock
+-- ENHANCED INSTANT PURCHASE FUNCTIONS - BUY ALL STOCK AT ONCE
+local function instantBuyAllSeedStock(seedList)
+    local totalPurchased = 0
+    local purchaseDetails = {}
+    
+    for _, seedName in ipairs(seedList) do
+        local stock = getSeedStock(seedName)
+        if stock > 0 then
+            -- Buy ALL available stock for this seed
+            for i = 1, stock do
+                if buyEvent then
+                    buyEvent:FireServer(seedName)
+                    totalPurchased = totalPurchased + 1
+                end
+                task.wait(0.01) -- Small delay to prevent rate limiting
+            end
+            table.insert(purchaseDetails, seedName .. " (x" .. stock .. ")")
         end
     end
-    return false, stock
+    
+    if totalPurchased > 0 then
+        lib:Notification('Success', 'Purchased ' .. totalPurchased .. ' seeds: ' .. table.concat(purchaseDetails, ", "), 5)
+    end
+    
+    return totalPurchased
+end
+
+local function instantBuyAllGearStock(gearList)
+    local totalPurchased = 0
+    local purchaseDetails = {}
+    
+    for _, gearName in ipairs(gearList) do
+        local stock = getGearStock(gearName)
+        if stock > 0 then
+            -- Buy ALL available stock for this gear
+            for i = 1, stock do
+                if buyGearEvent then
+                    buyGearEvent:FireServer(gearName)
+                    totalPurchased = totalPurchased + 1
+                end
+                task.wait(0.01) -- Small delay to prevent rate limiting
+            end
+            table.insert(purchaseDetails, gearName .. " (x" .. stock .. ")")
+        end
+    end
+    
+    if totalPurchased > 0 then
+        lib:Notification('Success', 'Purchased ' .. totalPurchased .. ' gears: ' .. table.concat(purchaseDetails, ", "), 5)
+    end
+    
+    return totalPurchased
+end
+
+-- NEW: Zen Shop Enhanced Instant Buying Function
+local function instantBuyAllZenStock(zenList)
+    local totalPurchased = 0
+    local purchaseDetails = {}
+    
+    for _, zenItemName in ipairs(zenList) do
+        local stock = getZenStock(zenItemName)
+        if stock > 0 then
+            -- Buy ALL available stock for this zen item
+            for i = 1, stock do
+                if buyZenEvent then
+                    buyZenEvent:FireServer(zenItemName)
+                    totalPurchased = totalPurchased + 1
+                end
+                task.wait(0.01) -- Small delay to prevent rate limiting
+            end
+            table.insert(purchaseDetails, zenItemName .. " (x" .. stock .. ")")
+        end
+    end
+    
+    if totalPurchased > 0 then
+        lib:Notification('Success', 'Purchased ' .. totalPurchased .. ' zen items: ' .. table.concat(purchaseDetails, ", "), 5)
+    end
+    
+    return totalPurchased
 end
 
 -- Helper Functions using GetFarm module
@@ -542,10 +778,10 @@ local function mutasiCollectFilter(item, selectedMutasi)
     return false
 end
 
--- ENHANCED SEED BUYING SECTION WITH STOCK DETECTION
+-- ENHANCED SEED BUYING SECTION WITH ALL STOCK PURCHASE
 sections.SeedBuyer:AddDropdown("SeedSelect", {
     Title = "Select Seeds to Buy",
-    Description = "Choose which seeds you want to auto buy (with stock detection)",
+    Description = "Choose which seeds you want to auto buy (ALL STOCK)",
     Options = validSeeds,
     Default = {},
     PlaceHolder = "Select seeds",
@@ -554,7 +790,6 @@ sections.SeedBuyer:AddDropdown("SeedSelect", {
         selectedSeeds = selected
         if #selectedSeeds > 0 then
             local seedList = table.concat(selectedSeeds, ", ")
-            lib:Notification('Info', 'Selected seeds: ' .. seedList, 5)
         else
             lib:Notification('Info', 'No seeds selected', 3)
         end
@@ -564,29 +799,18 @@ sections.SeedBuyer:AddDropdown("SeedSelect", {
 sections.SeedBuyer:AddToggle("AutoBuySelected", {
     Title = "Auto Buy Selected Seeds",
     Default = false,
-    Description = "Continuously buy ONLY selected seeds when stock",
+    Description = "",
     Callback = function(value)
         autoBuyingSelected = value
         if value then
             if #selectedSeeds > 0 then
-                local seedList = table.concat(selectedSeeds, ", ")
                 task.spawn(function()
                     while autoBuyingSelected do
-                        local anyPurchased = false
-                        for _, seed in ipairs(selectedSeeds) do
-                            if not autoBuyingSelected then break end
-                            local success, stock = buySeedWithStockCheck(seed)
-                            if success then
-                                anyPurchased = true
-                            end
-                            task.wait(0.01)
-                        end
-                        
-                        -- If no items were purchased (all out of stock), wait longer
-                        if not anyPurchased then
-                            task.wait(2)
+                        local purchased = instantBuyAllSeedStock(selectedSeeds)
+                        if purchased == 0 then
+                            task.wait(5) -- Wait longer if no stock available
                         else
-                            task.wait(0.1)
+                            task.wait(2) -- Wait shorter if purchases were made
                         end
                     end
                 end)
@@ -595,48 +819,38 @@ sections.SeedBuyer:AddToggle("AutoBuySelected", {
                 autoBuyingSelected = false
             end
         else
-            lib:Notification('Info', 'Smart auto buy selected seeds disabled', 3)
+            lib:Notification('Info', 'Auto buy selected seeds disabled', 3)
         end
     end,
 })
 
 sections.SeedBuyer:AddToggle("AutoBuyAll", {
-    Title = "Auto Buy All Seeds (Smart Stock)",
+    Title = "Auto Buy All Seeds",
     Default = false,
-    Description = "Continuously buy ALL available seeds when stock",
+    Description = "Auto Buy All Seeds all stock",
     Callback = function(value)
         autoBuyingAll = value
         if value then
             task.spawn(function()
                 while autoBuyingAll do
-                    local anyPurchased = false
-                    for _, seed in ipairs(validSeeds) do
-                        if not autoBuyingAll then break end
-                        local success, stock = buySeedWithStockCheck(seed)
-                        if success then
-                            anyPurchased = true
-                        end
-                        task.wait(0.01)
-                    end
-                    
-                    if not anyPurchased then
-                        task.wait(2)
+                    local purchased = instantBuyAllSeedStock(validSeeds)
+                    if purchased == 0 then
+                        task.wait(5) -- Wait longer if no stock available
                     else
-                        task.wait(0.1)
+                        task.wait(2) -- Wait shorter if purchases were made
                     end
                 end
             end)
         else
-            lib:Notification('Info', 'Smart auto buy all seeds disabled', 3)
+            lib:Notification('Info', 'Auto buy all seeds disabled', 3)
         end
     end,
 })
 
-
--- ENHANCED GEAR BUYING SECTION WITH STOCK DETECTION
+-- ENHANCED GEAR BUYING SECTION WITH ALL STOCK PURCHASE
 sections.GearBuyer:AddDropdown("GearSelect", {
     Title = "Select Gears to Buy",
-    Description = "Choose which gears you want to auto buy (with stock detection)",
+    Description = "Choose which gears you want to auto buy (ALL STOCK)",
     Options = validGears,
     Default = {},
     PlaceHolder = "Select gears",
@@ -645,37 +859,27 @@ sections.GearBuyer:AddDropdown("GearSelect", {
         selectedGears = selected
         if #selectedGears > 0 then
             local gearList = table.concat(selectedGears, ", ")
-            lib:Notification('Info', 'Selected gears: ' .. gearList, 5)
         else
             lib:Notification('Info', 'No gears selected', 3)
         end
     end
 })
+
 sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
     Title = "Auto Buy Selected Gears",
     Default = false,
-    Description = "Continuously buy ONLY selected gears when stock",
+    Description = "",
     Callback = function(value)
         autoBuyingSelectedGear = value
         if value then
             if #selectedGears > 0 then
-                local gearList = table.concat(selectedGears, ", ")
                 task.spawn(function()
                     while autoBuyingSelectedGear do
-                        local anyPurchased = false
-                        for _, gear in ipairs(selectedGears) do
-                            if not autoBuyingSelectedGear then break end
-                            local success, stock = buyGearWithStockCheck(gear)
-                            if success then
-                                anyPurchased = true
-                            end
-                            task.wait(0.01)
-                        end
-                        
-                        if not anyPurchased then
-                            task.wait(2)
+                        local purchased = instantBuyAllGearStock(selectedGears)
+                        if purchased == 0 then
+                            task.wait(5) -- Wait longer if no stock available
                         else
-                            task.wait(0.1)
+                            task.wait(2) -- Wait shorter if purchases were made
                         end
                     end
                 end)
@@ -684,38 +888,100 @@ sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
                 autoBuyingSelectedGear = false
             end
         else
-            lib:Notification('Info', 'Smart auto buy selected gears disabled', 3)
+            lib:Notification('Info', 'Auto buy selected gears disabled', 3)
         end
     end,
 })
 
 sections.GearBuyer:AddToggle("AutoBuyAllGears", {
-    Title = "Auto Buy All Gears (Smart Stock)",
+    Title = "Auto Buy All Gears",
     Default = false,
-    Description = "Continuously buy ALL available gears when stock",
+    Description = "Auto Buy All Gears all stock",
     Callback = function(value)
         autoBuyingAllGears = value
         if value then
             task.spawn(function()
                 while autoBuyingAllGears do
-                    local anyPurchased = false
-                    for _, gear in ipairs(validGears) do
-                        if not autoBuyingAllGears then break end
-                        local success, stock = buyGearWithStockCheck(gear)
-                        if success then
-                            anyPurchased = true
-                        end
-                        task.wait(0.01)
-                    end
-                    if not anyPurchased then
-                        task.wait(2)
+                    local purchased = instantBuyAllGearStock(validGears)
+                    if purchased == 0 then
+                        task.wait(5) -- Wait longer if no stock available
                     else
-                        task.wait(0.1)
+                        task.wait(2) -- Wait shorter if purchases were made
                     end
                 end
             end)
         else
-            lib:Notification('Info', 'Smart auto buy all gears disabled', 3)
+            lib:Notification('Info', 'Auto buy all gears disabled', 3)
+        end
+    end,
+})
+
+-- ENHANCED ZEN SHOP SECTION WITH ALL STOCK PURCHASE
+sections.ZenShop:AddDropdown("ZenSelect", {
+    Title = "Select Zen Items to Buy",
+    Description = "Choose which Zen items you want to auto buy (ALL STOCK)",
+    Options = validZenShop,
+    Default = {},
+    PlaceHolder = "Select Zen items",
+    Multiple = true,
+    Callback = function(selected)
+        selectedZenItems = selected
+        if #selectedZenItems > 0 then
+            local zenList = table.concat(selectedZenItems, ", ")
+            lib:Notification('Info', 'Selected Zen items: ' .. zenList .. ' (Will buy ALL STOCK)', 5)
+        else
+            lib:Notification('Info', 'No Zen items selected', 3)
+        end
+    end
+})
+
+sections.ZenShop:AddToggle("AutoBuySelectedZen", {
+    Title = "Auto Buy Selected Zen Items",
+    Default = false,
+    Description = "Auto Buy With Selected",
+    Callback = function(value)
+        autoBuyingSelectedZen = value
+        if value then
+            if #selectedZenItems > 0 then
+                task.spawn(function()
+                    while autoBuyingSelectedZen do
+                        local purchased = instantBuyAllZenStock(selectedZenItems)
+                        if purchased == 0 then
+                            task.wait(5) -- Wait longer if no stock available
+                        else
+                            task.wait(2) -- Wait shorter if purchases were made
+                        end
+                    end
+                end)
+            else
+                lib:Notification('Warning', 'No Zen items selected! Please select Zen items from dropdown first.', 3)
+                autoBuyingSelectedZen = false
+            end
+        else
+            lib:Notification('Info', 'Auto buy selected Zen items disabled', 3)
+        end
+    end,
+})
+
+sections.ZenShop:AddToggle("AutoBuyAllZen", {
+    Title = "Auto Buy All Zen Items",
+    Default = false,
+    Description = "Auto Buy All item in zen shop",
+    Callback = function(value)
+        autoBuyingAllZen = value
+        if value then
+            task.spawn(function()
+                while autoBuyingAllZen do
+                    local purchased = instantBuyAllZenStock(validZenShop)
+                    if purchased == 0 then
+                        task.wait(5) -- Wait longer if no stock available
+                    else
+                        task.wait(2) -- Wait shorter if purchases were made
+                    end
+                end
+            end)
+        else
+            lib:Notification('Info', 'Auto buy all Zen items disabled', 3)
         end
     end,
 })
@@ -893,43 +1159,6 @@ sections.AutoHarvest:AddToggle("MutasiAutoCollect", {
     end,
 })
 
--- UI Controls Section
-sections.UIControls:AddButton({
-    Title = "Seed Shop",
-    Callback = function()
-        local gui = LocalPlayer.PlayerGui
-        gui.Seed_Shop.Enabled = true
-        gui.Gear_Shop.Enabled = false
-        gui.HoneyEventShop_UI.Enabled = false
-        gui.CosmeticShop_UI.Enabled = false
-        lib:Notification('Info', 'Seed Shop opened', 3)
-    end,
-})
-
-sections.UIControls:AddButton({
-    Title = "Gear Shop",
-    Callback = function()
-        local gui = LocalPlayer.PlayerGui
-        gui.Seed_Shop.Enabled = false
-        gui.Gear_Shop.Enabled = true
-        gui.HoneyEventShop_UI.Enabled = false
-        gui.CosmeticShop_UI.Enabled = false
-        lib:Notification('Info', 'Gear Shop opened', 3)
-    end,
-})
-
-sections.UIControls:AddButton({
-    Title = "Hide All Shops",
-    Callback = function()
-        local gui = LocalPlayer.PlayerGui
-        gui.Seed_Shop.Enabled = false
-        gui.Gear_Shop.Enabled = false
-        gui.HoneyEventShop_UI.Enabled = false
-        gui.CosmeticShop_UI.Enabled = false
-        lib:Notification('Info', 'All shops hidden', 3)
-    end,
-})
-
 -- ENHANCED NPC Submission Section with Tranquil Detection
 sections.NPCSubmission:AddButton({
     Title = "Check Tranquil in Backpack",
@@ -968,6 +1197,7 @@ sections.NPCSubmission:AddDropdown("NPCSelect", {
         end
     end
 })
+
 sections.NPCSubmission:AddToggle("AutoSubmitNPC", {
     Title = "Auto Submit to NPC (Tranquil Required)",
     Default = false,
