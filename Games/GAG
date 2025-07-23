@@ -160,6 +160,7 @@ local autoSubmitToNPC = false
 local chiDetectionEnabled = true
 local lastChiCheck = 0
 
+
 -- FIXED: Valid Mutasi list based on the image attributes
 local validMutasi = {
     "Wet",
@@ -323,6 +324,10 @@ local buyEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChil
 local buyGearEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuyGearStock")
 -- FIXED: Direct reference to BuyEventShopStock as per your working code
 local buyZenEvent = rs.GameEvents.BuyEventShopStock
+
+-- NPC RemoteEvents
+local ZenQuestRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("ZenQuestRemoteEvent")
+local ZenAuraRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("ZenAuraRemoteEvent")
 
 game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Gear.Visible = true
 game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Pets.Visible = true
