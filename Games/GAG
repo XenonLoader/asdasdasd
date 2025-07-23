@@ -351,7 +351,8 @@ local availableNPCs = {
 local rs = ReplicatedStorage
 local buyEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuySeedStock")
 local buyGearEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuyGearStock")
-local buyZenEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuyEventShopStock")
+-- FIXED: Direct reference to BuyEventShopStock as per your working code
+local buyZenEvent = rs.GameEvents.BuyEventShopStock
 
 -- NPC RemoteEvents
 local ZenQuestRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("ZenQuestRemoteEvent")
@@ -428,7 +429,7 @@ end
 -- NEW: Zen Shop Stock Detection Function
 local function getZenStock(zenItemName)
     local success, stock = pcall(function()
-        local zenShop = LocalPlayer.PlayerGui:FindFirstChild("HoneyEventShop_UI")
+        local zenShop = LocalPlayer.PlayerGui:FindFirstChild("EventShop_UI")
         if not zenShop then return 0 end
         
         local frame = zenShop:FindFirstChild("Frame")
@@ -511,28 +512,36 @@ local function instantBuyAllGearStock(gearList)
     return totalPurchased
 end
 
--- NEW: Zen Shop Enhanced Instant Buying Function
+-- FIXED: Zen Shop Enhanced Instant Buying Function
 local function instantBuyAllZenStock(zenList)
     local totalPurchased = 0
     local purchaseDetails = {}
     
+    
     for _, zenItemName in ipairs(zenList) do
         local stock = getZenStock(zenItemName)
+        
         if stock > 0 then
             -- Buy ALL available stock for this zen item
             for i = 1, stock do
-                if buyZenEvent then
+                local success = pcall(function()
                     buyZenEvent:FireServer(zenItemName)
                     totalPurchased = totalPurchased + 1
+                end)
+                
+                if not success then
                 end
+                
                 task.wait(0.01) -- Small delay to prevent rate limiting
             end
             table.insert(purchaseDetails, zenItemName .. " (x" .. stock .. ")")
+        else
         end
     end
     
     if totalPurchased > 0 then
         lib:Notification('Success', 'Purchased ' .. totalPurchased .. ' zen items: ' .. table.concat(purchaseDetails, ", "), 5)
+    else
     end
     
     return totalPurchased
@@ -579,9 +588,7 @@ local function submitToNPC(npcName)
         lib:Notification('Warning', 'No Tranquil mutasi found in backpack! Cannot submit to NPC.', 5)
         return false
     end
-    
-    lib:Notification('Info', 'Tranquil detected: ' .. tranquilItemName .. ' - Submitting to ' .. npcName, 3)
-    
+        
     if npcName == "Channeller" then
         if ZenQuestRemoteEvent then
             ZenQuestRemoteEvent:FireServer("SubmitAllPlants")
@@ -790,6 +797,7 @@ sections.SeedBuyer:AddDropdown("SeedSelect", {
         selectedSeeds = selected
         if #selectedSeeds > 0 then
             local seedList = table.concat(selectedSeeds, ", ")
+            lib:Notification('Info', 'Selected seeds: ' .. seedList .. ' (Will buy ALL STOCK)', 5)
         else
             lib:Notification('Info', 'No seeds selected', 3)
         end
@@ -799,7 +807,7 @@ sections.SeedBuyer:AddDropdown("SeedSelect", {
 sections.SeedBuyer:AddToggle("AutoBuySelected", {
     Title = "Auto Buy Selected Seeds",
     Default = false,
-    Description = "",
+    Description = "Continuously buy ALL STOCK of selected seeds simultaneously",
     Callback = function(value)
         autoBuyingSelected = value
         if value then
@@ -859,6 +867,7 @@ sections.GearBuyer:AddDropdown("GearSelect", {
         selectedGears = selected
         if #selectedGears > 0 then
             local gearList = table.concat(selectedGears, ", ")
+            lib:Notification('Info', 'Selected gears: ' .. gearList .. ' (Will buy ALL STOCK)', 5)
         else
             lib:Notification('Info', 'No gears selected', 3)
         end
@@ -868,7 +877,7 @@ sections.GearBuyer:AddDropdown("GearSelect", {
 sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
     Title = "Auto Buy Selected Gears",
     Default = false,
-    Description = "",
+    Description = "Continuously buy ALL STOCK of selected gears simultaneously",
     Callback = function(value)
         autoBuyingSelectedGear = value
         if value then
@@ -985,7 +994,6 @@ sections.ZenShop:AddToggle("AutoBuyAllZen", {
         end
     end,
 })
-
 -- Teleport Section
 sections.Teleport:AddButton({
     Title = "Save Position",
