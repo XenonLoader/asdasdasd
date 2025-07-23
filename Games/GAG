@@ -128,7 +128,9 @@ var.WelcomeParagraph = sections.Welcome:AddParagraph({
 
 var.WelcomeParagraph:SetTitle(gradient("Welcome to GAG Hub!"))
 var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
-
+[+] Removed spam purchase notifications
+[+] Silent purchasing system
+[/] Optimized buying performance
 
 <b><font color='rgb(255, 255, 255)'>----------------------------------------[Features]--------------------------------------</font></b>
 
@@ -137,7 +139,7 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 <font color="rgb(255,255,255)">Features:</font>
 - Enhanced Instant Purchase System (ALL STOCK AT ONCE)
 - Smart Stock Detection System
-- Auto Purchase System (All at once)
+- Silent Auto Purchase System (No spam notifications)
 - Mutasi Collection System
 - Auto Sell & Teleport
 - Tranquil Detection for NPC Submission
@@ -459,10 +461,9 @@ local function getZenStock(zenItemName)
     end
 end
 
--- ENHANCED INSTANT PURCHASE FUNCTIONS - BUY ALL STOCK AT ONCE
+-- ENHANCED INSTANT PURCHASE FUNCTIONS - BUY ALL STOCK AT ONCE (SILENT)
 local function instantBuyAllSeedStock(seedList)
     local totalPurchased = 0
-    local purchaseDetails = {}
     
     for _, seedName in ipairs(seedList) do
         local stock = getSeedStock(seedName)
@@ -475,12 +476,7 @@ local function instantBuyAllSeedStock(seedList)
                 end
                 task.wait(0.01) -- Small delay to prevent rate limiting
             end
-            table.insert(purchaseDetails, seedName .. " (x" .. stock .. ")")
         end
-    end
-    
-    if totalPurchased > 0 then
-        lib:Notification('Success', 'Purchased ' .. totalPurchased .. ' seeds: ' .. table.concat(purchaseDetails, ", "), 5)
     end
     
     return totalPurchased
@@ -488,7 +484,6 @@ end
 
 local function instantBuyAllGearStock(gearList)
     local totalPurchased = 0
-    local purchaseDetails = {}
     
     for _, gearName in ipairs(gearList) do
         local stock = getGearStock(gearName)
@@ -501,22 +496,15 @@ local function instantBuyAllGearStock(gearList)
                 end
                 task.wait(0.01) -- Small delay to prevent rate limiting
             end
-            table.insert(purchaseDetails, gearName .. " (x" .. stock .. ")")
         end
-    end
-    
-    if totalPurchased > 0 then
-        lib:Notification('Success', 'Purchased ' .. totalPurchased .. ' gears: ' .. table.concat(purchaseDetails, ", "), 5)
     end
     
     return totalPurchased
 end
 
--- FIXED: Zen Shop Enhanced Instant Buying Function
+-- FIXED: Zen Shop Enhanced Instant Buying Function (SILENT)
 local function instantBuyAllZenStock(zenList)
     local totalPurchased = 0
-    local purchaseDetails = {}
-    
     
     for _, zenItemName in ipairs(zenList) do
         local stock = getZenStock(zenItemName)
@@ -529,19 +517,9 @@ local function instantBuyAllZenStock(zenList)
                     totalPurchased = totalPurchased + 1
                 end)
                 
-                if not success then
-                end
-                
                 task.wait(0.01) -- Small delay to prevent rate limiting
             end
-            table.insert(purchaseDetails, zenItemName .. " (x" .. stock .. ")")
-        else
         end
-    end
-    
-    if totalPurchased > 0 then
-        lib:Notification('Success', 'Purchased ' .. totalPurchased .. ' zen items: ' .. table.concat(purchaseDetails, ", "), 5)
-    else
     end
     
     return totalPurchased
@@ -785,7 +763,7 @@ local function mutasiCollectFilter(item, selectedMutasi)
     return false
 end
 
--- ENHANCED SEED BUYING SECTION WITH ALL STOCK PURCHASE
+-- ENHANCED SEED BUYING SECTION WITH ALL STOCK PURCHASE (SILENT)
 sections.SeedBuyer:AddDropdown("SeedSelect", {
     Title = "Select Seeds to Buy",
     Description = "Choose which seeds you want to auto buy (ALL STOCK)",
@@ -795,19 +773,13 @@ sections.SeedBuyer:AddDropdown("SeedSelect", {
     Multiple = true,
     Callback = function(selected)
         selectedSeeds = selected
-        if #selectedSeeds > 0 then
-            local seedList = table.concat(selectedSeeds, ", ")
-            lib:Notification('Info', 'Selected seeds: ' .. seedList .. ' (Will buy ALL STOCK)', 5)
-        else
-            lib:Notification('Info', 'No seeds selected', 3)
-        end
     end
 })
 
 sections.SeedBuyer:AddToggle("AutoBuySelected", {
     Title = "Auto Buy Selected Seeds",
     Default = false,
-    Description = "Continuously buy ALL STOCK of selected seeds simultaneously",
+    Description = "Continuously buy ALL STOCK of selected seeds simultaneously (Silent)",
     Callback = function(value)
         autoBuyingSelected = value
         if value then
@@ -826,8 +798,6 @@ sections.SeedBuyer:AddToggle("AutoBuySelected", {
                 lib:Notification('Warning', 'No seeds selected! Please select seeds from dropdown first.', 3)
                 autoBuyingSelected = false
             end
-        else
-            lib:Notification('Info', 'Auto buy selected seeds disabled', 3)
         end
     end,
 })
@@ -835,7 +805,7 @@ sections.SeedBuyer:AddToggle("AutoBuySelected", {
 sections.SeedBuyer:AddToggle("AutoBuyAll", {
     Title = "Auto Buy All Seeds",
     Default = false,
-    Description = "Auto Buy All Seeds all stock",
+    Description = "Auto Buy All Seeds all stock (Silent)",
     Callback = function(value)
         autoBuyingAll = value
         if value then
@@ -849,13 +819,11 @@ sections.SeedBuyer:AddToggle("AutoBuyAll", {
                     end
                 end
             end)
-        else
-            lib:Notification('Info', 'Auto buy all seeds disabled', 3)
         end
     end,
 })
 
--- ENHANCED GEAR BUYING SECTION WITH ALL STOCK PURCHASE
+-- ENHANCED GEAR BUYING SECTION WITH ALL STOCK PURCHASE (SILENT)
 sections.GearBuyer:AddDropdown("GearSelect", {
     Title = "Select Gears to Buy",
     Description = "Choose which gears you want to auto buy (ALL STOCK)",
@@ -865,19 +833,13 @@ sections.GearBuyer:AddDropdown("GearSelect", {
     Multiple = true,
     Callback = function(selected)
         selectedGears = selected
-        if #selectedGears > 0 then
-            local gearList = table.concat(selectedGears, ", ")
-            lib:Notification('Info', 'Selected gears: ' .. gearList .. ' (Will buy ALL STOCK)', 5)
-        else
-            lib:Notification('Info', 'No gears selected', 3)
-        end
     end
 })
 
 sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
     Title = "Auto Buy Selected Gears",
     Default = false,
-    Description = "Continuously buy ALL STOCK of selected gears simultaneously",
+    Description = "Continuously buy ALL STOCK of selected gears simultaneously (Silent)",
     Callback = function(value)
         autoBuyingSelectedGear = value
         if value then
@@ -896,8 +858,6 @@ sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
                 lib:Notification('Warning', 'No gears selected! Please select gears from dropdown first.', 3)
                 autoBuyingSelectedGear = false
             end
-        else
-            lib:Notification('Info', 'Auto buy selected gears disabled', 3)
         end
     end,
 })
@@ -905,7 +865,7 @@ sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
 sections.GearBuyer:AddToggle("AutoBuyAllGears", {
     Title = "Auto Buy All Gears",
     Default = false,
-    Description = "Auto Buy All Gears all stock",
+    Description = "Auto Buy All Gears all stock (Silent)",
     Callback = function(value)
         autoBuyingAllGears = value
         if value then
@@ -919,13 +879,11 @@ sections.GearBuyer:AddToggle("AutoBuyAllGears", {
                     end
                 end
             end)
-        else
-            lib:Notification('Info', 'Auto buy all gears disabled', 3)
         end
     end,
 })
 
--- ENHANCED ZEN SHOP SECTION WITH ALL STOCK PURCHASE
+-- ENHANCED ZEN SHOP SECTION WITH ALL STOCK PURCHASE (SILENT)
 sections.ZenShop:AddDropdown("ZenSelect", {
     Title = "Select Zen Items to Buy",
     Description = "Choose which Zen items you want to auto buy (ALL STOCK)",
@@ -935,19 +893,13 @@ sections.ZenShop:AddDropdown("ZenSelect", {
     Multiple = true,
     Callback = function(selected)
         selectedZenItems = selected
-        if #selectedZenItems > 0 then
-            local zenList = table.concat(selectedZenItems, ", ")
-            lib:Notification('Info', 'Selected Zen items: ' .. zenList .. ' (Will buy ALL STOCK)', 5)
-        else
-            lib:Notification('Info', 'No Zen items selected', 3)
-        end
     end
 })
 
 sections.ZenShop:AddToggle("AutoBuySelectedZen", {
     Title = "Auto Buy Selected Zen Items",
     Default = false,
-    Description = "Auto Buy With Selected",
+    Description = "Auto Buy With Selected (Silent)",
     Callback = function(value)
         autoBuyingSelectedZen = value
         if value then
@@ -966,8 +918,6 @@ sections.ZenShop:AddToggle("AutoBuySelectedZen", {
                 lib:Notification('Warning', 'No Zen items selected! Please select Zen items from dropdown first.', 3)
                 autoBuyingSelectedZen = false
             end
-        else
-            lib:Notification('Info', 'Auto buy selected Zen items disabled', 3)
         end
     end,
 })
@@ -975,7 +925,7 @@ sections.ZenShop:AddToggle("AutoBuySelectedZen", {
 sections.ZenShop:AddToggle("AutoBuyAllZen", {
     Title = "Auto Buy All Zen Items",
     Default = false,
-    Description = "Auto Buy All item in zen shop",
+    Description = "Auto Buy All item in zen shop (Silent)",
     Callback = function(value)
         autoBuyingAllZen = value
         if value then
@@ -989,11 +939,10 @@ sections.ZenShop:AddToggle("AutoBuyAllZen", {
                     end
                 end
             end)
-        else
-            lib:Notification('Info', 'Auto buy all Zen items disabled', 3)
         end
     end,
 })
+
 -- Teleport Section
 sections.Teleport:AddButton({
     Title = "Save Position",
