@@ -26,48 +26,6 @@ repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.C
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
-
--- Gradient function
-local function interpolate_color(color1, color2, t)
-    local r = math.floor((1 - t) * color1[1] + t * color2[1])
-    local g = math.floor((1 - t) * color1[2] + t * color2[2])
-    local b = math.floor((1 - t) * color1[3] + t * color2[3])
-    return string.format("#%02x%02x%02x", r, g, b)
-end
-
-local function hex_to_rgb(hex)
-    if hex:sub(1, 1) == "#" then
-        hex = hex:sub(2)
-    end
-    
-    return {
-        tonumber(hex:sub(1, 2), 16),
-        tonumber(hex:sub(3, 4), 16),
-        tonumber(hex:sub(5, 6), 16)
-    }
-end
-
-local function gradient(word)
-    if not word or #word == 0 then
-        return "Error"
-    end
-
-    local start_color = hex_to_rgb("ea00ff")
-    local end_color = hex_to_rgb("5700ff")
-
-    local gradient_word = ""
-    local word_len = #word
-    local step = 1.0 / math.max(word_len - 1, 1)
-
-    for i = 1, word_len do
-        local t = step * (i - 1)
-        local color = interpolate_color(start_color, end_color, t)
-        gradient_word = gradient_word .. string.format('<font color="%s">%s</font>', color, word:sub(i, i))
-    end
-
-    return gradient_word
-end
-
 -- Format version function
 function formatVersion(version)
     local formattedVersion = "v" .. version:sub(2):gsub(".", "%0.")
