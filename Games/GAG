@@ -1123,14 +1123,14 @@ sections.ZenShop:AddToggle("TDetection", {
 })
 
 sections.ZenShop:AddToggle("AutoBuySelectedZen", {
-    Title = "Auto Buy Selected Zen Items",
+    Title = "Auto Buy Selected Zen Items (Chi Check)",
     Default = false,
-    Description = "Auto buy all available stock - Stops when not enough Chi (T detection works separately)",
+    Description = "Auto buy ALL available stock - Stops when not enough Chi",
     Callback = function(value)
         autoBuyingSelectedZen = value
         if value then
             if #selectedZenItems > 0 then
-                lib:Notification('Success', 'Auto buying Zen items enabled! Checking Chi & stock (T detection separate)', 3)
+                lib:Notification('Success', 'Auto buying Zen items enabled! Checking Chi & stock', 3)
                 task.spawn(function()
                     while autoBuyingSelectedZen do
                         -- Check Chi before starting purchase cycle
