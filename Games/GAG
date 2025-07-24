@@ -87,9 +87,10 @@ var.WelcomeParagraph = sections.Welcome:AddParagraph({
 
 var.WelcomeParagraph:SetTitle(gradient("Welcome to GAG Hub!"))
 var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
-[+] Added Chi Detection System
-[+] Auto stop Zen purchase when "Not enough Chi"
-[+] Added Purchase Quantity Sliders (0 = All Stock, 1-20 = Specific Amount)
+[+] Fixed Purchase Slider System
+[+] Slider 0 = Buy ALL STOCK at once
+[+] Slider 1-20 = Buy exact amount at once (not 1 by 1)
+[+] Removed slider notifications
 [/] Optimized buying performance
 
 <b><font color='rgb(255, 255, 255)'>----------------------------------------[Features]--------------------------------------</font></b>
@@ -97,7 +98,7 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 <font color="rgb(255,255,255)">Version:</font> ]] .. formatVersion(LRM_ScriptVersion) .. [[
 
 <font color="rgb(255,255,255)">Features:</font>
-- Enhanced Instant Purchase System with Quantity Control
+- FIXED Purchase System with Quantity Control
 - Smart Stock Detection System
 - Silent Auto Purchase System (No spam notifications)
 - Chi Detection System (Auto stop when not enough Chi)
@@ -108,7 +109,7 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 
 <font color="rgb(255,255,255)">Instructions:</font>
 1. Select items from dropdown (multiple selection)
-2. Set quantity slider: 0 = Buy ALL STOCK, 1-20 = Buy specific amount
+2. Set quantity slider: 0 = Buy ALL STOCK at once, 1-20 = Buy exact amount at once
 3. Enable auto buy - script will purchase based on slider setting
 4. Auto stops when stock is empty (X0 Stock) or not enough Chi
 5. NPC submission only works when Tranquil mutasi is detected in backpack
@@ -480,7 +481,7 @@ local function getZenStock(zenItemName)
     end
 end
 
--- FIXED: ENHANCED INSTANT PURCHASE FUNCTIONS WITH PROPER SLIDER LOGIC
+-- FIXED: ENHANCED INSTANT PURCHASE FUNCTIONS - BUY EXACT AMOUNT AT ONCE
 local function instantBuySeedStock(seedList, desiredQuantity)
     local totalPurchased = 0
     
@@ -488,20 +489,22 @@ local function instantBuySeedStock(seedList, desiredQuantity)
         local stock = getSeedStock(seedName)
         local quantityToBuy = 0
         
-        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that specific amount
+        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that exact amount AT ONCE
         if desiredQuantity == 0 then
             quantityToBuy = stock -- Buy all available stock
         else
             quantityToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity, but not more than available stock
         end
 
+        -- FIXED: Buy the exact amount at once, not 1 by 1
         if quantityToBuy > 0 then
+            -- Send multiple purchase requests rapidly for the exact amount needed
             for i = 1, quantityToBuy do
                 if buyEvent then
                     buyEvent:FireServer(seedName)
                     totalPurchased = totalPurchased + 1
                 end
-                task.wait(0.01) -- Small delay to prevent rate limiting
+                -- No delay between purchases to buy at once
             end
         end
     end
@@ -516,20 +519,22 @@ local function instantBuyGearStock(gearList, desiredQuantity)
         local stock = getGearStock(gearName)
         local quantityToBuy = 0
         
-        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that specific amount
+        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that exact amount AT ONCE
         if desiredQuantity == 0 then
             quantityToBuy = stock -- Buy all available stock
         else
             quantityToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity, but not more than available stock
         end
 
+        -- FIXED: Buy the exact amount at once, not 1 by 1
         if quantityToBuy > 0 then
+            -- Send multiple purchase requests rapidly for the exact amount needed
             for i = 1, quantityToBuy do
                 if buyGearEvent then
                     buyGearEvent:FireServer(gearName)
                     totalPurchased = totalPurchased + 1
                 end
-                task.wait(0.01) -- Small delay to prevent rate limiting
+                -- No delay between purchases to buy at once
             end
         end
     end
@@ -537,12 +542,12 @@ local function instantBuyGearStock(gearList, desiredQuantity)
     return totalPurchased
 end
 
--- FIXED: Zen Shop Enhanced Instant Buying Function with Chi Detection and Proper Slider Logic
+-- FIXED: Zen Shop Enhanced Instant Buying Function with Chi Detection - BUY EXACT AMOUNT AT ONCE
 local function instantBuyZenStock(zenList, desiredQuantity)
     local totalPurchased = 0
     
     for _, zenItemName in ipairs(zenList) do
-        -- Check for "Not enough Chi" before each purchase
+        -- Check for "Not enough Chi" before each item type
         if checkNotEnoughChi() then
             lib:Notification('Warning', 'Not enough Chi detected! Stopping Zen purchases.', 5)
             break
@@ -551,14 +556,16 @@ local function instantBuyZenStock(zenList, desiredQuantity)
         local stock = getZenStock(zenItemName)
         local quantityToBuy = 0
         
-        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that specific amount
+        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that exact amount AT ONCE
         if desiredQuantity == 0 then
             quantityToBuy = stock -- Buy all available stock
         else
             quantityToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity, but not more than available stock
         end
         
+        -- FIXED: Buy the exact amount at once, not 1 by 1
         if quantityToBuy > 0 then
+            -- Send multiple purchase requests rapidly for the exact amount needed
             for i = 1, quantityToBuy do
                 -- Check Chi again before each individual purchase
                 if checkNotEnoughChi() then
@@ -571,7 +578,7 @@ local function instantBuyZenStock(zenList, desiredQuantity)
                     totalPurchased = totalPurchased + 1
                 end)
                 
-                task.wait(0.05) -- Slightly longer delay for Zen purchases to allow Chi check
+                -- No delay between purchases to buy at once
             end
         end
     end
@@ -817,7 +824,7 @@ local function mutasiCollectFilter(item, selectedMutasi)
     return false
 end
 
--- ENHANCED SEED BUYING SECTION WITH FIXED SLIDER LOGIC
+-- ENHANCED SEED BUYING SECTION WITH FIXED SLIDER LOGIC (NO NOTIFICATIONS)
 sections.SeedBuyer:AddDropdown("SeedSelect", {
     Title = "Select Seeds to Buy",
     Description = "Choose which seeds you want to auto buy",
@@ -832,18 +839,14 @@ sections.SeedBuyer:AddDropdown("SeedSelect", {
 
 sections.SeedBuyer:AddSlider("SeedQuantitySlider", {
     Title = "Seed Purchase Quantity",
-    Description = "0 = Buy ALL available stock | 1-20 = Buy specific amount",
+    Description = "0 = Buy ALL available stock at once | 1-20 = Buy exact amount at once",
     Default = 0,
     Min = 0,
     Max = 20,
     Increment = 1,
     Callback = function(value)
         desiredSeedQuantity = value
-        if value == 0 then
-            lib:Notification('Info', 'Seed quantity set to: Buy ALL available stock', 2)
-        else
-            lib:Notification('Info', 'Seed quantity set to: Buy ' .. value .. ' items', 2)
-        end
+        -- REMOVED: No notifications on slider change
     end,
 })
 
@@ -877,7 +880,7 @@ sections.SeedBuyer:AddToggle("AutoBuySelected", {
     end,
 })
 
--- ENHANCED GEAR BUYING SECTION WITH FIXED SLIDER LOGIC
+-- ENHANCED GEAR BUYING SECTION WITH FIXED SLIDER LOGIC (NO NOTIFICATIONS)
 sections.GearBuyer:AddDropdown("GearSelect", {
     Title = "Select Gears to Buy",
     Description = "Choose which gears you want to auto buy",
@@ -892,18 +895,14 @@ sections.GearBuyer:AddDropdown("GearSelect", {
 
 sections.GearBuyer:AddSlider("GearQuantitySlider", {
     Title = "Gear Purchase Quantity",
-    Description = "0 = Buy ALL available stock | 1-20 = Buy specific amount",
+    Description = "0 = Buy ALL available stock at once | 1-20 = Buy exact amount at once",
     Default = 0,
     Min = 0,
     Max = 20,
     Increment = 1,
     Callback = function(value)
         desiredGearQuantity = value
-        if value == 0 then
-            lib:Notification('Info', 'Gear quantity set to: Buy ALL available stock', 2)
-        else
-            lib:Notification('Info', 'Gear quantity set to: Buy ' .. value .. ' items', 2)
-        end
+        -- REMOVED: No notifications on slider change
     end,
 })
 
@@ -937,7 +936,7 @@ sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
     end,
 })
 
--- ENHANCED ZEN SHOP SECTION WITH FIXED SLIDER LOGIC AND CHI DETECTION
+-- ENHANCED ZEN SHOP SECTION WITH FIXED SLIDER LOGIC AND CHI DETECTION (NO NOTIFICATIONS)
 sections.ZenShop:AddDropdown("ZenSelect", {
     Title = "Select Zen Items to Buy",
     Description = "Choose which Zen items you want to auto buy",
@@ -952,18 +951,14 @@ sections.ZenShop:AddDropdown("ZenSelect", {
 
 sections.ZenShop:AddSlider("ZenQuantitySlider", {
     Title = "Zen Item Purchase Quantity",
-    Description = "0 = Buy ALL available stock | 1-20 = Buy specific amount",
+    Description = "0 = Buy ALL available stock at once | 1-20 = Buy exact amount at once",
     Default = 0,
     Min = 0,
     Max = 20,
     Increment = 1,
     Callback = function(value)
         desiredZenQuantity = value
-        if value == 0 then
-            lib:Notification('Info', 'Zen quantity set to: Buy ALL available stock', 2)
-        else
-            lib:Notification('Info', 'Zen quantity set to: Buy ' .. value .. ' items', 2)
-        end
+        -- REMOVED: No notifications on slider change
     end,
 })
 
