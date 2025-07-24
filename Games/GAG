@@ -4,9 +4,9 @@ local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/
 
 local LPH_JIT_MAX = function(...) return(...) end;
 local LPH_NO_VIRTUALIZE = function(...) return(...) end;
-local LPH_CRASH = function(...) while task.wait() do game:GetService("ScriptContext"):SetTimeout(math.huge);while true do while true do while true do while true do while true do while true do while true do while true do print("noob") end end end end end end end end end;
+local LPH_CRASH = function(...) while task.wait() do game:GetService("ScriptContext"):SetTimeout(math.huge);while true do while true do while true do while true do while true do while true do while true do while true do print("noob") end end end end end end end end end end;
 local LRM_UserNote = "Owner"
-local LRM_ScriptVersion = "v14"
+local LRM_ScriptVersion = "14"
 local ClonedPrint = print
 
 if LPH_OBFUSCATED then
@@ -26,6 +26,7 @@ repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.C
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
+
 -- Format version function
 function formatVersion(version)
     local formattedVersion = "v" .. version:sub(2):gsub(".", "%0.")
