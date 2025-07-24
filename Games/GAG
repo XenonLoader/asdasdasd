@@ -700,7 +700,6 @@ local function buyAllZenStock(zenList)
     
     -- NEW: Check T threshold before starting
     if isAtTThreshold() then
-        lib:Notification('Warning', 'T threshold reached! Stopping Zen purchases.', 5)
         return 0
     end
     
@@ -730,7 +729,6 @@ local function buyAllZenStock(zenList)
             
             -- NEW: Check T threshold before each purchase
             if isAtTThreshold() then
-                lib:Notification('Warning', 'T threshold reached during purchase! Stopping.', 5)
                 return totalPurchased
             end
             
@@ -1108,14 +1106,13 @@ sections.ZenShop:AddTextbox({
 
 -- NEW: T Detection Toggle
 sections.ZenShop:AddToggle("TDetection", {
-    Title = "Auto Restock",
+    Title = "Stop purchasing required enbale ",
     Default = false,
     Description = "Stop purchasing when restock cost reaches specified T value",
     Callback = function(value)
         tDetectionEnabled = value
         if value then
             lib:Notification('Success', 'T detection enabled! Will stop at ' .. stopAtTValue .. 'T', 3)
-            restockZenShop()
         else
             lib:Notification('Info', 'T detection disabled!', 3)
         end
@@ -1123,7 +1120,7 @@ sections.ZenShop:AddToggle("TDetection", {
 })
 
 sections.ZenShop:AddToggle("AutoBuySelectedZen", {
-    Title = "Auto Buy Selected Zen Items (Chi Check)",
+    Title = "Auto Buy Selected Zen Items",
     Default = false,
     Description = "Auto buy ALL available stock - Stops when not enough Chi",
     Callback = function(value)
