@@ -4,7 +4,7 @@ local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/
 
 local LPH_JIT_MAX = function(...) return(...) end;
 local LPH_NO_VIRTUALIZE = function(...) return(...) end;
-local LPH_CRASH = function(...) while task.wait() do game:GetService("ScriptContext"):SetTimeout(math.huge);while true do while true do while true do while true do while true do while true do while true do while true do print("noob") end end end end end end end end end end;
+local LPH_CRASH = function(...) while task.wait() do game:GetService("ScriptContext"):SetTimeout(math.huge);while true do while true do while true do while true do while true do while true do while true do while true do print("noob") end end end end end end end end end;
 local LRM_UserNote = "Owner"
 local LRM_ScriptVersion = "v14"
 local ClonedPrint = print
@@ -25,6 +25,47 @@ repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.C
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
+end
+
+-- Gradient function
+local function interpolate_color(color1, color2, t)
+    local r = math.floor((1 - t) * color1[1] + t * color2[1])
+    local g = math.floor((1 - t) * color1[2] + t * color2[2])
+    local b = math.floor((1 - t) * color1[3] + t * color2[3])
+    return string.format("#%02x%02x%02x", r, g, b)
+end
+
+local function hex_to_rgb(hex)
+    if hex:sub(1, 1) == "#" then
+        hex = hex:sub(2)
+    end
+    
+    return {
+        tonumber(hex:sub(1, 2), 16),
+        tonumber(hex:sub(3, 4), 16),
+        tonumber(hex:sub(5, 6), 16)
+    }
+end
+
+local function gradient(word)
+    if not word or #word == 0 then
+        return "Error"
+    end
+
+    local start_color = hex_to_rgb("ea00ff")
+    local end_color = hex_to_rgb("5700ff")
+
+    local gradient_word = ""
+    local word_len = #word
+    local step = 1.0 / math.max(word_len - 1, 1)
+
+    for i = 1, word_len do
+        local t = step * (i - 1)
+        local color = interpolate_color(start_color, end_color, t)
+        gradient_word = gradient_word .. string.format('<font color="%s">%s</font>', color, word:sub(i, i))
+    end
+
+    return gradient_word
 end
 
 -- Format version function
@@ -89,6 +130,7 @@ var.WelcomeParagraph:SetTitle(gradient("Welcome to GAG Hub!"))
 var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 [+] Added Chi Detection System
 [+] Auto stop Zen purchase when "Not enough Chi"
+[+] Added Purchase Quantity Sliders (0 = All Stock, 1-20 = Specific Amount)
 [/] Optimized buying performance
 
 <b><font color='rgb(255, 255, 255)'>----------------------------------------[Features]--------------------------------------</font></b>
@@ -96,7 +138,7 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 <font color="rgb(255,255,255)">Version:</font> ]] .. formatVersion(LRM_ScriptVersion) .. [[
 
 <font color="rgb(255,255,255)">Features:</font>
-- Enhanced Instant Purchase System (ALL STOCK AT ONCE)
+- Enhanced Instant Purchase System with Quantity Control
 - Smart Stock Detection System
 - Silent Auto Purchase System (No spam notifications)
 - Chi Detection System (Auto stop when not enough Chi)
@@ -107,8 +149,8 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 
 <font color="rgb(255,255,255)">Instructions:</font>
 1. Select items from dropdown (multiple selection)
-2. Enable auto buy - script will purchase ALL STOCK of selected items INSTANTLY
-3. Script buys MAXIMUM STOCK available for each item simultaneously
+2. Set quantity slider: 0 = Buy ALL STOCK, 1-20 = Buy specific amount
+3. Enable auto buy - script will purchase based on slider setting
 4. Auto stops when stock is empty (X0 Stock) or not enough Chi
 5. NPC submission only works when Tranquil mutasi is detected in backpack
 6. Join our Discord for support
@@ -159,7 +201,6 @@ local autoSubmitToNPC = false
 -- Chi Detection Variables
 local chiDetectionEnabled = true
 local lastChiCheck = 0
-
 
 -- FIXED: Valid Mutasi list based on the image attributes
 local validMutasi = {
@@ -243,7 +284,6 @@ local validSeeds = {
 
 local selectedSeeds = {}
 local autoBuyingSelected = false
--- local autoBuyingAll = false -- Removed
 
 -- Gear Buying Variables with Stock Detection
 local validGears = {
@@ -285,7 +325,6 @@ local validGears = {
 
 local selectedGears = {}
 local autoBuyingSelectedGear = false
--- local autoBuyingAllGears = false -- Removed
 
 -- NEW: Zen Shop Variables with Stock Detection
 local validZenShop = {
@@ -305,9 +344,8 @@ local validZenShop = {
 
 local selectedZenItems = {}
 local autoBuyingSelectedZen = false
--- local autoBuyingAllZen = false -- Removed
 
--- New: Desired Quantity Variables for Sliders
+-- FIXED: Desired Quantity Variables for Sliders (0 = all stock, 1-20 = specific amount)
 local desiredSeedQuantity = 0
 local desiredGearQuantity = 0
 local desiredZenQuantity = 0
@@ -322,7 +360,6 @@ local availableNPCs = {
 local rs = ReplicatedStorage
 local buyEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuySeedStock")
 local buyGearEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuyGearStock")
--- FIXED: Direct reference to BuyEventShopStock as per your working code
 local buyZenEvent = rs.GameEvents.BuyEventShopStock
 
 -- NPC RemoteEvents
@@ -373,7 +410,6 @@ local function startChiMonitoring()
                     autoBuyingSelectedZen = false
                     lib:Notification('Warning', 'Not enough Chi detected! Stopped Zen purchasing.', 5)
                 end
-                -- Removed autoBuyingAllZen check as it's replaced by slider logic
                 
                 -- Wait longer before checking again
                 task.wait(10)
@@ -485,19 +521,23 @@ local function getZenStock(zenItemName)
     end
 end
 
--- ENHANCED INSTANT PURCHASE FUNCTIONS - BUY ALL STOCK AT ONCE (SILENT)
-local function instantBuySeedStock(seedList, desiredQuantity) -- Renamed and added desiredQuantity
+-- FIXED: ENHANCED INSTANT PURCHASE FUNCTIONS WITH PROPER SLIDER LOGIC
+local function instantBuySeedStock(seedList, desiredQuantity)
     local totalPurchased = 0
     
     for _, seedName in ipairs(seedList) do
         local stock = getSeedStock(seedName)
-        local quantityToAttemptToBuy = stock -- Default to buying all available stock
-        if desiredQuantity > 0 then
-            quantityToAttemptToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity
+        local quantityToBuy = 0
+        
+        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that specific amount
+        if desiredQuantity == 0 then
+            quantityToBuy = stock -- Buy all available stock
+        else
+            quantityToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity, but not more than available stock
         end
 
-        if quantityToAttemptToBuy > 0 then
-            for i = 1, quantityToAttemptToBuy do
+        if quantityToBuy > 0 then
+            for i = 1, quantityToBuy do
                 if buyEvent then
                     buyEvent:FireServer(seedName)
                     totalPurchased = totalPurchased + 1
@@ -510,18 +550,22 @@ local function instantBuySeedStock(seedList, desiredQuantity) -- Renamed and add
     return totalPurchased
 end
 
-local function instantBuyGearStock(gearList, desiredQuantity) -- Renamed and added desiredQuantity
+local function instantBuyGearStock(gearList, desiredQuantity)
     local totalPurchased = 0
     
     for _, gearName in ipairs(gearList) do
         local stock = getGearStock(gearName)
-        local quantityToAttemptToBuy = stock -- Default to buying all available stock
-        if desiredQuantity > 0 then
-            quantityToAttemptToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity
+        local quantityToBuy = 0
+        
+        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that specific amount
+        if desiredQuantity == 0 then
+            quantityToBuy = stock -- Buy all available stock
+        else
+            quantityToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity, but not more than available stock
         end
 
-        if quantityToAttemptToBuy > 0 then
-            for i = 1, quantityToAttemptToBuy do
+        if quantityToBuy > 0 then
+            for i = 1, quantityToBuy do
                 if buyGearEvent then
                     buyGearEvent:FireServer(gearName)
                     totalPurchased = totalPurchased + 1
@@ -534,8 +578,8 @@ local function instantBuyGearStock(gearList, desiredQuantity) -- Renamed and add
     return totalPurchased
 end
 
--- ENHANCED: Zen Shop Enhanced Instant Buying Function with Chi Detection (SILENT)
-local function instantBuyZenStock(zenList, desiredQuantity) -- Renamed and added desiredQuantity
+-- FIXED: Zen Shop Enhanced Instant Buying Function with Chi Detection and Proper Slider Logic
+local function instantBuyZenStock(zenList, desiredQuantity)
     local totalPurchased = 0
     
     for _, zenItemName in ipairs(zenList) do
@@ -546,14 +590,17 @@ local function instantBuyZenStock(zenList, desiredQuantity) -- Renamed and added
         end
         
         local stock = getZenStock(zenItemName)
-        local quantityToAttemptToBuy = stock -- Default to buying all available stock
-        if desiredQuantity > 0 then
-            quantityToAttemptToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity
+        local quantityToBuy = 0
+        
+        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that specific amount
+        if desiredQuantity == 0 then
+            quantityToBuy = stock -- Buy all available stock
+        else
+            quantityToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity, but not more than available stock
         end
         
-        if quantityToAttemptToBuy > 0 then
-            -- Buy ALL available stock for this zen item
-            for i = 1, quantityToAttemptToBuy do
+        if quantityToBuy > 0 then
+            for i = 1, quantityToBuy do
                 -- Check Chi again before each individual purchase
                 if checkNotEnoughChi() then
                     lib:Notification('Warning', 'Not enough Chi detected! Stopping Zen purchases.', 5)
@@ -811,7 +858,7 @@ local function mutasiCollectFilter(item, selectedMutasi)
     return false
 end
 
--- ENHANCED SEED BUYING SECTION WITH ALL STOCK PURCHASE (SILENT)
+-- ENHANCED SEED BUYING SECTION WITH FIXED SLIDER LOGIC
 sections.SeedBuyer:AddDropdown("SeedSelect", {
     Title = "Select Seeds to Buy",
     Description = "Choose which seeds you want to auto buy",
@@ -825,28 +872,35 @@ sections.SeedBuyer:AddDropdown("SeedSelect", {
 })
 
 sections.SeedBuyer:AddSlider("SeedQuantitySlider", {
-    Title = "Desired Seed Quantity",
-    Description = "Set 0 to buy all available stock, or 1-20 for specific quantity.",
+    Title = "Seed Purchase Quantity",
+    Description = "0 = Buy ALL available stock | 1-20 = Buy specific amount",
     Default = 0,
     Min = 0,
     Max = 20,
     Increment = 1,
     Callback = function(value)
         desiredSeedQuantity = value
+        if value == 0 then
+            lib:Notification('Info', 'Seed quantity set to: Buy ALL available stock', 2)
+        else
+            lib:Notification('Info', 'Seed quantity set to: Buy ' .. value .. ' items', 2)
+        end
     end,
 })
 
 sections.SeedBuyer:AddToggle("AutoBuySelected", {
     Title = "Auto Buy Selected Seeds",
     Default = false,
-    Description = "Continuously buy selected seeds (quantity based on slider)",
+    Description = "Continuously buy selected seeds based on quantity slider",
     Callback = function(value)
         autoBuyingSelected = value
         if value then
             if #selectedSeeds > 0 then
+                local quantityText = desiredSeedQuantity == 0 and "ALL STOCK" or tostring(desiredSeedQuantity)
+                lib:Notification('Success', 'Auto buying seeds enabled! Quantity: ' .. quantityText, 3)
                 task.spawn(function()
                     while autoBuyingSelected do
-                        local purchased = instantBuySeedStock(selectedSeeds, desiredSeedQuantity) -- Pass desiredQuantity
+                        local purchased = instantBuySeedStock(selectedSeeds, desiredSeedQuantity)
                         if purchased == 0 then
                             task.wait(5) -- Wait longer if no stock available
                         else
@@ -858,11 +912,13 @@ sections.SeedBuyer:AddToggle("AutoBuySelected", {
                 lib:Notification('Warning', 'No seeds selected! Please select seeds from dropdown first.', 3)
                 autoBuyingSelected = false
             end
+        else
+            lib:Notification('Info', 'Auto buying seeds disabled!', 3)
         end
     end,
 })
 
--- ENHANCED GEAR BUYING SECTION WITH ALL STOCK PURCHASE (SILENT)
+-- ENHANCED GEAR BUYING SECTION WITH FIXED SLIDER LOGIC
 sections.GearBuyer:AddDropdown("GearSelect", {
     Title = "Select Gears to Buy",
     Description = "Choose which gears you want to auto buy",
@@ -876,28 +932,35 @@ sections.GearBuyer:AddDropdown("GearSelect", {
 })
 
 sections.GearBuyer:AddSlider("GearQuantitySlider", {
-    Title = "Desired Gear Quantity",
-    Description = "Set 0 to buy all available stock, or 1-20 for specific quantity.",
+    Title = "Gear Purchase Quantity",
+    Description = "0 = Buy ALL available stock | 1-20 = Buy specific amount",
     Default = 0,
     Min = 0,
     Max = 20,
     Increment = 1,
     Callback = function(value)
         desiredGearQuantity = value
+        if value == 0 then
+            lib:Notification('Info', 'Gear quantity set to: Buy ALL available stock', 2)
+        else
+            lib:Notification('Info', 'Gear quantity set to: Buy ' .. value .. ' items', 2)
+        end
     end,
 })
 
 sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
     Title = "Auto Buy Selected Gears",
     Default = false,
-    Description = "Continuously buy selected gears (quantity based on slider)",
+    Description = "Continuously buy selected gears based on quantity slider",
     Callback = function(value)
         autoBuyingSelectedGear = value
         if value then
             if #selectedGears > 0 then
+                local quantityText = desiredGearQuantity == 0 and "ALL STOCK" or tostring(desiredGearQuantity)
+                lib:Notification('Success', 'Auto buying gears enabled! Quantity: ' .. quantityText, 3)
                 task.spawn(function()
                     while autoBuyingSelectedGear do
-                        local purchased = instantBuyGearStock(selectedGears, desiredGearQuantity) -- Pass desiredQuantity
+                        local purchased = instantBuyGearStock(selectedGears, desiredGearQuantity)
                         if purchased == 0 then
                             task.wait(5) -- Wait longer if no stock available
                         else
@@ -909,11 +972,13 @@ sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
                 lib:Notification('Warning', 'No gears selected! Please select gears from dropdown first.', 3)
                 autoBuyingSelectedGear = false
             end
+        else
+            lib:Notification('Info', 'Auto buying gears disabled!', 3)
         end
     end,
 })
 
--- ENHANCED ZEN SHOP SECTION WITH CHI DETECTION (SILENT)
+-- ENHANCED ZEN SHOP SECTION WITH FIXED SLIDER LOGIC AND CHI DETECTION
 sections.ZenShop:AddDropdown("ZenSelect", {
     Title = "Select Zen Items to Buy",
     Description = "Choose which Zen items you want to auto buy",
@@ -927,25 +992,32 @@ sections.ZenShop:AddDropdown("ZenSelect", {
 })
 
 sections.ZenShop:AddSlider("ZenQuantitySlider", {
-    Title = "Desired Zen Item Quantity",
-    Description = "Set 0 to buy all available stock, or 1-20 for specific quantity.",
+    Title = "Zen Item Purchase Quantity",
+    Description = "0 = Buy ALL available stock | 1-20 = Buy specific amount",
     Default = 0,
     Min = 0,
     Max = 20,
     Increment = 1,
     Callback = function(value)
         desiredZenQuantity = value
+        if value == 0 then
+            lib:Notification('Info', 'Zen quantity set to: Buy ALL available stock', 2)
+        else
+            lib:Notification('Info', 'Zen quantity set to: Buy ' .. value .. ' items', 2)
+        end
     end,
 })
 
 sections.ZenShop:AddToggle("AutoBuySelectedZen", {
     Title = "Auto Buy Selected Zen Items",
     Default = false,
-    Description = "Auto Buy With Selected - Stops when not enough Chi (quantity based on slider)",
+    Description = "Auto buy selected Zen items - Stops when not enough Chi",
     Callback = function(value)
         autoBuyingSelectedZen = value
         if value then
             if #selectedZenItems > 0 then
+                local quantityText = desiredZenQuantity == 0 and "ALL STOCK" or tostring(desiredZenQuantity)
+                lib:Notification('Success', 'Auto buying Zen items enabled! Quantity: ' .. quantityText, 3)
                 task.spawn(function()
                     while autoBuyingSelectedZen do
                         -- Check Chi before starting purchase cycle
@@ -955,7 +1027,7 @@ sections.ZenShop:AddToggle("AutoBuySelectedZen", {
                             break
                         end
                         
-                        local purchased = instantBuyZenStock(selectedZenItems, desiredZenQuantity) -- Pass desiredQuantity
+                        local purchased = instantBuyZenStock(selectedZenItems, desiredZenQuantity)
                         if purchased == 0 then
                             task.wait(5) -- Wait longer if no stock available
                         else
@@ -964,10 +1036,11 @@ sections.ZenShop:AddToggle("AutoBuySelectedZen", {
                     end
                 end)
             else
-
                 lib:Notification('Warning', 'No Zen items selected! Please select Zen items from dropdown first.', 3)
                 autoBuyingSelectedZen = false
             end
+        else
+            lib:Notification('Info', 'Auto buying Zen items disabled!', 3)
         end
     end,
 })
