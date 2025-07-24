@@ -1059,56 +1059,6 @@ sections.ZenShop:AddDropdown("ZenSelect", {
     end
 })
 
--- NEW: T-Value Threshold TextBox
-sections.ZenShop:AddTextbox({
-    Title = "Restocking stop",
-    Description = "Enter T value to stop purchasing (e.g., 1.5 for 1.5T)",
-    PlaceHolder = "1.0",
-    Numeric = true,
-    Finished = true,
-    Default = "1.0",
-    Callback = function(text)
-        local value = tonumber(text)
-        if value and value > 0 then
-            stopAtTValue = value
-            lib:Notification('Success', 'T threshold set to: ' .. value .. 'T', 3)
-        else
-            lib:Notification('Warning', 'Invalid T value! Please enter a positive number.', 3)
-        end
-    end
-})
-
-
--- NEW: Check if T threshold is reached
-local function isAtTThreshold()
-    if not tDetectionEnabled then return false end
-    local currentT = getRestockTValue()
-    return currentT >= stopAtTValue
-end
-
-local function restockZenShop()
-    if isAtTThreshold() then return end
-    pcall(function()
-        restockZenEvent:FireServer()
-    end)
-end
-
--- NEW: T Detection Toggle
-sections.ZenShop:AddToggle("TDetection", {
-    Title = "Auto Restock",
-    Default = false,
-    Description = "Stop purchasing when restock cost reaches specified T value",
-    Callback = function(value)
-        tDetectionEnabled = value
-        if value then
-            lib:Notification('Success', 'T detection enabled! Will stop at ' .. stopAtTValue .. 'T', 3)
-        else
-            lib:Notification('Info', 'T detection disabled!', 3)
-        end
-    end,
-})
-
-
 sections.ZenShop:AddToggle("AutoBuySelectedZen", {
     Title = "Auto Buy Selected Zen Items",
     Default = false,
@@ -1143,6 +1093,66 @@ sections.ZenShop:AddToggle("AutoBuySelectedZen", {
             end
         else
             lib:Notification('Info', 'Auto buying Zen items disabled!', 3)
+        end
+    end,
+})
+
+-- NEW: T-Value Threshold TextBox
+sections.ZenShop:AddTextbox({
+    Title = "Restocking stop",
+    Description = "Enter T value to stop purchasing (e.g., 1.5 for 1.5T)",
+    PlaceHolder = "1.0",
+    Numeric = true,
+    Finished = true,
+    Default = "1.0",
+    Callback = function(text)
+        local value = tonumber(text)
+        if value and value > 0 then
+            stopAtTValue = value
+            lib:Notification('Success', 'T threshold set to: ' .. value .. 'T', 3)
+        else
+            lib:Notification('Warning', 'Invalid T value! Please enter a positive number.', 3)
+        end
+    end
+})
+
+
+local function isAtTThreshold()
+    if not tDetectionEnabled then return false end
+
+    local currentT = getRestockTValue()
+    return currentT >= stopAtTValue
+end
+
+local function restockZenShop()
+    if isAtTThreshold() then return end
+    pcall(function()
+        restockZenEvent:FireServer()
+    end)
+end
+
+
+sections.ZenShop:AddToggle("TDetection", {
+    Title = "Auto Restock",
+    Default = false,
+    Description = "Stop purchasing when restock cost reaches specified T value",
+    Callback = function(value)
+        tDetectionEnabled = value
+
+        if value then
+            lib:Notification('Success', 'T detection enabled! Will stop at ' .. stopAtTValue .. 'T', 3)
+
+            task.spawn(function()
+                while tDetectionEnabled do
+                    if not isAtTThreshold() then
+                        restockZenShop()
+                    end
+                    task.wait(1) -- jeda antar restock (boleh kamu ubah)
+                end
+            end)
+
+        else
+            lib:Notification('Info', 'T detection disabled!', 3)
         end
     end,
 })
