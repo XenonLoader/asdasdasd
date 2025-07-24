@@ -6,7 +6,7 @@ local LPH_JIT_MAX = function(...) return(...) end;
 local LPH_NO_VIRTUALIZE = function(...) return(...) end;
 local LPH_CRASH = function(...) while task.wait() do game:GetService("ScriptContext"):SetTimeout(math.huge);while true do while true do while true do while true do while true do while true do while true do while true do print("noob") end end end end end end end end end end;
 local LRM_UserNote = "Owner"
-local LRM_ScriptVersion = "14"
+local LRM_ScriptVersion = "v16"
 local ClonedPrint = print
 
 if LPH_OBFUSCATED then
@@ -67,9 +67,9 @@ main:SelectTab()
 -- Create sections
 local sections = {
     Welcome = tabs.Welcome:AddSection({Defualt = true, Locked = true}),
-    SeedBuyer = tabs.Shop:AddSection({Title = "Seed Purchasing", Description = "Auto buy seeds with stock detection", Defualt = true, Locked = false}),
-    GearBuyer = tabs.Shop:AddSection({Title = "Gear Purchasing", Description = "Auto buy gears with stock detection", Defualt = true, Locked = false}),
-    ZenShop = tabs.Shop:AddSection({Title = "Zen Shop", Description = "Auto buy Zen items with Chi detection", Defualt = true, Locked = false}),
+    SeedBuyer = tabs.Shop:AddSection({Title = "Seed Purchasing", Description = "Auto buy ALL seeds when stock & money available", Defualt = true, Locked = false}),
+    GearBuyer = tabs.Shop:AddSection({Title = "Gear Purchasing", Description = "Auto buy ALL gears when stock & money available", Defualt = true, Locked = false}),
+    ZenShop = tabs.Shop:AddSection({Title = "Zen Shop", Description = "Auto buy ALL Zen items when stock & Chi available", Defualt = true, Locked = false}),
     Teleport = tabs.Main:AddSection({Title = "Teleport", Description = "Teleportation utilities", Defualt = true, Locked = false}),
     Fruit = tabs.Main:AddSection({Title = "Fruit Management", Description = "Fruit collection and selling", Defualt = false, Locked = false}),
     AutoHarvest = tabs.Auto:AddSection({Title = "Mutasi Collection", Description = "Collect fruits with specific mutations", Defualt = false, Locked = false}),
@@ -87,21 +87,24 @@ var.WelcomeParagraph = sections.Welcome:AddParagraph({
 
 var.WelcomeParagraph:SetTitle(gradient("Welcome to GAG Hub!"))
 var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
-[+] Fixed Purchase Slider System
-[+] Slider 0 = Buy ALL STOCK at once
-[+] Slider 1-20 = Buy exact amount at once (not 1 by 1)
-[+] Removed slider notifications
-[/] Optimized buying performance
+[+] ADDED Money Detection System - Checks player balance before purchase
+[+] ENHANCED Cost Verification - Verifies item cost and stock availability
+[+] SMART Purchase Logic - Only buys when both stock > 0 AND money >= cost
+[+] IMPROVED Error Handling - Better feedback for insufficient funds
+[+] NEW Zen Shop Restock Feature - Auto restock when needed
+[+] T-Value Detection System - Stop purchasing at specified T threshold
 
 <b><font color='rgb(255, 255, 255)'>----------------------------------------[Features]--------------------------------------</font></b>
 
 <font color="rgb(255,255,255)">Version:</font> ]] .. formatVersion(LRM_ScriptVersion) .. [[
 
 <font color="rgb(255,255,255)">Features:</font>
-- FIXED Purchase System with Quantity Control
-- Smart Stock Detection System
-- Silent Auto Purchase System (No spam notifications)
+- ENHANCED Auto Purchase with Money Detection
+- SMART Stock & Cost Verification System
+- Automatic Balance Checking before purchases
 - Chi Detection System (Auto stop when not enough Chi)
+- Zen Shop Auto Restock Feature
+- T-Value Stop Detection (Stop at specified T threshold)
 - Mutasi Collection System
 - Auto Sell & Teleport
 - Tranquil Detection for NPC Submission
@@ -109,11 +112,12 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 
 <font color="rgb(255,255,255)">Instructions:</font>
 1. Select items from dropdown (multiple selection)
-2. Set quantity slider: 0 = Buy ALL STOCK at once, 1-20 = Buy exact amount at once
-3. Enable auto buy - script will purchase based on slider setting
-4. Auto stops when stock is empty (X0 Stock) or not enough Chi
-5. NPC submission only works when Tranquil mutasi is detected in backpack
-6. Join our Discord for support
+2. Enable auto buy - script checks money & stock before purchasing
+3. Auto stops when: No stock, insufficient money, or not enough Chi
+4. Set T threshold to stop Zen purchases at desired amount
+5. Script intelligently waits based on availability
+6. NPC submission only works when Tranquil mutasi is detected in backpack
+7. Join our Discord for support
 
 <font color="rgb(255,255,255)">Discord:</font> discord.gg/cF8YeDPt2G]])
 
@@ -161,6 +165,10 @@ local autoSubmitToNPC = false
 -- Chi Detection Variables
 local chiDetectionEnabled = true
 local lastChiCheck = 0
+
+-- NEW: Zen Shop T Detection Variables
+local stopAtTValue = 1.0 -- Default stop at 1T
+local tDetectionEnabled = false
 
 -- FIXED: Valid Mutasi list based on the image attributes
 local validMutasi = {
@@ -305,11 +313,6 @@ local validZenShop = {
 local selectedZenItems = {}
 local autoBuyingSelectedZen = false
 
--- FIXED: Desired Quantity Variables for Sliders (0 = all stock, 1-20 = specific amount)
-local desiredSeedQuantity = 0
-local desiredGearQuantity = 0
-local desiredZenQuantity = 0
-
 -- Available NPCs for submission
 local availableNPCs = {
     "Channeller",
@@ -321,6 +324,7 @@ local rs = ReplicatedStorage
 local buyEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuySeedStock")
 local buyGearEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("BuyGearStock")
 local buyZenEvent = rs.GameEvents.BuyEventShopStock
+local restockZenEvent = rs.GameEvents.BuyEventShopRestock -- NEW: Restock event
 
 -- NPC RemoteEvents
 local ZenQuestRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:FindFirstChild("ZenQuestRemoteEvent")
@@ -328,6 +332,70 @@ local ZenAuraRemoteEvent = rs:FindFirstChild("GameEvents") and rs.GameEvents:Fin
 
 game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Gear.Visible = true
 game:GetService("Players").LocalPlayer.PlayerGui.Teleport_UI.Frame.Pets.Visible = true
+
+-- NEW: T-Value Detection Function
+local function getRestockTValue()
+    local success, tValue = pcall(function()
+        local eventShopUI = LocalPlayer.PlayerGui:FindFirstChild("EventShop_UI")
+        if not eventShopUI then return 0 end
+        
+        local frame = eventShopUI:FindFirstChild("Frame")
+        if not frame then return 0 end
+        
+        local frameInner = frame:FindFirstChild("Frame")
+        if not frameInner then return 0 end
+        
+        local restock = frameInner:FindFirstChild("Restock")
+        if not restock then return 0 end
+        
+        local textLabel = restock:FindFirstChild("TextLabel")
+        if not textLabel then return 0 end
+        
+        local text = textLabel.Text
+        -- Parse text like "RESTOCK: 4.2T¢" or "RESTOCK: 500K¢"
+        local tValueStr = string.match(text, "RESTOCK:%s*([%d%.]+)T¢")
+        if tValueStr then
+            return tonumber(tValueStr) or 0
+        end
+        
+        -- If no T found, check for other formats and return 0
+        return 0
+    end)
+    
+    return success and tValue or 0
+end
+
+-- NEW: Check if T threshold is reached
+local function isAtTThreshold()
+    if not tDetectionEnabled then return false end
+    
+    local currentT = getRestockTValue()
+    return currentT >= stopAtTValue
+end
+
+-- NEW: MONEY DETECTION SYSTEM
+local function getPlayerMoney()
+    local success, money = pcall(function()
+        local shecklesUI = LocalPlayer.PlayerGui:FindFirstChild("Sheckles_UI")
+        if not shecklesUI then return 0 end
+        
+        local textLabel = shecklesUI:FindFirstChild("TextLabel")
+        if not textLabel then return 0 end
+        
+        -- Parse money text (format: "100¢" or "15,000,000¢")
+        local moneyText = textLabel.Text
+        local moneyNumber = string.match(moneyText, "([%d,]+)")
+        if moneyNumber then
+            -- Remove commas and convert to number
+            local cleanNumber = string.gsub(moneyNumber, ",", "")
+            return tonumber(cleanNumber) or 0
+        end
+        
+        return 0
+    end)
+    
+    return success and money or 0
+end
 
 -- CHI DETECTION SYSTEM
 local function checkNotEnoughChi()
@@ -383,72 +451,110 @@ end
 -- Start Chi monitoring
 startChiMonitoring()
 
--- ENHANCED STOCK DETECTION FUNCTIONS
-local function getSeedStock(seedName)
-    local success, stock = pcall(function()
+-- ENHANCED STOCK AND COST DETECTION FUNCTIONS
+local function getSeedStockAndCost(seedName)
+    local success, result = pcall(function()
         local seedShop = LocalPlayer.PlayerGui:FindFirstChild("Seed_Shop")
-        if not seedShop then return 0 end
+        if not seedShop then return {stock = 0, cost = 0, hasStock = false} end
         
         local frame = seedShop:FindFirstChild("Frame")
-        if not frame then return 0 end
+        if not frame then return {stock = 0, cost = 0, hasStock = false} end
         
         local scrollingFrame = frame:FindFirstChild("ScrollingFrame")
-        if not scrollingFrame then return 0 end
+        if not scrollingFrame then return {stock = 0, cost = 0, hasStock = false} end
         
         local seedFrame = scrollingFrame:FindFirstChild(seedName)
-        if not seedFrame then return 0 end
+        if not seedFrame then return {stock = 0, cost = 0, hasStock = false} end
         
         local mainFrame = seedFrame:FindFirstChild("Main_Frame")
-        if not mainFrame then return 0 end
+        if not mainFrame then return {stock = 0, cost = 0, hasStock = false} end
         
+        -- Get stock
         local stockText = mainFrame:FindFirstChild("Stock_Text")
-        if not stockText then return 0 end
+        local stock = 0
+        if stockText then
+            local stockNumber = string.match(stockText.Text, "X(%d+)")
+            stock = tonumber(stockNumber) or 0
+        end
         
-        -- Parse stock text (format: "X15 Stock" or "X0 Stock")
-        local stockNumber = string.match(stockText.Text, "X(%d+)")
-        return tonumber(stockNumber) or 0
+        -- Get cost
+        local costText = mainFrame:FindFirstChild("Cost_Text")
+        local cost = 0
+        local hasStock = false
+        if costText then
+            local costString = costText.Text
+            if string.find(costString:upper(), "NO STOCK") then
+                hasStock = false
+                cost = 0
+            else
+                hasStock = true
+                -- Parse cost (format: "15,000,000¢")
+                local costNumber = string.match(costString, "([%d,]+)")
+                if costNumber then
+                    local cleanNumber = string.gsub(costNumber, ",", "")
+                    cost = tonumber(cleanNumber) or 0
+                end
+            end
+        end
+        
+        return {stock = stock, cost = cost, hasStock = hasStock}
     end)
     
-    if success then
-        return stock
-    else
-        return 0
-    end
+    return success and result or {stock = 0, cost = 0, hasStock = false}
 end
 
-local function getGearStock(gearName)
-    local success, stock = pcall(function()
+local function getGearStockAndCost(gearName)
+    local success, result = pcall(function()
         local gearShop = LocalPlayer.PlayerGui:FindFirstChild("Gear_Shop")
-        if not gearShop then return 0 end
+        if not gearShop then return {stock = 0, cost = 0, hasStock = false} end
         
         local frame = gearShop:FindFirstChild("Frame")
-        if not frame then return 0 end
+        if not frame then return {stock = 0, cost = 0, hasStock = false} end
         
         local scrollingFrame = frame:FindFirstChild("ScrollingFrame")
-        if not scrollingFrame then return 0 end
+        if not scrollingFrame then return {stock = 0, cost = 0, hasStock = false} end
         
         local gearFrame = scrollingFrame:FindFirstChild(gearName)
-        if not gearFrame then return 0 end
+        if not gearFrame then return {stock = 0, cost = 0, hasStock = false} end
         
         local mainFrame = gearFrame:FindFirstChild("Main_Frame")
-        if not mainFrame then return 0 end
+        if not mainFrame then return {stock = 0, cost = 0, hasStock = false} end
         
+        -- Get stock
         local stockText = mainFrame:FindFirstChild("Stock_Text")
-        if not stockText then return 0 end
+        local stock = 0
+        if stockText then
+            local stockNumber = string.match(stockText.Text, "X(%d+)")
+            stock = tonumber(stockNumber) or 0
+        end
         
-        -- Parse stock text (format: "X15 Stock" or "X0 Stock")
-        local stockNumber = string.match(stockText.Text, "X(%d+)")
-        return tonumber(stockNumber) or 0
+        -- Get cost
+        local costText = mainFrame:FindFirstChild("Cost_Text")
+        local cost = 0
+        local hasStock = false
+        if costText then
+            local costString = costText.Text
+            if string.find(costString:upper(), "NO STOCK") then
+                hasStock = false
+                cost = 0
+            else
+                hasStock = true
+                -- Parse cost (format: "15,000,000¢")
+                local costNumber = string.match(costString, "([%d,]+)")
+                if costNumber then
+                    local cleanNumber = string.gsub(costNumber, ",", "")
+                    cost = tonumber(cleanNumber) or 0
+                end
+            end
+        end
+        
+        return {stock = stock, cost = cost, hasStock = hasStock}
     end)
     
-    if success then
-        return stock
-    else
-        return 0
-    end
+    return success and result or {stock = 0, cost = 0, hasStock = false}
 end
 
--- NEW: Zen Shop Stock Detection Function
+-- IMPROVED: Zen Shop Stock Detection Function (Chi-based, no money check needed)
 local function getZenStock(zenItemName)
     local success, stock = pcall(function()
         local zenShop = LocalPlayer.PlayerGui:FindFirstChild("EventShop_UI")
@@ -471,114 +577,170 @@ local function getZenStock(zenItemName)
         
         -- Parse stock text (format: "X15 Stock" or "X0 Stock")
         local stockNumber = string.match(stockText.Text, "X(%d+)")
-        return tonumber(stockNumber) or 0
+        local stockValue = tonumber(stockNumber) or 0
+        
+        return stockValue
     end)
     
-    if success then
-        return stock
-    else
-        return 0
-    end
+    return success and stock or 0
 end
 
--- FIXED: ENHANCED INSTANT PURCHASE FUNCTIONS - BUY EXACT AMOUNT AT ONCE
-local function instantBuySeedStock(seedList, desiredQuantity)
+-- NEW: Zen Shop Restock Function
+local function restockZenShop()
+    local success = pcall(function()
+        restockZenEvent:FireServer()
+    end)
+    return success
+end
+
+-- ENHANCED: Buy ALL STOCK Functions with Money Verification
+local function buyAllSeedStock(seedList)
     local totalPurchased = 0
+    local itemsWithStockAndMoney = {}
+    local playerMoney = getPlayerMoney()
     
+    -- First check which items have stock, cost info, and sufficient money
     for _, seedName in ipairs(seedList) do
-        local stock = getSeedStock(seedName)
-        local quantityToBuy = 0
-        
-        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that exact amount AT ONCE
-        if desiredQuantity == 0 then
-            quantityToBuy = stock -- Buy all available stock
-        else
-            quantityToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity, but not more than available stock
-        end
-
-        -- FIXED: Buy the exact amount at once, not 1 by 1
-        if quantityToBuy > 0 then
-            -- Send multiple purchase requests rapidly for the exact amount needed
-            for i = 1, quantityToBuy do
-                if buyEvent then
-                    buyEvent:FireServer(seedName)
-                    totalPurchased = totalPurchased + 1
-                end
-                -- No delay between purchases to buy at once
-            end
+        local info = getSeedStockAndCost(seedName)
+        if info.hasStock and info.stock > 0 and info.cost > 0 and playerMoney >= info.cost then
+            table.insert(itemsWithStockAndMoney, {
+                name = seedName, 
+                stock = info.stock, 
+                cost = info.cost
+            })
         end
     end
     
-    return totalPurchased
-end
-
-local function instantBuyGearStock(gearList, desiredQuantity)
-    local totalPurchased = 0
-    
-    for _, gearName in ipairs(gearList) do
-        local stock = getGearStock(gearName)
-        local quantityToBuy = 0
-        
-        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that exact amount AT ONCE
-        if desiredQuantity == 0 then
-            quantityToBuy = stock -- Buy all available stock
-        else
-            quantityToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity, but not more than available stock
-        end
-
-        -- FIXED: Buy the exact amount at once, not 1 by 1
-        if quantityToBuy > 0 then
-            -- Send multiple purchase requests rapidly for the exact amount needed
-            for i = 1, quantityToBuy do
-                if buyGearEvent then
-                    buyGearEvent:FireServer(gearName)
-                    totalPurchased = totalPurchased + 1
-                end
-                -- No delay between purchases to buy at once
-            end
-        end
+    -- Only proceed if there are items with stock and sufficient money
+    if #itemsWithStockAndMoney == 0 then
+        return 0 -- No valid items available
     end
     
-    return totalPurchased
-end
-
--- FIXED: Zen Shop Enhanced Instant Buying Function with Chi Detection - BUY EXACT AMOUNT AT ONCE
-local function instantBuyZenStock(zenList, desiredQuantity)
-    local totalPurchased = 0
-    
-    for _, zenItemName in ipairs(zenList) do
-        -- Check for "Not enough Chi" before each item type
-        if checkNotEnoughChi() then
-            lib:Notification('Warning', 'Not enough Chi detected! Stopping Zen purchases.', 5)
-            break
-        end
-        
-        local stock = getZenStock(zenItemName)
-        local quantityToBuy = 0
-        
-        -- FIXED: Proper slider logic - 0 means buy all stock, 1-20 means buy that exact amount AT ONCE
-        if desiredQuantity == 0 then
-            quantityToBuy = stock -- Buy all available stock
-        else
-            quantityToBuy = math.min(stock, desiredQuantity) -- Buy up to desiredQuantity, but not more than available stock
-        end
-        
-        -- FIXED: Buy the exact amount at once, not 1 by 1
-        if quantityToBuy > 0 then
-            -- Send multiple purchase requests rapidly for the exact amount needed
-            for i = 1, quantityToBuy do
-                -- Check Chi again before each individual purchase
-                if checkNotEnoughChi() then
-                    lib:Notification('Warning', 'Not enough Chi detected! Stopping Zen purchases.', 5)
-                    return totalPurchased
-                end
-                
+    -- Buy all stock for items that meet criteria
+    for _, item in ipairs(itemsWithStockAndMoney) do
+        for i = 1, item.stock do
+            -- Check money before each purchase
+            local currentMoney = getPlayerMoney()
+            if currentMoney < item.cost then
+                lib:Notification('Warning', 'Insufficient money for ' .. item.name .. '! Need: ' .. item.cost .. '¢', 5)
+                break
+            end
+            
+            if buyEvent then
                 local success = pcall(function()
-                    buyZenEvent:FireServer(zenItemName)
+                    buyEvent:FireServer(item.name)
                     totalPurchased = totalPurchased + 1
                 end)
-                
-                -- No delay between purchases to buy at once
+                if not success then
+                    break -- Stop if purchase fails
+                end
+            end
+        end
+    end
+    
+    return totalPurchased
+end
+
+local function buyAllGearStock(gearList)
+    local totalPurchased = 0
+    local itemsWithStockAndMoney = {}
+    local playerMoney = getPlayerMoney()
+    
+    -- First check which items have stock, cost info, and sufficient money
+    for _, gearName in ipairs(gearList) do
+        local info = getGearStockAndCost(gearName)
+        if info.hasStock and info.stock > 0 and info.cost > 0 and playerMoney >= info.cost then
+            table.insert(itemsWithStockAndMoney, {
+                name = gearName, 
+                stock = info.stock, 
+                cost = info.cost
+            })
+        end
+    end
+    
+    -- Only proceed if there are items with stock and sufficient money
+    if #itemsWithStockAndMoney == 0 then
+        return 0 -- No valid items available
+    end
+    
+    -- Buy all stock for items that meet criteria
+    for _, item in ipairs(itemsWithStockAndMoney) do
+        for i = 1, item.stock do
+            -- Check money before each purchase
+            local currentMoney = getPlayerMoney()
+            if currentMoney < item.cost then
+                lib:Notification('Warning', 'Insufficient money for ' .. item.name .. '! Need: ' .. item.cost .. '¢', 5)
+                break
+            end
+            
+            if buyGearEvent then
+                local success = pcall(function()
+                    buyGearEvent:FireServer(item.name)
+                    totalPurchased = totalPurchased + 1
+                end)
+                if not success then
+                    break -- Stop if purchase fails
+                end
+            end
+        end
+    end
+    
+    return totalPurchased
+end
+
+-- IMPROVED: Zen Shop Buy ALL STOCK Function with Chi Detection and T Detection
+local function buyAllZenStock(zenList)
+    local totalPurchased = 0
+    local itemsWithStock = {}
+    
+    -- Check for Chi before starting
+    if checkNotEnoughChi() then
+        return 0
+    end
+    
+    -- NEW: Check T threshold before starting
+    if isAtTThreshold() then
+        lib:Notification('Warning', 'T threshold reached! Stopping Zen purchases.', 5)
+        return 0
+    end
+    
+    -- First check which items have stock
+    for _, zenItemName in ipairs(zenList) do
+        local stock = getZenStock(zenItemName)
+        if stock > 0 then
+            table.insert(itemsWithStock, {name = zenItemName, stock = stock})
+        end
+    end
+    
+    -- Only proceed if there are items with stock
+    if #itemsWithStock == 0 then
+        -- Try to restock if no stock available
+        restockZenShop()
+        task.wait(1) -- Wait for restock to process
+        return 0 -- No stock available, don't waste resources
+    end
+    
+    -- Buy all stock for items that have it
+    for _, item in ipairs(itemsWithStock) do
+        for i = 1, item.stock do
+            -- Check Chi before each purchase
+            if checkNotEnoughChi() then
+                return totalPurchased
+            end
+            
+            -- NEW: Check T threshold before each purchase
+            if isAtTThreshold() then
+                lib:Notification('Warning', 'T threshold reached during purchase! Stopping.', 5)
+                return totalPurchased
+            end
+            
+            local success = pcall(function()
+                buyZenEvent:FireServer(item.name)
+                totalPurchased = totalPurchased + 1
+            end)
+            
+            if not success then
+                break -- Stop if purchase fails
             end
         end
     end
@@ -824,7 +986,7 @@ local function mutasiCollectFilter(item, selectedMutasi)
     return false
 end
 
--- ENHANCED SEED BUYING SECTION WITH FIXED SLIDER LOGIC (NO NOTIFICATIONS)
+-- ENHANCED SEED BUYING SECTION with Money Detection
 sections.SeedBuyer:AddDropdown("SeedSelect", {
     Title = "Select Seeds to Buy",
     Description = "Choose which seeds you want to auto buy",
@@ -837,36 +999,24 @@ sections.SeedBuyer:AddDropdown("SeedSelect", {
     end
 })
 
-sections.SeedBuyer:AddSlider("SeedQuantitySlider", {
-    Title = "Seed Purchase Quantity",
-    Description = "0 = Buy ALL available stock at once | 1-20 = Buy exact amount at once",
-    Default = 0,
-    Min = 0,
-    Max = 20,
-    Increment = 1,
-    Callback = function(value)
-        desiredSeedQuantity = value
-        -- REMOVED: No notifications on slider change
-    end,
-})
-
 sections.SeedBuyer:AddToggle("AutoBuySelected", {
     Title = "Auto Buy Selected Seeds",
     Default = false,
-    Description = "Continuously buy selected seeds based on quantity slider",
+    Description = "Buy all available stock when both money and stock are sufficient",
     Callback = function(value)
         autoBuyingSelected = value
         if value then
             if #selectedSeeds > 0 then
-                local quantityText = desiredSeedQuantity == 0 and "ALL STOCK" or tostring(desiredSeedQuantity)
-                lib:Notification('Success', 'Auto buying seeds enabled! Quantity: ' .. quantityText, 3)
+                lib:Notification('Success', 'Auto buying seeds enabled! Checking money & stock', 3)
                 task.spawn(function()
                     while autoBuyingSelected do
-                        local purchased = instantBuySeedStock(selectedSeeds, desiredSeedQuantity)
+                        local purchased = buyAllSeedStock(selectedSeeds)
                         if purchased == 0 then
-                            task.wait(5) -- Wait longer if no stock available
+                            -- No valid purchases (no stock, no money, or no cost info), wait longer
+                            task.wait(10)
                         else
-                            task.wait(2) -- Wait shorter if purchases were made
+                            -- Purchases were made, wait shorter time
+                            task.wait(3)
                         end
                     end
                 end)
@@ -880,7 +1030,7 @@ sections.SeedBuyer:AddToggle("AutoBuySelected", {
     end,
 })
 
--- ENHANCED GEAR BUYING SECTION WITH FIXED SLIDER LOGIC (NO NOTIFICATIONS)
+-- ENHANCED GEAR BUYING SECTION with Money Detection
 sections.GearBuyer:AddDropdown("GearSelect", {
     Title = "Select Gears to Buy",
     Description = "Choose which gears you want to auto buy",
@@ -893,36 +1043,24 @@ sections.GearBuyer:AddDropdown("GearSelect", {
     end
 })
 
-sections.GearBuyer:AddSlider("GearQuantitySlider", {
-    Title = "Gear Purchase Quantity",
-    Description = "0 = Buy ALL available stock at once | 1-20 = Buy exact amount at once",
-    Default = 0,
-    Min = 0,
-    Max = 20,
-    Increment = 1,
-    Callback = function(value)
-        desiredGearQuantity = value
-        -- REMOVED: No notifications on slider change
-    end,
-})
-
 sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
     Title = "Auto Buy Selected Gears",
     Default = false,
-    Description = "Continuously buy selected gears based on quantity slider",
+    Description = "Buy all available stock when both money and stock are sufficient",
     Callback = function(value)
         autoBuyingSelectedGear = value
         if value then
             if #selectedGears > 0 then
-                local quantityText = desiredGearQuantity == 0 and "ALL STOCK" or tostring(desiredGearQuantity)
-                lib:Notification('Success', 'Auto buying gears enabled! Quantity: ' .. quantityText, 3)
+                lib:Notification('Success', 'Auto buying gears enabled! Checking money & stock', 3)
                 task.spawn(function()
                     while autoBuyingSelectedGear do
-                        local purchased = instantBuyGearStock(selectedGears, desiredGearQuantity)
+                        local purchased = buyAllGearStock(selectedGears)
                         if purchased == 0 then
-                            task.wait(5) -- Wait longer if no stock available
+                            -- No valid purchases (no stock, no money, or no cost info), wait longer
+                            task.wait(10)
                         else
-                            task.wait(2) -- Wait shorter if purchases were made
+                            -- Purchases were made, wait shorter time
+                            task.wait(3)
                         end
                     end
                 end)
@@ -936,10 +1074,10 @@ sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
     end,
 })
 
--- ENHANCED ZEN SHOP SECTION WITH FIXED SLIDER LOGIC AND CHI DETECTION (NO NOTIFICATIONS)
+-- ENHANCED ZEN SHOP SECTION with Chi Detection and T Detection
 sections.ZenShop:AddDropdown("ZenSelect", {
     Title = "Select Zen Items to Buy",
-    Description = "Choose which Zen items you want to auto buy",
+    Description = "Choose which Zen items you want to auto buy (Chi-based)",
     Options = validZenShop,
     Default = {},
     PlaceHolder = "Select Zen items",
@@ -949,29 +1087,50 @@ sections.ZenShop:AddDropdown("ZenSelect", {
     end
 })
 
-sections.ZenShop:AddSlider("ZenQuantitySlider", {
-    Title = "Zen Item Purchase Quantity",
-    Description = "0 = Buy ALL available stock at once | 1-20 = Buy exact amount at once",
-    Default = 0,
-    Min = 0,
-    Max = 20,
-    Increment = 1,
+-- NEW: T-Value Threshold TextBox
+sections.ZenShop:AddTextbox({
+    Title = "Restocking stop",
+    Description = "Enter T value to stop purchasing (e.g., 1.5 for 1.5T)",
+    PlaceHolder = "1.0",
+    Numeric = true,
+    Finished = true,
+    Default = "1.0",
+    Callback = function(text)
+        local value = tonumber(text)
+        if value and value > 0 then
+            stopAtTValue = value
+            lib:Notification('Success', 'T threshold set to: ' .. value .. 'T', 3)
+        else
+            lib:Notification('Warning', 'Invalid T value! Please enter a positive number.', 3)
+        end
+    end
+})
+
+-- NEW: T Detection Toggle
+sections.ZenShop:AddToggle("TDetection", {
+    Title = "Auto Restock",
+    Default = false,
+    Description = "Stop purchasing when restock cost reaches specified T value",
     Callback = function(value)
-        desiredZenQuantity = value
-        -- REMOVED: No notifications on slider change
+        tDetectionEnabled = value
+        if value then
+            lib:Notification('Success', 'T detection enabled! Will stop at ' .. stopAtTValue .. 'T', 3)
+            restockZenShop()
+        else
+            lib:Notification('Info', 'T detection disabled!', 3)
+        end
     end,
 })
 
 sections.ZenShop:AddToggle("AutoBuySelectedZen", {
     Title = "Auto Buy Selected Zen Items",
     Default = false,
-    Description = "Auto buy selected Zen items - Stops when not enough Chi",
+    Description = "Auto buy all available stock - Stops when not enough Chi (T detection works separately)",
     Callback = function(value)
         autoBuyingSelectedZen = value
         if value then
             if #selectedZenItems > 0 then
-                local quantityText = desiredZenQuantity == 0 and "ALL STOCK" or tostring(desiredZenQuantity)
-                lib:Notification('Success', 'Auto buying Zen items enabled! Quantity: ' .. quantityText, 3)
+                lib:Notification('Success', 'Auto buying Zen items enabled! Checking Chi & stock (T detection separate)', 3)
                 task.spawn(function()
                     while autoBuyingSelectedZen do
                         -- Check Chi before starting purchase cycle
@@ -981,11 +1140,13 @@ sections.ZenShop:AddToggle("AutoBuySelectedZen", {
                             break
                         end
                         
-                        local purchased = instantBuyZenStock(selectedZenItems, desiredZenQuantity)
+                        local purchased = buyAllZenStock(selectedZenItems)
                         if purchased == 0 then
-                            task.wait(5) -- Wait longer if no stock available
+                            -- No stock available or not enough Chi, wait longer
+                            task.wait(10)
                         else
-                            task.wait(2) -- Wait shorter if purchases were made
+                            -- Stock was available and purchased, wait shorter time
+                            task.wait(3)
                         end
                     end
                 end)
