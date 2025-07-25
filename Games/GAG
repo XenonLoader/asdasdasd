@@ -93,6 +93,7 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 [+] IMPROVED Error Handling - Better feedback for insufficient funds
 [+] NEW Zen Shop Restock Feature - Auto restock when needed
 [+] T-Value Detection System - Stop purchasing at specified T threshold
+[+] SMART Restock Logic - Waits for purchases to complete before restocking
 
 <b><font color='rgb(255, 255, 255)'>----------------------------------------[Features]--------------------------------------</font></b>
 
@@ -105,6 +106,7 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 - Chi Detection System (Auto stop when not enough Chi)
 - Zen Shop Auto Restock Feature
 - T-Value Stop Detection (Stop at specified T threshold)
+- SMART Restock Logic - Waits for purchases before restocking
 - Mutasi Collection System
 - Auto Sell & Teleport
 - Tranquil Detection for NPC Submission
@@ -115,9 +117,10 @@ var.WelcomeParagraph:SetDesc([[<font color="rgb(255,255,255)">NEWS:</font>
 2. Enable auto buy - script checks money & stock before purchasing
 3. Auto stops when: No stock, insufficient money, or not enough Chi
 4. Set T threshold to stop Zen purchases at desired amount
-5. Script intelligently waits based on availability
-6. NPC submission only works when Tranquil mutasi is detected in backpack
-7. Join our Discord for support
+5. Auto restock waits for purchases to complete before restocking
+6. Script intelligently waits based on availability
+7. NPC submission only works when Tranquil mutasi is detected in backpack
+8. Join our Discord for support
 
 <font color="rgb(255,255,255)">Discord:</font> discord.gg/cF8YeDPt2G]])
 
@@ -169,6 +172,10 @@ local lastChiCheck = 0
 -- NEW: Zen Shop T Detection Variables
 local stopAtTValue = 1.0 -- Default stop at 1T
 local tDetectionEnabled = false
+
+-- NEW: Smart Restock Variables
+local isPurchasing = false -- Track if currently purchasing
+local shouldStopRestock = false -- Track if T threshold reached permanently
 
 -- FIXED: Valid Mutasi list based on the image attributes
 local validMutasi = {
@@ -577,10 +584,6 @@ local function getZenStock(zenItemName)
     return success and stock or 0
 end
 
--- NEW: Zen Shop Restock Function
-
-
-
 -- ENHANCED: Buy ALL STOCK Functions with Money Verification
 local function buyAllSeedStock(seedList)
     local totalPurchased = 0
@@ -676,12 +679,15 @@ local function buyAllGearStock(gearList)
     return totalPurchased
 end
 
+-- IMPROVED: Zen Shop Buy ALL STOCK Function with Smart Purchase Tracking
 local function buyAllZenStock(zenList)
+    isPurchasing = true -- Mark as purchasing
     local totalPurchased = 0
     local itemsWithStock = {}
     
     -- Check for Chi before starting
     if checkNotEnoughChi() then
+        isPurchasing = false
         return 0
     end
     
@@ -695,6 +701,7 @@ local function buyAllZenStock(zenList)
     
     -- Only proceed if there are items with stock
     if #itemsWithStock == 0 then
+        isPurchasing = false
         return 0 -- No stock available, don't waste resources
     end
     
@@ -703,6 +710,7 @@ local function buyAllZenStock(zenList)
         for i = 1, item.stock do
             -- Check Chi before each purchase
             if checkNotEnoughChi() then
+                isPurchasing = false
                 return totalPurchased
             end
             
@@ -717,6 +725,7 @@ local function buyAllZenStock(zenList)
         end
     end
     
+    isPurchasing = false -- Mark as finished purchasing
     return totalPurchased
 end
 
@@ -1046,7 +1055,7 @@ sections.GearBuyer:AddToggle("AutoBuySelectedGear", {
     end,
 })
 
--- ENHANCED ZEN SHOP SECTION with Chi Detection and T Detection
+-- ENHANCED ZEN SHOP SECTION with Chi Detection and Smart Restock
 sections.ZenShop:AddDropdown("ZenSelect", {
     Title = "Select Zen Items to Buy",
     Description = "Choose which Zen items you want to auto buy (Chi-based)",
@@ -1109,6 +1118,7 @@ sections.ZenShop:AddTextbox({
         local value = tonumber(text)
         if value and value > 0 then
             stopAtTValue = value
+            shouldStopRestock = false -- Reset the stop flag when threshold changes
             lib:Notification('Success', 'T threshold set to: ' .. value .. 'T', 3)
         else
             lib:Notification('Warning', 'Invalid T value! Please enter a positive number.', 3)
@@ -1116,43 +1126,69 @@ sections.ZenShop:AddTextbox({
     end
 })
 
-
+-- NEW: Check if T threshold is reached
 local function isAtTThreshold()
     if not tDetectionEnabled then return false end
-
+    
     local currentT = getRestockTValue()
-    return currentT >= stopAtTValue
+    if currentT >= stopAtTValue then
+        if not shouldStopRestock then
+            shouldStopRestock = true -- Mark that threshold has been reached
+            lib:Notification('Warning', 'T threshold reached! Auto restock stopped permanently.', 5)
+        end
+        return true
+    end
+    
+    return false
 end
 
+-- NEW: Smart Restock Function that waits for purchases to complete
 local function restockZenShop()
+    -- Don't restock if T threshold reached permanently
+    if shouldStopRestock then return end
+    
+    -- Don't restock if currently purchasing
+    if isPurchasing then return end
+    
+    -- Don't restock if T threshold reached
     if isAtTThreshold() then return end
+    
     pcall(function()
         restockZenEvent:FireServer()
     end)
 end
 
-
+-- NEW: Smart Auto Restock Toggle
 sections.ZenShop:AddToggle("TDetection", {
     Title = "Auto Restock",
     Default = false,
-    Description = "Stop purchasing when restock cost reaches specified T value",
+    Description = "Smart restock - waits for purchases to complete, stops at T threshold permanently",
     Callback = function(value)
         tDetectionEnabled = value
 
         if value then
-            lib:Notification('Success', 'T detection enabled! Will stop at ' .. stopAtTValue .. 'T', 3)
+            shouldStopRestock = false -- Reset stop flag when enabling
+            lib:Notification('Success', 'Smart Auto Restock enabled! Will stop at ' .. stopAtTValue .. 'T', 3)
 
             task.spawn(function()
                 while tDetectionEnabled do
-                    if not isAtTThreshold() then
+                    -- Only restock if not at threshold and not currently purchasing
+                    if not shouldStopRestock and not isPurchasing and not isAtTThreshold() then
                         restockZenShop()
                     end
-                    task.wait(1) -- jeda antar restock (boleh kamu ubah)
+                    
+                    -- Check if threshold reached and stop permanently
+                    if isAtTThreshold() then
+                        -- Keep the loop running but don't restock
+                        task.wait(5) -- Wait longer when threshold reached
+                    else
+                        task.wait(2) -- Normal wait time
+                    end
                 end
             end)
 
         else
-            lib:Notification('Info', 'T detection disabled!', 3)
+            lib:Notification('Info', 'Smart Auto Restock disabled!', 3)
         end
     end,
 })
